@@ -391,7 +391,12 @@ async function checarSefaz() {
   try { const j = await api('/api/status'); SEFAZ = { online: !!j.ok, certificados: j.certificados || [] }; }
   catch (e) { SEFAZ = { online: false, certificados: [] }; }
   const el = $('infoCert');
-  if (!SEFAZ.online) { el.innerHTML = '<span class="badge b-warn">serviço local desligado</span> feche esta aba e abra o sistema pelo <b>INICIAR.bat</b> (pasta do sistema) — ele abre http://localhost:8788 com a busca no Portal Nacional ativa'; }
+  if (!SEFAZ.online) {
+    const noSite = !/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+    el.innerHTML = noSite
+      ? '<span class="badge b-info">busca automática só na versão local</span> Aqui no site você arrasta os XMLs no Passo 2 (ou um ZIP). Para baixar direto do Portal Nacional com o certificado A1, abra o sistema no computador do escritório pelo <b>INICIAR.bat</b> (http://localhost:8788): é o mesmo login e os mesmos dados da nuvem, então o que for feito lá aparece aqui.'
+      : '<span class="badge b-warn">serviço local desligado</span> feche esta aba e abra o sistema pelo <b>INICIAR.bat</b> (pasta do sistema) — ele abre http://localhost:8788 com a busca no Portal Nacional ativa';
+  }
   else {
     const c = certDaEmpresa();
     if (!E) el.innerHTML = '<span class="badge b-info">serviço ativo</span> selecione a empresa';
