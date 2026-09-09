@@ -69,6 +69,32 @@ os pedidos continuam aparecendo em **Cadastros › Usuários**; só não chega o
   vê que o certificado está no seu login, pede a senha uma vez ("Informar só a senha") e pronto.
 - No site (sem serviço local) dá para enviar o arquivo para o login; a senha é pedida depois, no computador.
 
+## Busca no Portal Nacional direto do site (Cloud Run + API Gateway)
+
+O navegador não consegue usar o certificado A1 para falar com a SEFAZ, então a busca roda em um
+serviço na nuvem com a **mesma API** do INICIAR.bat (`cloud/sefaz/index.js`):
+
+- **Cloud Run function `sefaz`** (região southamerica-east1, Node 22, projeto totali-antecipa, plano Blaze).
+  Exige o token do login em toda chamada (só usuário aprovado), guarda o `.pfx` em
+  `usuarios/{uid}/certificados/{cnpj}` com a **senha cifrada** (AES-256-GCM) pela variável de ambiente
+  `CERT_KEY`, que só existe na configuração da função. Se a chave mudar, as senhas precisam ser reinformadas.
+- **API Gateway `sefaz-gw`** (us-east1) na frente da função, porque a organização do Google Workspace
+  proíbe deixar um Cloud Run público. O gateway é público, chama a função com a conta de serviço
+  `328310373367-compute@developer.gserviceaccount.com` (precisa do papel *Invocador do Cloud Run* no
+  serviço) e repassa o token do usuário em `X-Forwarded-Authorization`. Spec em `cloud/sefaz/gateway.yaml`.
+- O site usa o endereço do gateway em `FIREBASE_CONFIG.sefazBackend` (`js/firebase-config.js`); em
+  localhost continua usando o serviço local. Parâmetros › "servidor" sobrescreve os dois.
+
+Reimplantar a função (Cloud Shell, pasta `~/sefaz` com `index.js` e `package.json` baixados do GitHub):
+
+```
+gcloud run deploy sefaz --source . --function sefaz --base-image nodejs22 --region southamerica-east1 \
+  --no-allow-unauthenticated --memory 512Mi --timeout 300 --set-env-vars CERT_KEY=<a chave> --quiet
+```
+
+Nova versão do gateway (depois de mudar `gateway.yaml`): `gcloud api-gateway api-configs create v2 ...` e
+`gcloud api-gateway gateways update sefaz-gw --api=sefaz-api --api-config=v2 --location=us-east1`.
+
 ## O que fica onde
 
 | Firestore                                   | Conteúdo                                                   |
