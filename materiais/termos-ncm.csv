@@ -1,0 +1,130 @@
+termo;ncm;preparo;ramo;nivel;descricao
+cerveja;2203;N;alimentacao;erro;Cerveja de malte
+cervejas;2203;N;alimentacao;erro;Cerveja de malte
+chopp;2203;N;alimentacao;erro;Chope
+chope;2203;N;alimentacao;erro;Chope
+heineken;2203;N;alimentacao;erro;Cerveja
+amstel;2203;N;alimentacao;erro;Cerveja
+budweiser;2203;N;alimentacao;erro;Cerveja
+brahma;2203;N;alimentacao;erro;Cerveja
+skol;2203;N;alimentacao;erro;Cerveja
+antarctica;2203;N;alimentacao;erro;Cerveja
+stella;2203;N;alimentacao;erro;Cerveja
+itaipava;2203;N;alimentacao;erro;Cerveja
+corona;2203;N;alimentacao;erro;Cerveja
+eisenbahn;2203;N;alimentacao;erro;Cerveja
+spaten;2203;N;alimentacao;erro;Cerveja
+bohemia;2203;N;alimentacao;erro;Cerveja
+devassa;2203;N;alimentacao;erro;Cerveja
+petra;2203;N;alimentacao;erro;Cerveja
+serramalte;2203;N;alimentacao;erro;Cerveja
+original 600;2203;N;alimentacao;erro;Cerveja Original
+long neck;2203;N;alimentacao;atencao;Long neck normalmente e cerveja - confirmar a marca
+vodka;2208;N;alimentacao;erro;Bebida destilada
+vodca;2208;N;alimentacao;erro;Bebida destilada
+absolut;2208;N;alimentacao;erro;Vodca
+smirnoff;2208;N;alimentacao;erro;Vodca
+whisky;2208;N;alimentacao;erro;Uisque
+whiskey;2208;N;alimentacao;erro;Uisque
+uisque;2208;N;alimentacao;erro;Uisque
+chivas;2208;N;alimentacao;erro;Uisque
+jack daniel;2208;N;alimentacao;erro;Uisque
+red label;2208;N;alimentacao;erro;Uisque
+black label;2208;N;alimentacao;erro;Uisque
+old parr;2208;N;alimentacao;erro;Uisque
+cachaca;2208;N;alimentacao;erro;Aguardente de cana
+pinga;2208;N;alimentacao;erro;Aguardente de cana
+pitu;2208;N;alimentacao;erro;Aguardente de cana
+velho barreiro;2208;N;alimentacao;erro;Aguardente de cana
+ypioca;2208;N;alimentacao;erro;Aguardente de cana
+conhaque;2208;N;alimentacao;erro;Conhaque
+licor;2208;N;alimentacao;erro;Licor
+campari;2208;N;alimentacao;erro;Bitter alcoolico
+aperol;2208;N;alimentacao;erro;Bitter alcoolico
+tequila;2208;N;alimentacao;erro;Tequila
+rum;2208;N;alimentacao;erro;Rum
+bacardi;2208;N;alimentacao;erro;Rum
+gin;2208;N;alimentacao;erro;Gin
+tanqueray;2208;N;alimentacao;erro;Gin
+beefeater;2208;N;alimentacao;erro;Gin
+saquê;2208;N;alimentacao;atencao;Bebida fermentada - conferir posicao
+steinhaeger;2208;N;alimentacao;erro;Destilado
+dose;2208;N;alimentacao;erro;Dose de destilado servida no balcao
+ice smirnoff;2208;N;alimentacao;erro;Bebida alcoolica mista
+ice cabare;2208;N;alimentacao;erro;Bebida alcoolica mista
+vinho;2204;N;alimentacao;erro;Vinho de uvas frescas
+espumante;2204;N;alimentacao;erro;Vinho espumante
+prosecco;2204;N;alimentacao;erro;Vinho espumante
+agua mineral;220110;N;alimentacao;erro;Agua mineral
+agua com gas;220110;N;alimentacao;erro;Agua mineral gaseificada
+agua sem gas;220110;N;alimentacao;erro;Agua mineral
+agua tonica;220210;N;alimentacao;erro;Agua tonica
+refrigerante;220210;N;alimentacao;erro;Refrigerante
+coca cola;220210;N;alimentacao;erro;Refrigerante
+coca-cola;220210;N;alimentacao;erro;Refrigerante
+guarana;220210;N;alimentacao;erro;Refrigerante
+fanta;220210;N;alimentacao;erro;Refrigerante
+sprite;220210;N;alimentacao;erro;Refrigerante
+pepsi;220210;N;alimentacao;erro;Refrigerante
+schweppes;220210;N;alimentacao;erro;Refrigerante
+energetico;220299;N;alimentacao;erro;Bebida energetica
+red bull;220299;N;alimentacao;erro;Bebida energetica
+monster;220299;N;alimentacao;erro;Bebida energetica
+baly;220299;N;alimentacao;erro;Bebida energetica
+220 volts;220299;N;alimentacao;erro;Bebida energetica
+milk shake;220299;S;alimentacao;erro;Milk shake - 2202.99.00 ou 2106.90.90
+milkshake;220299;S;alimentacao;erro;Milk shake - 2202.99.00 ou 2106.90.90
+suco;2009;S;alimentacao;erro;Suco preparado no estabelecimento
+sucos;2009;S;alimentacao;erro;Suco preparado no estabelecimento
+polpa;2009;S;alimentacao;erro;Suco de polpa preparado no estabelecimento
+nectar;2009;S;alimentacao;erro;Nectar de fruta
+limonada;2009;S;alimentacao;erro;Suco preparado no estabelecimento
+caipirinha;2208;S;alimentacao;erro;Drink preparado no balcao
+caipiroska;2208;S;alimentacao;erro;Drink preparado no balcao
+caipifruta;2208;S;alimentacao;erro;Drink preparado no balcao
+coquetel;2208;S;alimentacao;erro;Coquetel preparado no balcao
+coqueteis;2208;S;alimentacao;erro;Coquetel preparado no balcao
+drink;2208;S;alimentacao;erro;Drink preparado no balcao
+batida;2208;S;alimentacao;erro;Drink preparado no balcao
+mojito;2208;S;alimentacao;erro;Drink preparado no balcao
+margarita;2208;S;alimentacao;erro;Drink preparado no balcao
+daiquiri;2208;S;alimentacao;erro;Drink preparado no balcao
+pina colada;2208;S;alimentacao;erro;Drink preparado no balcao
+cuba libre;2208;S;alimentacao;erro;Drink preparado no balcao
+sangria;2208;S;alimentacao;erro;Drink preparado no balcao
+espanhola;2208;S;alimentacao;erro;Drink preparado no balcao
+sex on the beach;2208;S;alimentacao;erro;Drink preparado no balcao
+sexy on the beach;2208;S;alimentacao;erro;Drink preparado no balcao
+spritz;2208;S;alimentacao;erro;Drink preparado no balcao
+gin tonica;2208;S;alimentacao;erro;Drink preparado no balcao
+espetinho;21069090;S;alimentacao;erro;Alimento preparado
+espeto;21069090;S;alimentacao;erro;Alimento preparado
+pastel;21069090;S;alimentacao;erro;Alimento preparado
+pasteis;21069090;S;alimentacao;erro;Alimento preparado
+caldinho;21069090;S;alimentacao;erro;Alimento preparado
+batata frita;21069090;S;alimentacao;erro;Alimento preparado
+hamburguer;21069090;S;alimentacao;erro;Alimento preparado
+hamburger;21069090;S;alimentacao;erro;Alimento preparado
+sanduiche;21069090;S;alimentacao;erro;Alimento preparado
+pizza;21069090;S;alimentacao;erro;Alimento preparado
+porcao;21069090;S;alimentacao;erro;Alimento preparado
+petisco;21069090;S;alimentacao;erro;Alimento preparado
+torresmo;21069090;S;alimentacao;erro;Alimento preparado
+calabresa;21069090;S;alimentacao;erro;Alimento preparado
+tapioca;21069090;S;alimentacao;erro;Alimento preparado
+self-service;21069090;S;alimentacao;erro;Refeicao por quilo
+self service;21069090;S;alimentacao;erro;Refeicao por quilo
+rodizio;21069090;S;alimentacao;erro;Refeicao
+combo;21069090;S;alimentacao;erro;Combo de alimentos
+chiclete;170410;N;alimentacao;erro;Goma de mascar
+goma de mascar;170410;N;alimentacao;erro;Goma de mascar
+trident;170410;N;alimentacao;erro;Goma de mascar
+halls;170490;N;alimentacao;erro;Bala / caramelo
+bala;170490;N;alimentacao;atencao;Bala / caramelo - confirmar
+couvert;SERVICO;S;alimentacao;erro;Couvert artistico - prestacao de servico, fora do campo do ICMS
+couvert artistico;SERVICO;S;alimentacao;erro;Couvert artistico - prestacao de servico, fora do campo do ICMS
+taxa de servico;SERVICO;S;alimentacao;erro;Taxa de servico - nao e mercadoria
+gorjeta;SERVICO;S;alimentacao;erro;Gorjeta - nao e mercadoria
+taxa de rolha;SERVICO;S;alimentacao;erro;Servico - nao e mercadoria
+show;SERVICO;S;alimentacao;atencao;Ingresso ou apresentacao - conferir se e servico
+musica ao vivo;SERVICO;S;alimentacao;erro;Servico - nao e mercadoria
