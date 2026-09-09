@@ -1,0 +1,40 @@
+rules_version = '2';
+// Totali Antecipa — regras do Firestore
+// Cole em: Console Firebase › Firestore Database › Regras › Publicar
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function logado() { return request.auth != null; }
+    function meuPerfil() { return get(/databases/$(db)/documents/usuarios/$(request.auth.uid)).data; }
+    function temPerfil() { return exists(/databases/$(db)/documents/usuarios/$(request.auth.uid)); }
+    function aprovado() { return logado() && temPerfil() && meuPerfil().aprovado == true; }
+    function admin() { return logado() && temPerfil() && meuPerfil().admin == true; }
+    // O e-mail da Totali vira administrador sozinho na primeira entrada (depois de verificar o e-mail)
+    function ehEmailTotali() {
+      return logado() && request.auth.token.email == 'contato@totalicontabilidade.com.br' && request.auth.token.email_verified == true;
+    }
+
+    match /usuarios/{uid} {
+      allow get: if logado() && (request.auth.uid == uid || admin());
+      allow list: if admin();
+      allow create: if logado() && request.auth.uid == uid
+        && ((request.resource.data.aprovado == false && request.resource.data.admin == false) || ehEmailTotali());
+      // o próprio usuário só mexe em campos inofensivos (avisoEm, nome); aprovado/admin só o administrador
+      allow update: if admin()
+        || (logado() && request.auth.uid == uid
+            && request.resource.data.aprovado == resource.data.aprovado
+            && request.resource.data.admin == resource.data.admin);
+      allow delete: if admin();
+    }
+
+    // e-mails para a extensão "Trigger Email from Firestore"
+    match /mail/{id} {
+      allow create: if logado();
+      allow read, update, delete: if false;
+    }
+
+    // dados do escritório: só usuários autorizados
+    match /escritorio/{doc=**} {
+      allow read, write: if aprovado();
+    }
+  }
+}
