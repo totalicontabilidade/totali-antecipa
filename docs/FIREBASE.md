@@ -7,65 +7,64 @@ O sistema usa o **Firebase** (Google) para duas coisas:
    apurações (espelho + ajustes) e os XMLs das notas. Tudo compartilhado entre os usuários
    autorizados, de qualquer computador.
 
-Fluxo de acesso: a pessoa clica em **Criar login**, informa nome, e-mail e senha e fica
-**aguardando autorização**. O sistema grava um e-mail para **contato@totalicontabilidade.com.br**
-com um link; alguém da Totali entra como administrador, abre **Cadastros › Usuários** e clica em
-**Autorizar**. O usuário recebe um e-mail avisando que foi liberado.
+Projeto já criado em 09/09/2026: **totali-antecipa** (conta contato@totalicontabilidade.com.br),
+Authentication (e-mail/senha) ativado, domínio `totalicontabilidade.github.io` autorizado, Firestore
+em São Paulo com as regras de `firestore.rules`, app web registrado (config em `js/firebase-config.js`).
 
-Enquanto `js/firebase-config.js` estiver vazio, o sistema roda como antes (sem login, dados só no
-navegador).
+## Como funciona o acesso
 
-## 1. Criar o projeto (uma vez)
+- A pessoa clica em **Criar login**, informa nome, e-mail e senha e fica **aguardando autorização**.
+- O sistema manda um e-mail para **contato@totalicontabilidade.com.br** com dois botões:
+  **✔ Aceitar** e **✖ Recusar**. O botão abre o sistema; se pedir login, entre com um usuário
+  administrador e a ação é concluída na hora. A mesma coisa dá para fazer em **Cadastros › Usuários**
+  (o menu mostra quantos pedidos estão pendentes).
+- Quem é aceito recebe um e-mail "Seu acesso foi liberado" e já pode entrar.
 
-1. Entre em https://console.firebase.google.com com a conta Google da Totali.
-2. **Adicionar projeto** → nome `totali-antecipa` (Analytics pode ficar desligado).
-3. No projeto: **Criação › Authentication › Começar › E-mail/senha → Ativar**.
-   - Em **Authentication › Settings › Domínios autorizados**, adicione `totalicontabilidade.github.io`
-     (o `localhost` já vem liberado, para o INICIAR.bat).
-4. **Criação › Firestore Database › Criar banco de dados** → modo **produção** → local `southamerica-east1 (São Paulo)`.
-5. Em **Firestore › Regras**, cole o conteúdo do arquivo `firestore.rules` deste repositório e clique em **Publicar**.
-6. **Configurações do projeto (engrenagem) › Seus apps › ícone `</>` (Web)** → apelido `Totali Antecipa` →
-   copie o objeto `firebaseConfig` e cole em `js/firebase-config.js` (apiKey, authDomain, projectId,
-   storageBucket, messagingSenderId, appId). Esses valores não são secretos.
-7. Suba o `js/firebase-config.js` para o GitHub (commit). Em 1–2 minutos o site passa a pedir login.
+## Quem é administrador
 
-## 2. Primeiro administrador
+Qualquer login com e-mail **@totalicontabilidade.com.br** vira administrador sozinho, depois de
+clicar no **link de verificação** que o Firebase manda para esse e-mail (proteção para ninguém se
+passar pelo escritório). Fluxo:
 
-1. No site, clique em **Criar login** usando o e-mail **contato@totalicontabilidade.com.br**.
-2. O sistema envia um link de verificação para esse e-mail. Clique no link e volte ao site
-   (**Já cliquei no link**). Esse e-mail entra como **administrador** automaticamente.
-3. A partir daí, quem criar login aparece em **Cadastros › Usuários** para ser autorizado.
-   Ali também dá para tornar outra pessoa administradora.
+1. **Criar login** com o e-mail da Totali (ex.: contato@… ou eduarda@…).
+2. O sistema mostra "Confirme o seu e-mail da Totali" e envia o link. Clique no link (olhe o spam),
+   volte e clique em **Já cliquei no link**.
+3. Pronto: entra como administrador e vê **Cadastros › Usuários**.
 
-Se preferir outro e-mail como primeiro administrador: crie o login normalmente e, no Console
-Firebase › Firestore › coleção `usuarios` › documento do usuário, mude `aprovado` e `admin` para `true`.
+Quem já tinha login do escritório antes dessa regra recebe o link ao entrar; depois de verificar e
+entrar de novo, vira administrador. Administradores também podem promover outros em Cadastros › Usuários.
 
-## 3. E-mail automático de aviso (extensão Trigger Email)
+Alternativa manual: Console Firebase › Firestore › coleção `usuarios` › documento do usuário › mude
+`aprovado` e `admin` para `true`.
 
-O sistema grava os avisos na coleção `mail` do Firestore. Para virarem e-mail de verdade,
-instale a extensão oficial do Firebase:
+## E-mail automático (grátis, pelo Google Apps Script)
 
-1. **Criação › Extensions › Explorar** → **Trigger Email from Firestore** → Instalar.
-   - Exige o plano **Blaze** (pague conforme o uso; com esse volume o custo é zero ou centavos).
-2. Na configuração da extensão:
-   - **SMTP connection URI**: por exemplo, usando o Gmail/Google Workspace do contato:
-     `smtps://contato@totalicontabilidade.com.br:SENHA_DE_APP@smtp.gmail.com:465`
-     (gere uma **senha de app** em Conta Google › Segurança › Verificação em duas etapas › Senhas de app).
-   - **Email documents collection**: `mail`
-   - **Default FROM address**: `Totali Antecipa <contato@totalicontabilidade.com.br>`
-3. Pronto: cada "Criar login" gera um e-mail para contato@ com o link **Autorizar este usuário**, e cada
-   autorização gera um e-mail para o usuário.
+O envio de e-mail não usa o plano pago do Firebase. Ele passa por um pequeno script do Google
+(arquivo `server/email-apps-script.gs`) publicado pela própria conta contato@totalicontabilidade.com.br,
+que manda o e-mail com o Gmail dessa conta.
 
-Sem a extensão instalada, os pedidos ficam guardados na coleção `mail` e os pendentes continuam
-aparecendo em **Cadastros › Usuários** — só não chega o e-mail. A tela de "aguardando" também tem um
-link "escrever para a Totali" que abre o e-mail do próprio usuário já preenchido.
+1. Entre em https://script.google.com com a conta **contato@totalicontabilidade.com.br**.
+2. **Novo projeto** → apague o conteúdo e cole o arquivo `server/email-apps-script.gs`. Dê um nome (Totali Antecipa e-mail).
+3. **Implantar › Nova implantação** → tipo **App da Web** → *Executar como:* **Eu** → *Quem pode acessar:*
+   **Qualquer pessoa** → Implantar → autorize as permissões (enviar e-mail como você).
+4. Copie a **URL do app da Web** (termina em `/exec`) e cole em `emailWebhook` no `js/firebase-config.js`.
+   O `emailSegredo` do config precisa ser igual ao `SEGREDO` do script.
+5. Suba o `js/firebase-config.js` para o GitHub. A partir daí os avisos chegam por e-mail.
 
-## 4. O que fica onde
+Limite do Gmail comum: cerca de 100 e-mails por dia — mais que suficiente.
+
+Enquanto o webhook não estiver configurado, os avisos ficam guardados na coleção `mail` do Firestore e
+os pedidos continuam aparecendo em **Cadastros › Usuários**; só não chega o e-mail. A tela de
+"aguardando" tem o link "escrever para a Totali", que abre o e-mail do próprio usuário já preenchido.
+
+(Alternativa paga: extensão **Trigger Email from Firestore**, que lê a mesma coleção `mail`, mas exige o plano Blaze.)
+
+## O que fica onde
 
 | Firestore                                   | Conteúdo                                                   |
 |---------------------------------------------|------------------------------------------------------------|
 | `usuarios/{uid}`                            | e-mail, nome, `aprovado`, `admin`, datas                    |
-| `mail/{id}`                                 | e-mails a enviar (extensão Trigger Email)                   |
+| `mail/{id}`                                 | registro dos e-mails enviados                               |
 | `escritorio/empresas`                       | lista de empresas (regime, perfil, CNAEs…)                  |
 | `escritorio/regras`                         | regras NCM/MVA do escritório                                |
 | `escritorio/params`                         | parâmetros do motor                                         |
@@ -79,7 +78,14 @@ link "escrever para a Totali" que abre o e-mail do próprio usuário já preench
 - Empresas, regras e parâmetros alterados por outro usuário aparecem na hora (tempo real).
 - **Sair** limpa os dados do navegador (segurança em computador compartilhado).
 
-## 5. Segurança
+## Se precisar recriar do zero
+
+1. https://console.firebase.google.com › Adicionar projeto (Analytics desligado).
+2. Authentication › Começar › E-mail/senha → Ativar; Settings › Domínios autorizados → `totalicontabilidade.github.io`.
+3. Firestore Database › Criar (produção, southamerica-east1) › Regras → colar `firestore.rules` → Publicar.
+4. Configurações do projeto › Seus apps › Web → copiar `firebaseConfig` para `js/firebase-config.js`.
+
+## Segurança
 
 - Certificado A1 e XMLs continuam **fora** do GitHub. O certificado só existe na máquina que roda o INICIAR.bat.
 - O `firebaseConfig` é público por natureza; a proteção está nas regras (`firestore.rules`) e no login.
