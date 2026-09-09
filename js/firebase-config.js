@@ -13,4 +13,7 @@ window.FIREBASE_CONFIG = {
   // projeto "Totali Antecipa e-mail" publicado pela conta contato@totalicontabilidade.com.br em 09/09/2026.
   emailWebhook: 'https://script.google.com/macros/s/AKfycbwGAgAr3YvknnElRshKEBsWmC4M-uJhLM3sEcgWesd5hNUkDbpSBncqYufR-DdAmMHY/exec',
   emailSegredo: 'totali-antecipa-2026',   // tem que ser igual ao SEGREDO do script
+
+  // Busca no Portal Nacional pela nuvem: URL da Cloud Run function "sefaz" (cloud/sefaz). Vazio = só pelo INICIAR.bat.
+  sefazBackend: '',
 };
