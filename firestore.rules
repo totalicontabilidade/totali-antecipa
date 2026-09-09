@@ -8,9 +8,13 @@ service cloud.firestore {
     function temPerfil() { return exists(/databases/$(db)/documents/usuarios/$(request.auth.uid)); }
     function aprovado() { return logado() && temPerfil() && meuPerfil().aprovado == true; }
     function admin() { return logado() && temPerfil() && meuPerfil().admin == true; }
-    // O e-mail da Totali vira administrador sozinho na primeira entrada (depois de verificar o e-mail)
+    // E-mails do escritório (@totalicontabilidade.com.br) viram administradores sozinhos,
+    // desde que o e-mail tenha sido verificado (link enviado pelo Firebase)
     function ehEmailTotali() {
-      return logado() && request.auth.token.email == 'contato@totalicontabilidade.com.br' && request.auth.token.email_verified == true;
+      return logado()
+        && request.auth.token.email is string
+        && request.auth.token.email.lower().matches('.*@totalicontabilidade[.]com[.]br')
+        && request.auth.token.email_verified == true;
     }
 
     match /usuarios/{uid} {
@@ -19,14 +23,16 @@ service cloud.firestore {
       allow create: if logado() && request.auth.uid == uid
         && ((request.resource.data.aprovado == false && request.resource.data.admin == false) || ehEmailTotali());
       // o próprio usuário só mexe em campos inofensivos (avisoEm, nome); aprovado/admin só o administrador
+      // ou o próprio, quando for e-mail verificado da Totali (promoção automática)
       allow update: if admin()
+        || (logado() && request.auth.uid == uid && ehEmailTotali())
         || (logado() && request.auth.uid == uid
             && request.resource.data.aprovado == resource.data.aprovado
             && request.resource.data.admin == resource.data.admin);
       allow delete: if admin();
     }
 
-    // e-mails para a extensão "Trigger Email from Firestore"
+    // e-mails: registro dos avisos (e fila da extensão "Trigger Email", se instalada)
     match /mail/{id} {
       allow create: if logado();
       allow read, update, delete: if false;
