@@ -59,6 +59,16 @@ os pedidos continuam aparecendo em **Cadastros › Usuários**; só não chega o
 
 (Alternativa paga: extensão **Trigger Email from Firestore**, que lê a mesma coleção `mail`, mas exige o plano Blaze.)
 
+## Certificado A1 guardado no login (v1.5.0)
+
+- Ao enviar um certificado (tela **Certificado A1**), com "guardar o arquivo no meu login" marcado, o arquivo `.pfx`
+  vai para `usuarios/{uid}/certificados/{cnpj}` no Firestore. Só o próprio usuário lê (nem administradores).
+- A **senha não vai para a nuvem**: o `.pfx` já é protegido pela própria senha, e ela fica só no computador,
+  protegida pelo Windows (DPAPI) pelo serviço local.
+- Em outro computador, abra pelo INICIAR.bat, entre com o seu login e clique em **Buscar pendentes**: o sistema
+  vê que o certificado está no seu login, pede a senha uma vez ("Informar só a senha") e pronto.
+- No site (sem serviço local) dá para enviar o arquivo para o login; a senha é pedida depois, no computador.
+
 ## O que fica onde
 
 | Firestore                                   | Conteúdo                                                   |
