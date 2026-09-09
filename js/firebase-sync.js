@@ -402,6 +402,6 @@ const FB = (() => {
     const _showView = showView; showView = function (v) { _showView(v); if (v === 'usuarios') renderUsuarios(); };
     const bu = $('btnViewUsuarios'); if (bu) bu.onclick = () => showView('usuarios');
   }
-  return { ATIVO, ADMIN_EMAIL, iniciar, renderUsuarios, get usuario() { return user; }, get perfil() { return perfil; } };
+  return { ATIVO, ADMIN_EMAIL, iniciar, renderUsuarios, get usuario() { return user; }, get perfil() { return perfil; }, get db() { return db; }, get pronto() { return pronto; } };
 })();
 FB.iniciar();
