@@ -414,7 +414,7 @@
 <!-- ============ MODAL: certificado A1 ============ -->
 <div class="modal-backdrop" id="modal-cert" onclick="if(event.target===this)closeModal('modal-cert')">
   <div class="modal narrow">
-    <div class="modal-hdr"><div><h2>Certificado digital A1</h2><div class="sub2">Usado para baixar os XMLs no Portal Nacional da NF-e (nfe.fazenda.gov.br) pelo serviço Distribuição DF-e. Fica só no seu computador.</div></div><button class="modal-close" onclick="closeModal('modal-cert')">&times;</button></div>
+    <div class="modal-hdr"><div><h2>Certificado digital A1</h2><div class="sub2">Usado para baixar os XMLs no Portal Nacional da NF-e (nfe.fazenda.gov.br) pelo serviço Distribuição DF-e. O arquivo fica guardado no seu login (só você acessa); a senha fica só no computador, protegida pelo Windows.</div></div><button class="modal-close" onclick="closeModal('modal-cert')">&times;</button></div>
     <div class="modal-body">
       <div id="certStatus" class="alert baixo" style="margin-bottom:12px"></div>
       <div class="grid g2">
@@ -423,10 +423,11 @@
       </div>
       <div class="grid g2">
         <div class="field"><label class="fi-label">Senha do certificado</label><input class="fi" type="password" id="cSenha" autocomplete="off"></div>
-        <div class="field"><label class="fi-label">&nbsp;</label><label class="small"><input type="checkbox" id="cLembrar" checked> lembrar a senha neste computador (protegida pelo Windows)</label></div>
+        <div class="field"><label class="fi-label">&nbsp;</label><label class="small"><input type="checkbox" id="cLembrar" checked> lembrar a senha neste computador (protegida pelo Windows)</label><br><label class="small"><input type="checkbox" id="cGuardarLogin" checked> guardar o arquivo no meu login (usar em qualquer computador)</label></div>
       </div>
       <div class="hint">O certificado precisa ser do <b>CNPJ destinatário</b> das notas (o e-CNPJ do cliente). A SEFAZ só entrega o XML ao próprio interessado. Se a nota ainda estiver só como resumo, o sistema registra a <b>ciência da operação</b> e busca de novo.</div>
       <div id="certLista" style="margin-top:12px"></div>
+      <div id="certLogin"></div>
     </div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal('modal-cert')">Fechar</button><button class="btn soft" id="btnSoSenha" title="Só informar a senha de um certificado já enviado">Informar só a senha</button><button class="btn" id="btnSalvarCert">Enviar certificado</button></div>
   </div>
@@ -460,5 +461,6 @@
 <script src="js/app-regime.js"></script>
 <script src="js/app-materiais.js"></script>
 <script src="js/firebase-sync.js"></script>
+<script src="js/firebase-certs.js"></script>
 </body>
 </html>

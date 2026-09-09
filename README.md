@@ -109,10 +109,10 @@ Sistema: ICMS 5.490,02 e FECOEP 549,75; mapa do escritório: 5.482,84 e 549,63. 
 
 ## Publicar como site (GitHub Pages)
 
-Publicado em **https://totalicontabilidade.github.io/dia-certo/** (repositório github.com/totalicontabilidade/dia-certo). O repositório git local usa `.gitignore` que exclui `exemplos/` (XMLs de clientes), `server/certs/` e o relatório do Fiscal Certo. Para publicar:
+Publicado em **https://totalicontabilidade.github.io/totali-antecipa/** (repositório github.com/totalicontabilidade/totali-antecipa; o nome antigo `dia-certo` redireciona). O repositório git local usa `.gitignore` que exclui `exemplos/` (XMLs de clientes), `server/certs/` e o relatório do Fiscal Certo. Para publicar:
 
 ```bash
-git remote add origin https://github.com/totalicontabilidade/dia-certo.git
+git remote add origin https://github.com/totalicontabilidade/totali-antecipa.git
 git push -u origin main
 ```
 

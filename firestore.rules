@@ -30,6 +30,11 @@ service cloud.firestore {
             && request.resource.data.aprovado == resource.data.aprovado
             && request.resource.data.admin == resource.data.admin);
       allow delete: if admin();
+
+      // certificados A1 guardados no login: só o próprio dono (nem administradores)
+      match /certificados/{cnpj} {
+        allow read, write: if logado() && request.auth.uid == uid;
+      }
     }
 
     // e-mails: registro dos avisos (e fila da extensão "Trigger Email", se instalada)
