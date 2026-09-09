@@ -8,4 +8,9 @@ window.FIREBASE_CONFIG = {
   storageBucket: 'totali-antecipa.firebasestorage.app',
   messagingSenderId: '328310373367',
   appId: '1:328310373367:web:0e93cb7a22bf21debf4cf2',
+
+  // Envio de e-mail sem plano pago: URL do app da Web do Google Apps Script (server/email-apps-script.gs)
+  // publicado pela conta contato@totalicontabilidade.com.br. Vazio = só grava na coleção "mail".
+  emailWebhook: '',
+  emailSegredo: 'totali-antecipa-2026',   // tem que ser igual ao SEGREDO do script
 };

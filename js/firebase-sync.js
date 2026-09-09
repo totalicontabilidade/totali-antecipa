@@ -4,14 +4,16 @@
    - Dados do escritório no Firestore, compartilhados entre os usuários
      autorizados: empresas, regras, parâmetros, apurações e XMLs
    - Novo usuário: "Criar login" → fica AGUARDANDO AUTORIZAÇÃO; o sistema
-     grava um e-mail (coleção "mail", extensão Trigger Email do Firebase)
-     para contato@totalicontabilidade.com.br e um administrador libera em
-     Cadastros › Usuários (ou pelo link do e-mail).
+     manda um e-mail para contato@totalicontabilidade.com.br com os botões
+     ACEITAR / RECUSAR (Apps Script da Totali ou extensão Trigger Email) e
+     um administrador libera pelo botão ou em Cadastros › Usuários.
+   - E-mails @totalicontabilidade.com.br viram administradores sozinhos
+     depois de verificar o e-mail.
    - Sem FIREBASE_CONFIG preenchido o sistema roda só no navegador.
 
    Estrutura no Firestore
      usuarios/{uid}                     {email, nome, aprovado, admin, criadoEm, aprovadoEm, aprovadoPor}
-     mail/{auto}                        e-mails para a extensão Trigger Email
+     mail/{auto}                        e-mails (extensão Trigger Email, se instalada)
      escritorio/empresas                {lista:[...]}
      escritorio/regras                  {lista:[...]}
      escritorio/params                  {...}
@@ -22,6 +24,8 @@ const FB = (() => {
   const cfg = window.FIREBASE_CONFIG || {};
   const ATIVO = !!(cfg.apiKey && cfg.projectId && typeof firebase !== 'undefined');
   const ADMIN_EMAIL = 'contato@totalicontabilidade.com.br';
+  const DOMINIO_TOTALI = '@totalicontabilidade.com.br';          // e-mails do escritório viram administradores (depois de verificar o e-mail)
+  const ehTotali = email => String(email || '').toLowerCase().endsWith(DOMINIO_TOTALI);
   const APP_NOME = 'Totali Antecipa';
   let auth = null, db = null, user = null, perfil = null, pronto = false;
   const snap = { empresas: '', regras: '', params: '', apur: {}, xmls: {} };   // último estado gravado na nuvem (JSON)
@@ -56,6 +60,7 @@ const FB = (() => {
   .fb-user .dot { width: 8px; height: 8px; border-radius: 50%; background: #9CA3AF; display: inline-block; }
   .fb-user .dot.ok { background: #34D399; } .fb-user .dot.busy { background: var(--amarelo); } .fb-user .dot.err { background: #F87171; }
   .fb-user button { background: transparent; border: 1px solid rgba(255,255,255,.35); color: #fff; border-radius: 7px; padding: 4px 9px; font-size: 11.5px; cursor: pointer; }
+  .side button .pend { background: var(--amarelo); color: var(--navy); border-radius: 10px; padding: 0 7px; font-size: 11px; font-weight: 800; margin-left: 6px; }
 </style>
 <div id="fbGate">
   <div class="fb-card">
@@ -83,7 +88,7 @@ const FB = (() => {
         ${aba === 'criar' ? '<div class="field"><label class="fi-label" for="fbNome">Seu nome</label><input class="fi" id="fbNome" autocomplete="name" required placeholder="Nome e sobrenome"></div>' : ''}
         <div class="field"><label class="fi-label" for="fbEmail">E-mail</label><input class="fi" id="fbEmail" type="email" autocomplete="username" required placeholder="voce@empresa.com.br"></div>
         <div class="field"><label class="fi-label" for="fbSenha">Senha</label><input class="fi" id="fbSenha" type="password" autocomplete="${aba === 'criar' ? 'new-password' : 'current-password'}" required minlength="6" placeholder="${aba === 'criar' ? 'mínimo 6 caracteres' : ''}"></div>
-        ${aba === 'criar' ? '<div class="hint" style="margin:-6px 0 12px">Depois de criar o login, a Totali recebe um aviso em <b>' + ADMIN_EMAIL + '</b> e libera o seu acesso. Você será avisado por e-mail.</div>' : ''}
+        ${aba === 'criar' ? '<div class="hint" style="margin:-6px 0 12px">Depois de criar o login, a Totali recebe um aviso em <b>' + ADMIN_EMAIL + '</b> com os botões Aceitar / Recusar e libera o seu acesso. Você será avisado por e-mail.</div>' : ''}
         <button class="btn gold" type="submit" id="fbOk">${aba === 'criar' ? 'Criar login' : 'Entrar'}</button>
         <div class="alert fb-msg" id="fbMsg" style="display:none"></div>
       </form>
@@ -114,7 +119,7 @@ const FB = (() => {
     corpo(`
       <h3 style="margin-bottom:6px">Cadastro recebido ✅</h3>
       <p style="margin:0 0 10px">Olá, <b>${esc(p.nome || user.email)}</b>. Seu login foi criado, mas o acesso ao sistema ainda precisa ser <b>autorizado pela Totali</b>.</p>
-      <div class="alert baixo">Avisamos <b>${ADMIN_EMAIL}</b> ${p.avisoEm ? 'em ' + new Date(p.avisoEm).toLocaleString('pt-BR') : 'agora'}. Assim que alguém do escritório autorizar, você recebe um e-mail e é só entrar de novo.</div>
+      <div class="alert baixo">Avisamos <b>${ADMIN_EMAIL}</b> ${p.avisoEm ? 'em ' + new Date(p.avisoEm).toLocaleString('pt-BR') : 'agora'}. Assim que alguém do escritório clicar em <b>Aceitar</b>, você recebe um e-mail e é só entrar de novo.</div>
       <div class="row" style="margin-top:14px">
         <button class="btn ghost" id="fbReenviar" style="flex:1">Reenviar aviso</button>
         <button class="btn soft" id="fbRecarregar" style="flex:1">Já fui autorizado</button>
@@ -128,50 +133,89 @@ const FB = (() => {
 
   function telaVerificarEmail() {
     corpo(`
-      <h3 style="margin-bottom:6px">Confirme o e-mail da Totali</h3>
-      <p style="margin:0 0 10px">O e-mail <b>${esc(user.email)}</b> é o administrador do sistema. Por segurança, clique no link de verificação que enviamos para ele e depois volte aqui.</p>
+      <h3 style="margin-bottom:6px">Confirme o seu e-mail da Totali</h3>
+      <p style="margin:0 0 10px">O e-mail <b>${esc(user.email)}</b> é do escritório, então ele entra como <b>administrador</b>. Por segurança, clique no link de verificação que enviamos para ele e depois volte aqui.</p>
       <div class="row"><button class="btn ghost" id="fbReenviarVer" style="flex:1">Reenviar link</button><button class="btn gold" id="fbJaVerifiquei" style="flex:1">Já cliquei no link</button></div>
       <div class="hint" style="margin-top:10px;text-align:center"><a id="fbSair">Sair</a></div>
       <div class="alert fb-msg" id="fbMsg" style="display:none"></div>`);
-    $('fbReenviarVer').onclick = async () => { try { await user.sendEmailVerification(); msg('Link reenviado.', 'baixo'); } catch (e) { msg(erroTxt(e), 'alto'); } };
+    $('fbReenviarVer').onclick = async () => { try { await user.sendEmailVerification(); msg('Link reenviado. Olhe também a caixa de spam.', 'baixo'); } catch (e) { msg(erroTxt(e), 'alto'); } };
     $('fbJaVerifiquei').onclick = async () => { await user.reload(); user = auth.currentUser; entrar(user); };
     $('fbSair').onclick = () => auth.signOut();
   }
 
   // ------------------------------------------------------------- usuários
   async function criarPerfil(u, nome) {
-    const ehAdmin = (u.email || '').toLowerCase() === ADMIN_EMAIL;
+    const ehAdmin = ehTotali(u.email);
     if (ehAdmin && !u.emailVerified) { try { await u.sendEmailVerification(); } catch (e) { console.warn(e); } return; } // perfil é criado depois da verificação
     const p = { email: (u.email || '').toLowerCase(), nome: nome || u.displayName || '', aprovado: ehAdmin, admin: ehAdmin, criadoEm: agora() };
     await docUser(u.uid).set(p);
     if (!ehAdmin) await avisarNovoUsuario({ ...p, uid: u.uid }, false);
   }
   function linkApp() { return location.origin + location.pathname; }
+
+  // Envio de e-mail: (1) Apps Script da Totali (grátis, sem plano Blaze) se FIREBASE_CONFIG.emailWebhook estiver preenchido;
+  // (2) sempre grava na coleção "mail" (extensão Trigger Email, se instalada; também serve de registro).
+  async function enviarEmail(m) {
+    const doc = { to: m.to, message: { subject: m.subject, text: m.text, html: m.html }, tipo: m.tipo || '', uid: m.uid || '', criadoEm: agora(), via: cfg.emailWebhook ? 'apps-script' : 'mail' };
+    if (cfg.emailWebhook) {
+      try {
+        await fetch(cfg.emailWebhook, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ segredo: cfg.emailSegredo || '', to: m.to, subject: m.subject, text: m.text, html: m.html }) });
+      } catch (e) { console.warn('webhook de e-mail', e); doc.via = 'mail (webhook falhou: ' + e.message + ')'; }
+    }
+    await db.collection('mail').add(doc);
+  }
+  const botao = (href, texto, cor) => `<a href="${href}" style="display:inline-block;padding:12px 26px;margin:6px 8px 6px 0;background:${cor};color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-family:Arial,sans-serif;font-size:15px">${texto}</a>`;
   async function avisarNovoUsuario(p, reenvio) {
-    const link = linkApp() + '?autorizar=' + user.uid;
-    await db.collection('mail').add({
-      to: [ADMIN_EMAIL],
-      message: {
-        subject: (reenvio ? '[Lembrete] ' : '') + 'Novo usuário aguardando autorização — ' + APP_NOME,
-        text: `${p.nome || ''} (${p.email}) criou um login no ${APP_NOME} e aguarda autorização.\n\nPara liberar: entre no sistema como administrador e abra Cadastros › Usuários, ou use o link:\n${link}\n\nEnviado automaticamente pelo ${APP_NOME}.`,
-        html: `<p><b>${esc(p.nome || '')}</b> (${esc(p.email)}) criou um login no <b>${APP_NOME}</b> e aguarda autorização.</p><p><a href="${link}">Autorizar este usuário</a> (entre como administrador; a tela Cadastros › Usuários abre com ele selecionado).</p><p style="color:#888;font-size:12px">Enviado automaticamente pelo ${APP_NOME}.</p>`,
-      },
-      tipo: 'novo_usuario', uid: user.uid, criadoEm: agora(),
+    const base = linkApp() + '?autorizar=' + user.uid;
+    const linkOk = base + '&acao=aceitar', linkNo = base + '&acao=recusar';
+    await enviarEmail({
+      to: [ADMIN_EMAIL], tipo: 'novo_usuario', uid: user.uid,
+      subject: (reenvio ? '[Lembrete] ' : '') + 'Novo usuário aguardando autorização — ' + APP_NOME + ': ' + (p.nome || p.email),
+      text: `${p.nome || ''} (${p.email}) criou um login no ${APP_NOME} e aguarda autorização.\n\nACEITAR: ${linkOk}\nRECUSAR: ${linkNo}\n\n(Você precisa estar entrado no sistema com um usuário administrador. Também dá para liberar em Cadastros › Usuários.)\n\nEnviado automaticamente pelo ${APP_NOME}.`,
+      html: `<div style="font-family:Arial,sans-serif;font-size:15px;color:#1A1816;max-width:560px">
+        <div style="background:#182C43;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;font-weight:bold">${APP_NOME} · Totali Contabilidade</div>
+        <div style="border:1px solid #E5E7EB;border-top:0;padding:18px;border-radius:0 0 10px 10px">
+          <p style="margin:0 0 12px"><b>${esc(p.nome || '')}</b> (${esc(p.email)}) criou um login no ${APP_NOME} e está aguardando autorização.</p>
+          <p style="margin:0 0 6px">${botao(linkOk, '✔ Aceitar', '#1E8E5A')}${botao(linkNo, '✖ Recusar', '#C0392B')}</p>
+          <p style="margin:12px 0 0;font-size:12.5px;color:#6B7280">O botão abre o sistema; se pedir login, entre com o seu usuário administrador e a ação é concluída. Também dá para liberar em <b>Cadastros › Usuários</b>.</p>
+        </div>
+        <p style="color:#888;font-size:12px">Enviado automaticamente pelo ${APP_NOME} em ${new Date().toLocaleString('pt-BR')}.</p></div>`,
     });
     await docUser(user.uid).set({ avisoEm: agora() }, { merge: true });
     if (perfil) perfil.avisoEm = agora();
   }
   async function avisarLiberado(p) {
     try {
-      await db.collection('mail').add({ to: [p.email], message: { subject: 'Seu acesso ao ' + APP_NOME + ' foi liberado', text: `Olá ${p.nome || ''},\n\nseu acesso ao ${APP_NOME} (Totali Contabilidade) foi autorizado. Entre em ${linkApp()} com o seu e-mail e senha.\n\nTotali Contabilidade`, html: `<p>Olá ${esc(p.nome || '')},</p><p>seu acesso ao <b>${APP_NOME}</b> (Totali Contabilidade) foi autorizado. Entre em <a href="${linkApp()}">${linkApp()}</a> com o seu e-mail e senha.</p><p>Totali Contabilidade</p>` }, tipo: 'liberado', uid: p.uid, criadoEm: agora() });
+      await enviarEmail({ to: [p.email], tipo: 'liberado', uid: p.uid, subject: 'Seu acesso ao ' + APP_NOME + ' foi liberado', text: `Olá ${p.nome || ''},\n\nseu acesso ao ${APP_NOME} (Totali Contabilidade) foi autorizado. Entre em ${linkApp()} com o seu e-mail e senha.\n\nTotali Contabilidade`, html: `<div style="font-family:Arial,sans-serif;font-size:15px"><p>Olá ${esc(p.nome || '')},</p><p>seu acesso ao <b>${APP_NOME}</b> (Totali Contabilidade) foi autorizado.</p><p>${botao(linkApp(), 'Entrar no sistema', '#182C43')}</p><p>Totali Contabilidade</p></div>` });
     } catch (e) { console.warn('e-mail de liberação', e); }
   }
   async function listarUsuarios() { const q = await db.collection('usuarios').orderBy('criadoEm', 'desc').get(); return q.docs.map(d => ({ uid: d.id, ...d.data() })); }
   async function autorizar(uid, ok) {
     await docUser(uid).set(ok ? { aprovado: true, aprovadoEm: agora(), aprovadoPor: user.email } : { aprovado: false, bloqueadoEm: agora(), bloqueadoPor: user.email }, { merge: true });
     if (ok) { const d = await docUser(uid).get(); avisarLiberado({ uid, ...d.data() }); }
+    atualizarPendentes();
   }
   async function tornarAdmin(uid, ok) { await docUser(uid).set({ admin: !!ok, ...(ok ? { aprovado: true } : {}) }, { merge: true }); }
+  async function atualizarPendentes() {
+    const b = $('btnViewUsuarios'); if (!b || !perfil || !perfil.admin) return;
+    try { const q = await db.collection('usuarios').where('aprovado', '==', false).get(); const n = q.size; const s = b.querySelector('.pend'); if (s) s.remove(); if (n) b.insertAdjacentHTML('beforeend', '<span class="pend">' + n + '</span>'); } catch (e) { console.warn(e); }
+  }
+
+  // Link do e-mail (?autorizar=UID&acao=aceitar|recusar) — só administradores
+  async function tratarLinkAutorizacao(uid, acao) {
+    try {
+      const d = await docUser(uid).get();
+      if (!d.exists) { showToast('Este pedido não existe mais (já foi recusado ou apagado).', 'error'); showView('usuarios'); return; }
+      const p = d.data(); const quem = (p.nome || '') + ' (' + p.email + ')';
+      if (acao === 'aceitar') {
+        if (p.aprovado) showToast(quem + ' já estava autorizado.', '');
+        else if (confirm('Aceitar o acesso de ' + quem + ' ao ' + APP_NOME + '?')) { await autorizar(uid, true); showToast('Acesso de ' + quem + ' liberado — ele(a) recebe um e-mail avisando.', 'success'); }
+      } else if (acao === 'recusar') {
+        if (confirm('Recusar o pedido de ' + quem + '? O login continua existindo no Firebase, mas sem acesso ao sistema.')) { await docUser(uid).delete(); showToast('Pedido de ' + quem + ' recusado.', ''); atualizarPendentes(); }
+      }
+      showView('usuarios'); renderUsuarios(uid);
+    } catch (e) { showToast(erroTxt(e), 'error'); }
+  }
 
   // Tela Cadastros › Usuários (só administradores)
   async function renderUsuarios(destaque) {
@@ -180,12 +224,12 @@ const FB = (() => {
     try {
       const lista = await listarUsuarios();
       const pend = lista.filter(u => !u.aprovado), ativos = lista.filter(u => u.aprovado);
-      const linha = u => `<tr ${u.uid === destaque ? 'style="background:var(--areia)"' : ''}><td><b>${esc(u.nome || '—')}</b>${u.admin ? ' <span class="badge b-gold">admin</span>' : ''}</td><td class="mono">${esc(u.email)}</td><td class="small">${u.criadoEm ? new Date(u.criadoEm).toLocaleString('pt-BR') : ''}</td><td>${u.aprovado ? '<span class="badge b-ok">autorizado</span><div class="small muted">' + esc(u.aprovadoPor || '') + '</div>' : '<span class="badge b-warn">aguardando</span>'}</td><td style="white-space:nowrap">${u.aprovado ? (u.uid !== user.uid ? `<button class="btn sm danger" data-bloq="${u.uid}">Bloquear</button> <button class="btn sm soft" data-adm="${u.uid}" data-v="${u.admin ? 0 : 1}">${u.admin ? 'Tirar admin' : 'Tornar admin'}</button>` : '<span class="small muted">você</span>') : `<button class="btn sm gold" data-aut="${u.uid}">Autorizar</button> <button class="btn sm danger" data-rmu="${u.uid}">Recusar</button>`}</td></tr>`;
-      el.innerHTML = `<div class="alert ${pend.length ? 'medio' : 'baixo'}" style="margin-bottom:10px">${pend.length ? pend.length + ' usuário(s) aguardando autorização.' : 'Nenhum pedido pendente.'} Os avisos chegam em <b>${ADMIN_EMAIL}</b>.</div>
+      const linha = u => `<tr ${u.uid === destaque ? 'style="background:var(--areia)"' : ''}><td><b>${esc(u.nome || '—')}</b>${u.admin ? ' <span class="badge b-gold">admin</span>' : ''}</td><td class="mono">${esc(u.email)}</td><td class="small">${u.criadoEm ? new Date(u.criadoEm).toLocaleString('pt-BR') : ''}</td><td>${u.aprovado ? '<span class="badge b-ok">autorizado</span><div class="small muted">' + esc(u.aprovadoPor || '') + '</div>' : '<span class="badge b-warn">aguardando</span>'}</td><td style="white-space:nowrap">${u.aprovado ? (u.uid !== user.uid ? `<button class="btn sm danger" data-bloq="${u.uid}">Bloquear</button> <button class="btn sm soft" data-adm="${u.uid}" data-v="${u.admin ? 0 : 1}">${u.admin ? 'Tirar admin' : 'Tornar admin'}</button>` : '<span class="small muted">você</span>') : `<button class="btn sm gold" data-aut="${u.uid}">✔ Aceitar</button> <button class="btn sm danger" data-rmu="${u.uid}">✖ Recusar</button>`}</td></tr>`;
+      el.innerHTML = `<div class="alert ${pend.length ? 'medio' : 'baixo'}" style="margin-bottom:10px">${pend.length ? pend.length + ' usuário(s) aguardando autorização.' : 'Nenhum pedido pendente.'} Os avisos chegam em <b>${ADMIN_EMAIL}</b> com os botões Aceitar / Recusar${cfg.emailWebhook ? '' : ' <span class="muted">(envio automático de e-mail ainda não configurado — veja docs/FIREBASE.md)</span>'}.</div>
         <div class="tblwrap"><table class="tbl compact"><thead><tr><th>Nome</th><th>E-mail</th><th>Criado em</th><th>Situação</th><th></th></tr></thead><tbody>${pend.concat(ativos).map(linha).join('') || '<tr><td colspan="5" class="empty">Nenhum usuário.</td></tr>'}</tbody></table></div>`;
       el.querySelectorAll('[data-aut]').forEach(b => b.onclick = async () => { b.disabled = true; try { await autorizar(b.dataset.aut, true); showToast('Usuário autorizado — ele recebe um e-mail avisando.', 'success'); } catch (e) { showToast(erroTxt(e), 'error'); } renderUsuarios(); });
       el.querySelectorAll('[data-bloq]').forEach(b => b.onclick = async () => { if (!confirm('Bloquear o acesso deste usuário?')) return; try { await autorizar(b.dataset.bloq, false); } catch (e) { showToast(erroTxt(e), 'error'); } renderUsuarios(); });
-      el.querySelectorAll('[data-rmu]').forEach(b => b.onclick = async () => { if (!confirm('Recusar e apagar este pedido? (o login continua existindo no Firebase, mas sem acesso)')) return; try { await docUser(b.dataset.rmu).delete(); } catch (e) { showToast(erroTxt(e), 'error'); } renderUsuarios(); });
+      el.querySelectorAll('[data-rmu]').forEach(b => b.onclick = async () => { if (!confirm('Recusar e apagar este pedido? (o login continua existindo no Firebase, mas sem acesso)')) return; try { await docUser(b.dataset.rmu).delete(); atualizarPendentes(); } catch (e) { showToast(erroTxt(e), 'error'); } renderUsuarios(); });
       el.querySelectorAll('[data-adm]').forEach(b => b.onclick = async () => { try { await tornarAdmin(b.dataset.adm, b.dataset.v === '1'); } catch (e) { showToast(erroTxt(e), 'error'); } renderUsuarios(); });
     } catch (e) { el.innerHTML = '<div class="alert alto">' + esc(erroTxt(e)) + '</div>'; }
   }
@@ -308,10 +352,16 @@ const FB = (() => {
     try {
       const d = await docUser(u.uid).get();
       if (!d.exists) {
-        if ((u.email || '').toLowerCase() === ADMIN_EMAIL && !u.emailVerified) { telaVerificarEmail(); return; }
+        if (ehTotali(u.email) && !u.emailVerified) { telaVerificarEmail(); return; }
         await criarPerfil(u, u.displayName || ''); return entrar(u);
       }
       perfil = { uid: u.uid, ...d.data() };
+      // e-mail do escritório que ainda não é administrador: promove sozinho depois de verificar o e-mail
+      if (ehTotali(u.email) && !perfil.admin) {
+        if (u.emailVerified) { await docUser(u.uid).set({ admin: true, aprovado: true, adminDesde: agora() }, { merge: true }); perfil.admin = true; perfil.aprovado = true; showToast('Seu e-mail da Totali foi verificado: você agora é administrador(a).', 'success'); }
+        else if (!perfil.aprovado) { telaVerificarEmail(); return; }
+        else if (!sessionStorage.getItem('fbVerEnviado')) { try { await u.sendEmailVerification(); sessionStorage.setItem('fbVerEnviado', '1'); } catch (e) { } setTimeout(() => showToast('Enviamos um link de verificação para ' + u.email + '. Depois de clicar nele e entrar de novo, você vira administrador(a) e passa a aceitar os pedidos de acesso.', ''), 1500); }
+      }
       if (!perfil.aprovado) { telaPendente(perfil); return; }
       corpo('<div class="muted">Carregando os dados do escritório…</div>');
       pronto = true; montarTopo();
@@ -320,8 +370,13 @@ const FB = (() => {
       gate(false);
       renderEmpresasSelect(); if ($('inpComp')) $('inpComp').value = ST.comp;
       salvar(); recalcular(); if (ST.view !== 'apuracao') showView(ST.view);
-      const aut = new URLSearchParams(location.search).get('autorizar');
-      if (aut && perfil.admin) { showView('usuarios'); renderUsuarios(aut); history.replaceState(null, '', location.pathname); }
+      atualizarPendentes();
+      const qs = new URLSearchParams(location.search); const aut = qs.get('autorizar'), acao = qs.get('acao');
+      if (aut) {
+        history.replaceState(null, '', location.pathname);
+        if (perfil.admin) await tratarLinkAutorizacao(aut, acao);
+        else showToast('Este link de autorização só funciona com um usuário administrador.', 'error');
+      }
       showToast('Bem-vindo(a), ' + (perfil.nome || u.email) + '.', 'success');
     } catch (e) { console.error(e); corpo('<div class="alert alto">' + esc(erroTxt(e)) + '</div><div class="hint" style="margin-top:10px;text-align:center"><a id="fbSair">Sair</a> · <a id="fbTentar">Tentar de novo</a></div>'); $('fbSair').onclick = () => auth.signOut(); $('fbTentar').onclick = () => entrar(u); }
   }
@@ -331,7 +386,7 @@ const FB = (() => {
     snap.empresas = snap.regras = snap.params = ''; snap.apur = {}; snap.xmls = {}; xmlsCarregados.clear();
     if (tinhaUsuario) { DB = { empresas: [], regras: [], params: { ...MOTOR.PARAMS_PADRAO, backendUrl: '' }, apuracoes: {}, ui: {} }; try { localStorage.removeItem(STORE_KEY); } catch (e) { } }
     const fu = $('fbUser'); if (fu) fu.remove();
-    gate(true); telaLogin('entrar');
+    gate(true); telaLogin(new URLSearchParams(location.search).get('autorizar') ? 'entrar' : 'entrar');
   }
 
   function iniciar() {
