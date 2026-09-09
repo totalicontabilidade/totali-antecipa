@@ -216,7 +216,8 @@ async function distribuicao(uid, cnpj, maxLotes) {
 
 // ---------------------------------------------------------------- autenticação
 async function usuarioAprovado(req) {
-  const h = req.get('Authorization') || '';
+  // Atrás do API Gateway, o token do usuário chega em X-Forwarded-Authorization (o Authorization é o do gateway)
+  const h = req.get('X-Forwarded-Authorization') || req.get('Authorization') || '';
   const m = /^Bearer\s+(.+)$/.exec(h);
   if (!m) throw new ErroApi('Entre no sistema para usar a busca na nuvem.', 'NAO_LOGADO', 401);
   let tok; try { tok = await admin.auth().verifyIdToken(m[1]); } catch (e) { throw new ErroApi('Sessão expirada — entre de novo.', 'NAO_LOGADO', 401); }

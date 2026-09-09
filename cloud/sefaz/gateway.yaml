@@ -1,0 +1,73 @@
+# Totali Antecipa — API Gateway na frente da função Cloud Run "sefaz"
+# Por que existe: a organização do Google Workspace da Totali proíbe deixar um Cloud Run
+# público ("allUsers"). O API Gateway é público por natureza e chama a função com a conta
+# de serviço do projeto (permitida). O login do sistema continua sendo exigido pela função
+# (token do Firebase chega em X-Forwarded-Authorization).
+# Publicar (Cloud Shell):
+#   gcloud api-gateway apis create sefaz-api
+#   gcloud api-gateway api-configs create v1 --api=sefaz-api --openapi-spec=gateway.yaml \
+#       --backend-auth-service-account=328310373367-compute@developer.gserviceaccount.com
+#   gcloud api-gateway gateways create sefaz-gw --api=sefaz-api --api-config=v1 --location=us-east1
+swagger: "2.0"
+info:
+  title: totali-antecipa-sefaz
+  description: Busca de NF-e no Portal Nacional (Distribuição DF-e) com o certificado do login
+  version: 1.0.0
+schemes: [https]
+produces: [application/json]
+x-google-backend:
+  address: https://sefaz-328310373367.southamerica-east1.run.app
+  path_translation: APPEND_PATH_TRANSLATION
+  deadline: 300.0
+  protocol: h2
+paths:
+  /:
+    get:
+      operationId: raiz
+      responses: { "200": { description: ok } }
+  /api/status:
+    get:
+      operationId: status
+      responses: { "200": { description: ok } }
+    options:
+      operationId: statusOptions
+      responses: { "204": { description: cors } }
+  /api/certificado:
+    post:
+      operationId: certificadoEnviar
+      responses: { "200": { description: ok } }
+    options:
+      operationId: certificadoOptions
+      responses: { "204": { description: cors } }
+  /api/certificado/{cnpj}:
+    delete:
+      operationId: certificadoApagar
+      parameters: [{ name: cnpj, in: path, required: true, type: string }]
+      responses: { "200": { description: ok } }
+    options:
+      operationId: certificadoApagarOptions
+      parameters: [{ name: cnpj, in: path, required: true, type: string }]
+      responses: { "204": { description: cors } }
+  /api/senha:
+    post:
+      operationId: senha
+      responses: { "200": { description: ok } }
+    options:
+      operationId: senhaOptions
+      responses: { "204": { description: cors } }
+  /api/nfe/{chave}:
+    get:
+      operationId: nfe
+      parameters: [{ name: chave, in: path, required: true, type: string }]
+      responses: { "200": { description: ok } }
+    options:
+      operationId: nfeOptions
+      parameters: [{ name: chave, in: path, required: true, type: string }]
+      responses: { "204": { description: cors } }
+  /api/distribuicao:
+    get:
+      operationId: distribuicao
+      responses: { "200": { description: ok } }
+    options:
+      operationId: distribuicaoOptions
+      responses: { "204": { description: cors } }
