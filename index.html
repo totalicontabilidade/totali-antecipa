@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Totali Antecipa · ICMS Antecipado Sergipe</title>
+<link rel="icon" href="assets/totali-shape-cor.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&family=Open+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
+    --gelo: #F9F9F9; --areia: #F5EFE0; --bege: #E8DCC8; --ink: #1A1816; --ink-2: #3A3530; --muted: #6B7280; --line: #E5E7EB;
+    --ok: #1E8E5A; --warn: #B7791F; --bad: #C0392B; --info: #2C5F8A;
+    --r: 12px; --sh: 0 1px 2px rgba(24,44,67,.06), 0 4px 16px rgba(24,44,67,.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--gelo); color: var(--ink); font-family: "Open Sans", system-ui, sans-serif; font-size: 13px; overflow-x: hidden; line-height: 1.5; }
+  h1, h2, h3, h4, .brand { font-family: 'Manrope', 'Open Sans', sans-serif; letter-spacing: -.01em; }
+  h1 { font-size: 22px; font-weight: 800; margin: 0; } h2 { font-size: 18px; font-weight: 700; margin: 0 0 4px; } h3 { font-size: 15px; font-weight: 700; margin: 0 0 8px; }
+  a { color: var(--info); }
+  button { font-family: inherit; }
+
+  /* ---------- topo ---------- */
+  .topbar { background: linear-gradient(90deg, var(--navy-3), var(--navy)); color: #fff; padding: 0 24px; height: 64px; display: flex; align-items: center; gap: 18px; position: sticky; top: 0; z-index: 30; box-shadow: 0 2px 12px rgba(0,0,0,.25); }
+  .topbar img { height: 34px; }
+  .topbar .sep { width: 1px; height: 30px; background: rgba(255,255,255,.18); }
+  .topbar .brand { font-size: 17px; font-weight: 800; line-height: 1.1; }
+  .topbar .brand small { display: block; font-family: 'Open Sans'; font-size: 11px; font-weight: 500; color: var(--gold-2); letter-spacing: .12em; text-transform: uppercase; }
+  .topbar .grow { flex: 1; }
+  .topbar .ctx { display: flex; gap: 10px; align-items: center; }
+  .topbar select, .topbar input { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.22); border-radius: 8px; padding: 7px 10px; font-family: inherit; font-size: 13px; min-width: 120px; max-width: 260px; }
+  .topbar select option { color: var(--ink); }
+  .topbar input[type=month] { color-scheme: dark; }
+
+  /* ---------- layout ---------- */
+  .shell { display: grid; grid-template-columns: 190px minmax(0, 1fr); min-height: calc(100vh - 64px); }
+  .side { background: #fff; border-right: 1px solid var(--line); padding: 18px 12px; position: sticky; top: 64px; height: calc(100vh - 64px); overflow: auto; }
+  .side .lbl { font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); font-weight: 700; font-family: 'Manrope'; padding: 8px 10px 4px; }
+  .side button { display: flex; width: 100%; gap: 10px; align-items: center; text-align: left; background: none; border: 0; padding: 10px 12px; border-radius: 9px; color: var(--ink-2); font-size: 13.5px; font-weight: 600; cursor: pointer; }
+  .side button:hover { background: var(--areia); } .side button.on { background: var(--navy); color: #fff; }
+  .side button .ic { width: 20px; text-align: center; opacity: .8; }
+  .side .foot { margin-top: 18px; padding: 12px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
+  .main { padding: 18px 18px 50px; max-width: none; min-width: 0; }
+  .view { display: none; } .view.on { display: block; }
+  .pagehdr { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+  .pagehdr p { margin: 0; color: var(--muted); }
+
+  /* ---------- componentes ---------- */
+  .card { background: #fff; border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--sh); padding: 14px 16px; min-width: 0; }
+  .card + .card { margin-top: 16px; }
+  .grid { display: grid; gap: 16px; } .g2 { grid-template-columns: 1fr 1fr; } .g3 { grid-template-columns: repeat(3, 1fr); } .g4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 1100px) { .g3, .g4 { grid-template-columns: 1fr 1fr; } } @media (max-width: 800px) { .g2, .g3, .g4 { grid-template-columns: 1fr; } .shell { grid-template-columns: 1fr; } .side { display: none; } }
+  .step { position: relative; }
+  .step .n { position: absolute; top: -12px; left: 14px; background: var(--gold); color: var(--navy); font-family: 'Manrope'; font-weight: 800; font-size: 12px; padding: 2px 10px; border-radius: 20px; letter-spacing: .08em; }
+  .kpi { background: var(--navy); color: #fff; border-radius: var(--r); padding: 12px 14px; min-width: 0; }
+  .kpi .k { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold-2); font-weight: 700; font-family: 'Manrope'; }
+  .kpi .v { font-family: "Manrope"; font-size: 20px; font-weight: 800; margin-top: 4px; } .kpi .s { font-size: 12px; color: rgba(255,255,255,.7); }
+  .kpi.light { background: #fff; color: var(--ink); border: 1px solid var(--line); } .kpi.light .k { color: var(--gold); }
+  .kpi.gold { background: linear-gradient(135deg, var(--gold), #B8873F); color: var(--navy); } .kpi.gold .k { color: var(--navy); opacity: .75; } .kpi.gold .s { color: rgba(24,44,67,.7); }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid transparent; border-radius: 9px; padding: 9px 16px; font-weight: 600; font-size: 13px; cursor: pointer; background: var(--navy); color: #fff; transition: .15s; white-space: nowrap; }
+  .btn:hover { filter: brightness(1.12); } .btn:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+  .btn.gold { background: var(--gold); color: var(--navy); } .btn.ghost { background: #fff; color: var(--navy); border-color: var(--navy); } .btn.soft { background: var(--areia); color: var(--navy); }
+  .btn.sm { padding: 5px 10px; font-size: 12px; border-radius: 7px; } .btn.danger { background: #fff; color: var(--bad); border-color: var(--bad); }
+  .fi { width: 100%; border: 1px solid #D1D5DB; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13.5px; background: #fff; color: var(--ink); }
+  .fi:focus { outline: 2px solid var(--gold-2); border-color: var(--gold); }
+  .fi-label { display: block; font-size: 11.5px; font-weight: 700; color: var(--ink-2); margin: 0 0 4px; text-transform: uppercase; letter-spacing: .06em; }
+  .field { margin-bottom: 12px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .drop { border: 2px dashed #CBD5E1; border-radius: var(--r); padding: 18px; text-align: center; color: var(--muted); background: var(--gelo); cursor: pointer; transition: .15s; }
+  .drop:hover, .drop.over { border-color: var(--gold); background: var(--areia); color: var(--navy); }
+  .drop b { color: var(--navy); }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+  .b-ok { background: #E3F5EC; color: var(--ok); } .b-warn { background: #FDF1DC; color: var(--warn); } .b-bad { background: #FBE5E1; color: var(--bad); } .b-info { background: #E4EEF7; color: var(--info); } .b-navy { background: var(--navy); color: #fff; } .b-gold { background: var(--areia); color: #8A6620; } .b-muted { background: #EEE; color: var(--muted); }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .tbl th { background: var(--navy); color: #fff; font-family: 'Manrope'; font-weight: 700; font-size: 11.5px; letter-spacing: .04em; padding: 7px 8px; text-align: left; position: sticky; top: 0; white-space: normal; line-height: 1.2; }
+  .tbl td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .tbl tr:hover td { background: #FCFAF5; } .tbl .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; } .tbl th.num { text-align: right; }
+  .tbl .tot td { font-weight: 700; background: var(--areia); border-top: 2px solid var(--gold); }
+  .tbl.compact td, .tbl.compact th { padding: 5px 7px; font-size: 12px; }
+  .tblwrap { overflow: auto; max-height: 70vh; border: 1px solid var(--line); border-radius: 10px; }
+  .clickable { cursor: pointer; } .clickable:hover { text-decoration: underline; color: var(--info); }
+  .muted { color: var(--muted); } .small { font-size: 12px; } .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .pos { color: var(--ok); font-weight: 700; } .neg { color: var(--bad); font-weight: 700; }
+  .alert { border-left: 4px solid var(--warn); background: #FFF8EC; padding: 8px 12px; border-radius: 6px; font-size: 12.5px; margin: 4px 0; }
+  .alert.alto { border-color: var(--bad); background: #FDF0EE; } .alert.baixo { border-color: var(--info); background: #EEF4FA; }
+  .empty { padding: 30px; text-align: center; color: var(--muted); }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+  .tabs button { background: none; border: 0; padding: 10px 14px; font-weight: 700; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; font-family: 'Manrope'; font-size: 13.5px; }
+  .tabs button.on { color: var(--navy); border-bottom-color: var(--gold); }
+  .sub { display: none; } .sub.on { display: block; }
+  .stat { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); } .stat b { color: var(--navy); }
+  .memo { background: var(--gelo); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .memo .p { display: grid; grid-template-columns: 210px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 12.5px; }
+  .memo .p:last-child { border: 0; } .memo .p b { color: var(--navy); font-family: 'Manrope'; }
+  .memo .p.res { background: var(--areia); margin: 0 -14px; padding: 8px 14px; border-radius: 0 0 10px 10px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; } .chip { border: 1px solid var(--line); background: #fff; border-radius: 20px; padding: 3px 10px; font-size: 12px; }
+
+  /* ---------- modal / toast ---------- */
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(13,31,60,.55); display: none; align-items: flex-start; justify-content: center; z-index: 50; padding: 40px 20px; overflow: auto; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: #fff; border-radius: 14px; width: min(1280px, 100%); box-shadow: 0 20px 60px rgba(0,0,0,.35); animation: up .18s ease-out; }
+  .modal.narrow { width: min(720px, 100%); }
+  @keyframes up { from { transform: translateY(12px); opacity: 0 } to { transform: none; opacity: 1 } }
+  .modal-hdr { display: flex; align-items: center; justify-content: space-between; padding: 16px 22px; border-bottom: 1px solid var(--line); background: var(--navy); color: #fff; border-radius: 14px 14px 0 0; }
+  .modal-hdr h2 { color: #fff; } .modal-hdr .sub2 { font-size: 12px; color: var(--gold-2); }
+  .modal-close { background: none; border: 0; color: #fff; font-size: 26px; cursor: pointer; line-height: 1; }
+  .modal-body { padding: 18px 22px; }
+  .modal-foot { padding: 12px 22px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; }
+  #toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--navy); color: #fff; padding: 12px 20px; border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.3); font-weight: 600; display: none; z-index: 99; max-width: 90vw; }
+  #toast.error { background: var(--bad); } #toast.success { background: var(--ok); }
+
+  /* ---------- mapa SEFAZ ---------- */
+  .mapa { background: #fff; border: 1px solid var(--line); border-radius: var(--r); padding: 22px; font-family: Arial, sans-serif; font-size: 12px; color: #000; }
+  .mapa .cab { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; }
+  .mapa .titulo { font-weight: 700; font-size: 13px; }
+  .mapa table { border-collapse: collapse; width: 100%; }
+  .mapa .resumo td { padding: 3px 6px; border-bottom: 1px solid #ddd; }
+  .mapa .resumo td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .mapa .grade th { background: #D9E1F2; border: 1px solid #999; padding: 4px; font-size: 10.5px; font-weight: 700; vertical-align: bottom; }
+  .mapa .grade td { border: 1px solid #bbb; padding: 3px 5px; font-size: 11.5px; white-space: nowrap; }
+  .mapa .grade td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .mapa .grade tr.tot td { background: #FFF2CC; font-weight: 700; }
+  .mapa .letra th { background: #F2F2F2; font-size: 10px; }
+  @media (max-width: 900px) { .topbar .brand small { display: none; } .topbar .brand { font-size: 15px; } .topbar { gap: 10px; padding: 0 12px; } }
+  @media print { .topbar, .side, .noprint { display: none !important; } .shell { grid-template-columns: 1fr; } .main { padding: 0; max-width: none; } .mapa { border: 0; } body { background: #fff; } }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <img src="assets/totali-logo-branca.png" alt="Totali">
+  <div class="sep"></div>
+  <div class="brand" id="brandTitulo">Totali Antecipa<small>ICMS Antecipado · Sergipe</small></div>
+  <div class="grow"></div>
+  <div class="ctx">
+    <select id="selEmpresa" title="Empresa (contribuinte de SE)"></select>
+    <input type="month" id="inpComp" title="Competência (mês de referência)">
+    <button class="btn gold" id="btnExportTop" title="Exportar planilha Excel">⬇ Excel</button>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="side">
+    <div class="lbl">Apuração</div>
+    <button data-view="apuracao" class="on"><span class="ic">🧮</span> Apuração do mês</button>
+    <button data-view="mapa"><span class="ic">🗺️</span> Mapa SEFAZ</button>
+    <div class="lbl">Cadastros</div>
+    <button data-view="empresas"><span class="ic">🏢</span> Empresas</button>
+    <button data-view="regras"><span class="ic">📦</span> NCM · MVA · Alíquotas</button>
+    <button data-view="params"><span class="ic">⚙️</span> Parâmetros</button>
+    <button data-view="materiais"><span class="ic">📚</span> Materiais de apoio</button>
+    <div class="lbl">Apoio</div>
+    <button data-view="ajuda"><span class="ic">⚖️</span> Base legal e ajuda</button>
+    <div class="foot"><b id="verApp"></b><br>Totali Contabilidade<br>Base RICMS/SE · tabelas <span id="verTab"></span><br><span class="muted">Ferramenta de apoio. A palavra final é do contador.</span></div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ================= APURAÇÃO ================= -->
+    <section class="view on" id="view-apuracao">
+      <div class="pagehdr">
+        <div><h1>Apuração do ICMS Antecipado</h1><p>Lance o espelho do DIA, traga os XMLs e o sistema calcula nota a nota com a memória de cálculo da SEFAZ/SE.</p></div>
+        <div class="row noprint">
+          <button class="btn ghost sm" id="btnLimparApur">Limpar apuração</button>
+          <button class="btn gold" id="btnExport">⬇ Exportar Excel (mapa + itens)</button>
+        </div>
+      </div>
+
+      <div class="grid g3">
+        <div class="card step">
+          <span class="n">PASSO 1</span>
+          <h3>Espelho do DIA</h3>
+          <div class="drop" id="dropEspelho">Arraste o <b>Extrato_Espelho_DIA_*.xls</b> ou clique para selecionar<input type="file" id="fileEspelho" accept=".xls,.xlsx,.csv,.htm,.html" hidden></div>
+          <div class="hint">Ou cole as chaves de acesso (44 dígitos):</div>
+          <textarea class="fi" id="txtChaves" rows="2" placeholder="352607... uma por linha"></textarea>
+          <div class="row" style="margin-top:8px"><button class="btn sm" id="btnAddChaves">Adicionar chaves</button><span class="small muted" id="infoEspelho"></span></div>
+        </div>
+        <div class="card step">
+          <span class="n">PASSO 2</span>
+          <h3>XMLs das notas</h3>
+          <div class="drop" id="dropXml">Arraste os <b>XML da NF-e</b> (vários) ou clique para selecionar<input type="file" id="fileXml" accept=".xml,.zip" multiple hidden></div>
+          <div class="small muted" id="infoXml" style="margin-top:8px"></div>
+          <div class="hint">Aceita XML avulso ou .zip com vários. As notas são casadas com o espelho pela chave.</div>
+          <div style="border-top:1px dashed var(--line); margin:12px 0 8px"></div>
+          <div class="row" style="justify-content:space-between">
+            <div><b>Busca automática no Portal Nacional da NF-e</b><div class="small muted" id="infoCert">verificando serviço…</div></div>
+            <button class="btn sm ghost" id="btnCert">🔐 Certificado A1</button>
+          </div>
+          <div class="row" style="margin-top:8px">
+            <button class="btn sm" id="btnBuscarOnline" title="Baixa do Portal Nacional da NF-e (nfe.fazenda.gov.br, serviço Distribuição DF-e com certificado A1) os XMLs das chaves do espelho que ainda faltam; registra a ciência da operação quando preciso">☁ Buscar pendentes no Portal Nacional</button>
+            <button class="btn sm soft" id="btnDistribuicao" title="Baixa todas as NF-e novas emitidas contra o CNPJ (Distribuição DF-e por NSU)">⬇ Baixar todas as NF-e do CNPJ</button>
+          </div>
+        </div>
+        <div class="card step">
+          <span class="n">PASSO 3</span>
+          <h3>Resultado</h3>
+          <div id="kpis" class="grid g2" style="gap:10px"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="row" style="justify-content:space-between; margin-bottom:10px">
+          <h3 style="margin:0">Notas da competência <span class="badge b-gold" id="cntNotas">0</span></h3>
+          <div class="row">
+            <label class="small"><input type="checkbox" id="chkSoDif"> só com diferença vs SEFAZ</label>
+            <input class="fi" id="filtroNotas" placeholder="filtrar por nº, emitente, chave…" style="width:240px">
+          </div>
+        </div>
+        <div class="tblwrap"><table class="tbl" id="tblNotas"><thead><tr>
+          <th>NF</th><th>Emitente</th><th class="num">Valor NF</th><th>Receita (sistema)</th><th class="num">ICMS calc.</th><th class="num">FECOEP</th><th class="num">SEFAZ calc.</th><th class="num">Dif.</th><th>Status</th><th></th>
+        </tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <div class="card" id="cardResumo" style="margin-top:16px">
+        <h3>Resumo por receita (o que vai no DAE)</h3>
+        <div id="resumoReceitas"></div>
+      </div>
+    </section>
+
+    <!-- ================= MAPA SEFAZ ================= -->
+    <section class="view" id="view-mapa">
+      <div class="pagehdr">
+        <div><h1>Mapa de Apuração do ICMS</h1><p>Réplica do Anexo I da Portaria 103/2006-SEFAZ, preenchido com a apuração atual.</p></div>
+        <div class="row noprint"><button class="btn ghost" onclick="window.print()">🖨 Imprimir</button><button class="btn gold" id="btnExport2">⬇ Exportar Excel</button></div>
+      </div>
+      <div class="mapa" id="mapaSefaz"></div>
+    </section>
+
+    <!-- ================= EMPRESAS ================= -->
+    <section class="view" id="view-empresas">
+      <div class="pagehdr"><div><h1>Empresas</h1><p>Contribuintes de Sergipe atendidos. O regime e o perfil mudam a receita e a MVA aplicadas.</p></div><button class="btn" id="btnNovaEmpresa">+ Nova empresa</button></div>
+      <div class="card"><div class="tblwrap"><table class="tbl" id="tblEmpresas"><thead><tr><th>Empresa</th><th>CNPJ</th><th>IE</th><th>Regime</th><th>Perfil</th><th>Cesta básica</th><th></th></tr></thead><tbody></tbody></table></div></div>
+    </section>
+
+    <!-- ================= REGRAS NCM ================= -->
+    <section class="view" id="view-regras">
+      <div class="pagehdr"><div><h1>NCM · MVA · Alíquotas</h1><p>Regras por NCM (prefixo ou igual) e descrição do produto. As suas regras têm prioridade sobre as embutidas; menor prioridade vence.</p></div>
+        <div class="row"><button class="btn ghost sm" id="btnImportRegras">Importar Excel/JSON</button><button class="btn ghost sm" id="btnExportRegras">Exportar</button><button class="btn" id="btnNovaRegra">+ Nova regra</button></div></div>
+      <div class="card">
+        <div class="row" style="margin-bottom:10px"><input class="fi" id="filtroRegras" placeholder="buscar NCM, descrição, regime…" style="width:300px">
+          <label class="small"><input type="checkbox" id="chkEmbutidas" checked> mostrar regras embutidas (RICMS/SE)</label>
+          <span class="small muted">Teste um NCM: <input class="fi" id="testeNcm" placeholder="ex. 02071400" style="width:120px;display:inline-block"> <span id="testeNcmRes"></span></span></div>
+        <div class="tblwrap"><table class="tbl compact" id="tblRegras"><thead><tr><th>Prior.</th><th>NCM</th><th>Match</th><th>Descrição / padrão</th><th>Regime</th><th>MVA (4% · 7% · 12% · int.)</th><th>Alíq.</th><th>FECOEP</th><th>Origem</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- ================= PARÂMETROS ================= -->
+    <section class="view" id="view-params">
+      <div class="pagehdr"><div><h1>Parâmetros gerais</h1><p>Números que mudam. Reconfira todo ano no RICMS/SE.</p></div><button class="btn" id="btnSalvarParams">Salvar parâmetros</button></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Alíquotas e MVA</h3>
+          <div class="field"><label class="fi-label">Alíquota interna modal de SE (%)</label><input class="fi" type="number" step="0.01" id="pAliq"><div class="hint">19% desde 01/04/2023 (Lei 9.176/2023).</div></div>
+          <div class="grid g2"><div class="field"><label class="fi-label">MVA geral — contribuinte apto (%)</label><input class="fi" type="number" step="0.01" id="pMvaApto"></div>
+          <div class="field"><label class="fi-label">MVA geral — suspenso/inapto (%)</label><input class="fi" type="number" step="0.01" id="pMvaInapto"><div class="hint">art. 786, II, b: 30% (contribuinte suspenso). IN 17/2023 no trânsito: 30%; sem destinatário certo 40%.</div></div></div>
+          <div class="field"><label class="fi-label">Crédito da origem (coluna R)</label><select class="fi" id="pCredModo"><option value="mapa">Fórmula do mapa: (F + frete) × alíquota de origem — como o DIA calcula</option><option value="destacado">ICMS destacado na nota (vICMS)</option></select></div>
+          <div class="field"><label class="fi-label">Finalidade pelo CNAE da empresa (revenda × uso/consumo × imobilizado)</label><select class="fi" id="pFinalidadeCnae"><option value="sugerir">Só sugerir — aviso no item, você aplica com um clique</option><option value="aplicar">Aplicar automaticamente nas sugestões de alta confiança (NCM típico de imobilizado/uso e fora do ramo)</option><option value="nao">Desligado</option></select><div class="hint">Usa os CNAEs (principal e secundários) puxados da Receita Federal no cadastro da empresa. O CFOP explícito (6556/6551) sempre prevalece.</div></div>
+          <div class="field"><label class="fi-label">Planilha oficial de ST/SE (materiais)</label><select class="fi" id="pTabelaSt"><option value="alertar">Só avisar — cálculo pela regra geral (10%/20%), como o escritório faz</option><option value="aplicar">Aplicar — NCM exato na planilha vira "com encerramento" com a MVA da tabela</option></select><div class="hint">Cuidado: a planilha lista NCM de 4 dígitos (ex. 1806 em "Sorvetes"), que puxam produtos de outro segmento.</div></div>
+          <div class="field"><label class="small"><input type="checkbox" id="pAjustarMva"> Ajustar a MVA da planilha ST/SE pela alíquota interestadual (Convênio ICMS 142/2018, cláusula 11)</label><div class="hint">MVA ajustada = [(1+MVA) × (1−alíq. interestadual) ÷ (1−alíq. interna)] − 1. Desligue para usar a MVA original da tabela.</div></div>
+          <div class="field"><label class="small"><input type="checkbox" id="pCredSimples"> Emitente do Simples sem destaque: presumir crédito pela alíquota interestadual (7%/12%/4%)</label><div class="hint">É o que o escritório faz no mapa (crédito de 7% em NF de SP do Simples). Desligue para calcular sem crédito.</div></div>
+        </div>
+        <div class="card">
+          <h3>FECOEP / FUNPOBREZA</h3>
+          <div class="field"><label class="small"><input type="checkbox" id="pFecoepAtivo"> Calcular FECOEP nas entradas antecipadas</label></div>
+          <div class="field"><label class="fi-label">Pontos padrão</label><input class="fi" type="number" step="0.5" id="pFecoepPts"><div class="hint">+1 ponto geral (art. 40-B). Supérfluos +2 (regra por NCM). Cesta/medicamento excluídos.</div></div>
+          <div class="field"><label class="fi-label">Base do FECOEP</label><select class="fi" id="pFecoepBase"><option value="auto">Automático — Simples: 1% do valor da nota em todas; regime normal: 1% da base com MVA só nas "com encerramento" (prática do escritório)</option><option value="K">Valor da nota (K) em todas as notas</option><option value="P">Base com MVA (P)</option></select></div>
+          <h3 style="margin-top:18px">Integração (busca de XML por chave)</h3>
+          <div class="field"><label class="fi-label">URL do backend (server/)</label><input class="fi" id="pBackend" placeholder="http://localhost:8787"><div class="hint">Serviço Node com certificado A1 que consulta a Distribuição DF-e. Veja server/README.</div></div>
+          <div class="field"><label class="fi-label">Backup dos cadastros</label><div class="row"><button class="btn ghost sm" id="btnBackup">⬇ Exportar JSON</button><button class="btn ghost sm" id="btnRestore">⬆ Restaurar JSON</button><input type="file" id="fileRestore" accept=".json" hidden></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= MATERIAIS DE APOIO ================= -->
+    <section class="view" id="view-materiais">
+      <div class="pagehdr"><div><h1>Materiais de apoio</h1><p>Tabelas oficiais usadas pelo motor (as mesmas do Fiscal Certo). Enquanto uma tabela não estiver carregada, a checagem que depende dela fica como "não conferido" — nunca como "ok".</p></div>
+        <div class="row"><button class="btn ghost sm" id="btnRecarregarMat">↻ Recarregar da pasta materiais/</button></div></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Consultar NCM</h3>
+          <div class="row"><input class="fi" id="matNcm" placeholder="NCM (ex. 22030000) ou início" style="width:220px"><input class="fi" id="matProd" placeholder="descrição do produto (opcional)" style="flex:1"><button class="btn sm" id="btnMatConsultar">Consultar</button></div>
+          <div id="matFicha" style="margin-top:12px"><div class="empty">Digite um NCM para ver descrição oficial, ST/MVA em Sergipe, CEST, benefícios do RICMS/SE, TIPI, PIS/COFINS, IBS/CBS e IN 2.121.</div></div>
+        </div>
+        <div class="card">
+          <h3>Tabelas carregadas</h3>
+          <div class="tblwrap" style="max-height:none"><table class="tbl compact" id="tblMateriais"><thead><tr><th>Tabela</th><th>Origem</th><th>Uso no cálculo</th><th class="num">Linhas</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+          <div class="hint" style="margin-top:8px">Para atualizar uma tabela, substitua o arquivo em <span class="mono">materiais/</span> (mesmas colunas) ou importe aqui. Fonte das planilhas: SEFAZ/SE, Portal Nacional da ST, CONFAZ, Siscomex e RFB.</div>
+          <input type="file" id="fileMaterial" accept=".csv,.json,.txt" hidden>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h3>Segmentos da planilha oficial de ST de Sergipe</h3>
+        <div id="matSegmentos" class="chips"></div>
+      </div>
+    </section>
+
+    <!-- ================= AJUDA ================= -->
+    <section class="view" id="view-ajuda">
+      <div class="pagehdr"><div><h1>Base legal e como o sistema decide</h1><p>Resumo do núcleo de ICMS antecipado da Totali. Toda decisão do motor cita o artigo na memória de cálculo.</p></div></div>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Fluxo de decisão (por item)</h3>
+          <ol style="padding-left:18px; margin:0">
+            <li><b>É entrada interestadual para contribuinte de SE?</b> Emitente ≠ SE, destinatário SE com IE. Senão, não é antecipação.</li>
+            <li><b>CFOP/CST:</b> devolução (62xx), remessa/retorno (69xx), industrialização (6124/6125) e ST já retida (CST 10/30/60/70, CSOSN 201/202/203/500, CFOP 64xx) → <i>operação não antecipada</i>.</li>
+            <li><b>Regra do NCM:</b> cesta básica → 12% sem FECOEP (optante: 2,1% direto; não optante: MVA 30%). Anexo X (carnes, cerâmicos, calçados) → MVA própria com encerramento. Supérfluos → 25% + 2 pts.</li>
+            <li><b>Regime da empresa:</b> Simples Nacional → receita 2607 (complementação de alíquota, sem MVA — art. 42-A). Regime normal → uso/consumo/ativo = DIFAL 2445; revenda = antecipação sem encerramento 2631 com MVA 10%/20%.</li>
+            <li><b>Cálculo:</b> K (preço composto) → P = K × (1+MVA) → Q = P × alíquota interna → R = crédito da origem → S = Q − R. FECOEP à parte.</li>
+          </ol>
+        </div>
+        <div class="card">
+          <h3>Receitas do mapa da SEFAZ/SE</h3>
+          <table class="tbl compact"><thead><tr><th>Cód.</th><th>Receita</th><th>Fórmula</th></tr></thead><tbody id="tblReceitas"></tbody></table>
+        </div>
+        <div class="card">
+          <h3>Dispositivos</h3>
+          <ul style="padding-left:18px; margin:0">
+            <li><b>Lei 3.796/1996</b> — art. 42 (hipótese da antecipação), art. 42-A (Simples), art. 40 (alíquotas), 40-A/40-B (FECOEP).</li>
+            <li><b>RICMS/SE, Dec. 21.400/2002</b> — arts. 785 (antecipação com/sem encerramento), 786 (base e MVA), 788/789 (apuração), 790 (DIA); Anexo X (MVA por produto); Anexo II (bases reduzidas); Anexo IX (ST).</li>
+            <li><b>Portaria 103/2006-SEFAZ</b> — Mapa de Apuração do ICMS (Anexo I) e Manual de Preenchimento (Anexo II).</li>
+            <li><b>FECOEP</b> — Lei 4.731/2002; Decretos 289/2023 e 295/2023; Dec. 1.006/2025.</li>
+            <li><b>IN SEFAZ/SE 17/2023</b> — cobrança no trânsito (inapto), piso de exigência.</li>
+            <li><b>Fronteira</b> — DIFAL: EC 87/2015, LC 190/2022, RICMS art. 480-L. ST: Anexo IX. Reforma: LC 214/2025 (transição IBS/CBS).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Cuidados</h3>
+          <ul style="padding-left:18px; margin:0">
+            <li>Itens com ⚠ vêm de tabelas marcadas <b>confirmar</b> na skill: valide no RICMS/SE consolidado antes de recolher.</li>
+            <li>Prazo: antecipação (com e sem encerramento) e complementação de alíquota vencem no <b>dia 25 do mês seguinte</b> (Portaria 600/2023 e agenda tributária da SEFAZ/SE); o DIA fica disponível a partir do dia 2. Códigos do DAE: 0108, 0146, 0153 e FECOEP 0145/0119 (Portaria 390/2016).</li>
+            <li>O espelho do DIA traz o valor que a <b>SEFAZ</b> calculou. A coluna "Dif." mostra onde o entendimento do escritório diverge. Use para decidir a receita nota a nota.</li>
+            <li>Portal Nacional da NF-e exige captcha na consulta pública; a busca automática usa a Distribuição DF-e com certificado A1 (pasta server/).</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ============ MODAL: detalhe da nota ============ -->
+<div class="modal-backdrop" id="modal-nota" onclick="if(event.target===this)closeModal('modal-nota')">
+  <div class="modal">
+    <div class="modal-hdr"><div><h2 id="mnTitulo">Nota</h2><div class="sub2" id="mnSub"></div></div><button class="modal-close" onclick="closeModal('modal-nota')">&times;</button></div>
+    <div class="modal-body" id="mnBody"></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: empresa ============ -->
+<div class="modal-backdrop" id="modal-empresa" onclick="if(event.target===this)closeModal('modal-empresa')">
+  <div class="modal narrow">
+    <div class="modal-hdr"><h2>Empresa</h2><button class="modal-close" onclick="closeModal('modal-empresa')">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="eId">
+      <div class="field"><label class="fi-label">Razão social</label><input class="fi" id="eNome"></div>
+      <div class="grid g2"><div class="field"><label class="fi-label">CNPJ</label><div class="row" style="flex-wrap:nowrap"><input class="fi" id="eCnpj" placeholder="00.000.000/0000-00"><button class="btn sm soft" id="btnConsultarCnpj" title="Consulta a Receita Federal (BrasilAPI) e identifica se é Simples Nacional ou regime normal">🔎 Receita</button></div></div><div class="field"><label class="fi-label">Inscrição estadual</label><input class="fi" id="eIe"></div></div>
+      <div id="eRegimeInfo" class="alert baixo" style="display:none;margin-bottom:10px"></div>
+      <div class="field"><label class="fi-label">CNAEs (Receita Federal) — usados para supor a finalidade das compras</label><div id="eCnaes" class="small muted">Clique em "Receita" para puxar a atividade principal e as secundárias.</div></div>
+      <div class="grid g2">
+        <div class="field"><label class="fi-label">Regime</label><select class="fi" id="eRegime"><option value="normal">Regime normal (conta corrente)</option><option value="simples">Simples Nacional</option></select></div>
+        <div class="field"><label class="fi-label">Perfil na SEFAZ</label><select class="fi" id="ePerfil"><option value="apto">Apto (MVA 10%)</option><option value="inapto">Suspenso / inapto (MVA 30%)</option></select></div>
+      </div>
+      <div class="field"><label class="small"><input type="checkbox" id="eCesta"> Optante do regime simplificado da cesta básica (2,1%)</label></div>
+      <div class="field"><label class="fi-label">Observações</label><input class="fi" id="eObs"></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal('modal-empresa')">Cancelar</button><button class="btn" id="btnSalvarEmpresa">Salvar</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: regra NCM ============ -->
+<div class="modal-backdrop" id="modal-regra" onclick="if(event.target===this)closeModal('modal-regra')">
+  <div class="modal narrow">
+    <div class="modal-hdr"><h2>Regra de NCM</h2><button class="modal-close" onclick="closeModal('modal-regra')">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="rId">
+      <div class="grid g3">
+        <div class="field"><label class="fi-label">Prioridade</label><input class="fi" type="number" id="rPrior" value="50"><div class="hint">menor = mais importante</div></div>
+        <div class="field"><label class="fi-label">NCM</label><input class="fi" id="rNcm" placeholder="ex. 0207 ou 02071400"></div>
+        <div class="field"><label class="fi-label">Casamento</label><select class="fi" id="rMatch"><option value="inicia">INICIA COM</option><option value="igual">IGUAL A</option></select></div>
+      </div>
+      <div class="field"><label class="fi-label">Descrição da regra</label><input class="fi" id="rDesc" placeholder="ex. Carne de frango — Anexo X item 10"></div>
+      <div class="grid g2"><div class="field"><label class="fi-label">Padrão na descrição do produto (opcional)</label><input class="fi" id="rDescPadrao" placeholder="ex. CORREIA"></div><div class="field"><label class="fi-label">Tipo</label><select class="fi" id="rDescMatch"><option value="contem">CONTÉM</option><option value="inicia">INICIA COM</option></select></div></div>
+      <div class="grid g2">
+        <div class="field"><label class="fi-label">Regime (regra geral da empresa se vazio)</label><select class="fi" id="rRegime"><option value="">— usar regra geral —</option><option value="antecip_encer">Antecipação COM encerramento (MVA própria)</option><option value="st_interna">Substituição tributária interna</option><option value="cesta">Cesta básica</option><option value="nao_antecipa">Não antecipa</option></select></div>
+        <div class="field"><label class="fi-label">Alíquota interna em SE (%)</label><input class="fi" type="number" step="0.01" id="rAliq" placeholder="vazio = modal"></div>
+      </div>
+      <div class="field"><label class="fi-label">MVA (%) por alíquota de origem</label>
+        <div class="grid g4"><input class="fi" type="number" step="0.01" id="rMva4" placeholder="orig. 4%"><input class="fi" type="number" step="0.01" id="rMva7" placeholder="orig. 7%"><input class="fi" type="number" step="0.01" id="rMva12" placeholder="orig. 12%"><input class="fi" type="number" step="0.01" id="rMvaInt" placeholder="interna"></div>
+        <div class="hint">Preencha só um valor para MVA fixa. Vazio = sem MVA própria.</div></div>
+      <div class="grid g2"><div class="field"><label class="fi-label">FECOEP (pontos)</label><input class="fi" type="number" step="0.5" id="rFecoep" placeholder="vazio = padrão"></div><div class="field"><label class="fi-label">CEST (opcional)</label><input class="fi" id="rCest"></div></div>
+      <div class="field"><label class="fi-label">Fundamento legal</label><input class="fi" id="rFund" placeholder="ex. RICMS/SE Anexo X, item 10; Protocolo 41/2008"></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal('modal-regra')">Cancelar</button><button class="btn" id="btnSalvarRegra">Salvar regra</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: certificado A1 ============ -->
+<div class="modal-backdrop" id="modal-cert" onclick="if(event.target===this)closeModal('modal-cert')">
+  <div class="modal narrow">
+    <div class="modal-hdr"><div><h2>Certificado digital A1</h2><div class="sub2">Usado para baixar os XMLs no Portal Nacional da NF-e (nfe.fazenda.gov.br) pelo serviço Distribuição DF-e. Fica só no seu computador.</div></div><button class="modal-close" onclick="closeModal('modal-cert')">&times;</button></div>
+    <div class="modal-body">
+      <div id="certStatus" class="alert baixo" style="margin-bottom:12px"></div>
+      <div class="grid g2">
+        <div class="field"><label class="fi-label">CNPJ da empresa (destinatária)</label><input class="fi" id="cCnpj" placeholder="00.000.000/0000-00"></div>
+        <div class="field"><label class="fi-label">Arquivo .pfx / .p12</label><input class="fi" type="file" id="cPfx" accept=".pfx,.p12"></div>
+      </div>
+      <div class="grid g2">
+        <div class="field"><label class="fi-label">Senha do certificado</label><input class="fi" type="password" id="cSenha" autocomplete="off"></div>
+        <div class="field"><label class="fi-label">&nbsp;</label><label class="small"><input type="checkbox" id="cLembrar" checked> lembrar a senha neste computador (protegida pelo Windows)</label></div>
+      </div>
+      <div class="hint">O certificado precisa ser do <b>CNPJ destinatário</b> das notas (o e-CNPJ do cliente). A SEFAZ só entrega o XML ao próprio interessado. Se a nota ainda estiver só como resumo, o sistema registra a <b>ciência da operação</b> e busca de novo.</div>
+      <div id="certLista" style="margin-top:12px"></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal('modal-cert')">Fechar</button><button class="btn soft" id="btnSoSenha" title="Só informar a senha de um certificado já enviado">Informar só a senha</button><button class="btn" id="btnSalvarCert">Enviar certificado</button></div>
+  </div>
+</div>
+
+<!-- ============ MODAL: notas com erro (só fecha no OK) ============ -->
+<div class="modal-backdrop" id="modal-erros">
+  <div class="modal narrow" style="width:min(900px,100%)">
+    <div class="modal-hdr" style="background:var(--bad)"><div><h2>Notas que não foram importadas</h2><div class="sub2" style="color:#fff;opacity:.85" id="meSub"></div></div></div>
+    <div class="modal-body">
+      <div class="alert alto" style="margin-bottom:10px">Baixe o XML dessas notas manualmente (Portal Nacional, e-mail do fornecedor ou o programa Procura XML) e arraste no Passo 2. As chaves estão abaixo para copiar.</div>
+      <div class="tblwrap" style="max-height:50vh"><table class="tbl compact"><thead><tr><th>NF</th><th>Emitente</th><th>Chave de acesso</th><th>Motivo</th></tr></thead><tbody id="meLista"></tbody></table></div>
+      <textarea class="fi mono" id="meChaves" rows="3" style="margin-top:10px" readonly></textarea>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" id="btnCopiarChaves">Copiar chaves</button><button class="btn" id="btnErrosOk">OK, entendi</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="js/versao.js"></script>
+<script src="js/tabelas.js"></script>
+<script src="js/tabelas-fundamentos.js"></script>
+<script src="js/tabelas-cnae.js"></script>
+<script src="js/nfe.js"></script>
+<script src="js/materiais.js"></script>
+<script src="js/motor.js"></script>
+<script src="js/espelho.js"></script>
+<script src="js/exportar.js"></script>
+<script src="js/app.js"></script>
+<script src="js/app-regime.js"></script>
+<script src="js/app-materiais.js"></script>
+</body>
+</html>
