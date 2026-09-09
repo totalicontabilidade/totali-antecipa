@@ -14,6 +14,7 @@ window.FIREBASE_CONFIG = {
   emailWebhook: 'https://script.google.com/macros/s/AKfycbwGAgAr3YvknnElRshKEBsWmC4M-uJhLM3sEcgWesd5hNUkDbpSBncqYufR-DdAmMHY/exec',
   emailSegredo: 'totali-antecipa-2026',   // tem que ser igual ao SEGREDO do script
 
-  // Busca no Portal Nacional pela nuvem: URL da Cloud Run function "sefaz" (cloud/sefaz). Vazio = só pelo INICIAR.bat.
-  sefazBackend: '',
+  // Busca no Portal Nacional pela nuvem: API Gateway "sefaz-gw" (us-east1) na frente da Cloud Run function "sefaz"
+  // (southamerica-east1). Vazio = só pelo INICIAR.bat. Ver docs/FIREBASE.md.
+  sefazBackend: 'https://sefaz-gw-46tnipdj.ue.gateway.dev',
 };
