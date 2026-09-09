@@ -9,8 +9,8 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: '328310373367',
   appId: '1:328310373367:web:0e93cb7a22bf21debf4cf2',
 
-  // Envio de e-mail sem plano pago: URL do app da Web do Google Apps Script (server/email-apps-script.gs)
-  // publicado pela conta contato@totalicontabilidade.com.br. Vazio = só grava na coleção "mail".
-  emailWebhook: '',
+  // Envio de e-mail sem plano pago: app da Web do Google Apps Script (server/email-apps-script.gs),
+  // projeto "Totali Antecipa e-mail" publicado pela conta contato@totalicontabilidade.com.br em 09/09/2026.
+  emailWebhook: 'https://script.google.com/macros/s/AKfycbwGAgAr3YvknnElRshKEBsWmC4M-uJhLM3sEcgWesd5hNUkDbpSBncqYufR-DdAmMHY/exec',
   emailSegredo: 'totali-antecipa-2026',   // tem que ser igual ao SEGREDO do script
 };
