@@ -1,0 +1,8 @@
+# Dados de clientes e segredos - nunca versionar
+exemplos/
+server/certs/
+docs/Fiscal_Certo.pdf
+*.pfx
+*.senha
+*.nsu
+Thumbs.db
