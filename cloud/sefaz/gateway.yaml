@@ -17,9 +17,8 @@ schemes: [https]
 produces: [application/json]
 x-google-backend:
   address: https://sefaz-328310373367.southamerica-east1.run.app
-  path_translation: APPEND_PATH_TRANSLATION
+  path_translation: APPEND_PATH_TO_ADDRESS
   deadline: 300.0
-  protocol: h2
 paths:
   /:
     get:
