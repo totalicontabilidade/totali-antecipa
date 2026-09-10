@@ -291,10 +291,14 @@ const MOTOR = (() => {
       } else { credito = 0; origemCredito = 'Sem ICMS destacado (vICMS = 0)'; }
     } else {
       // Modo do crédito: fórmula do mapa (F+H)×L ou ICMS destacado
-      const credMapa = (F + H) * L / 100;
+      // A coluna F do Mapa da SEFAZ é "Valor da Nota Fiscal / Base de cálculo": quando a receita soma os acréscimos no débito,
+      // seguro e outras despesas (que integram a base do ICMS na origem) também entram no crédito. O IPI fica de fora, porque
+      // não compõe a base do ICMS na venda para revenda. Conferido na Central Net mar/2026 (NF 276045, com 5,00 de despesas).
+      const credMapa = (F + H + (usaAcr ? I + J : 0)) * L / 100;
       if (P.creditoModo !== 'destacado') {
         if (Math.abs(credMapa - credito) > 0.05) alertas.push({ nivel: 'baixo', msg: 'Crédito pela fórmula do mapa (F+H)×L = ' + credMapa.toFixed(2) + ' difere do ICMS destacado ' + credito.toFixed(2) + ' (base de origem inclui IPI/seguro/outras ou é reduzida). Usado o valor do mapa, como faz o DIA.' });
-        credito = credMapa; origemCredito = '(F+H) × L = (' + F.toFixed(2) + ' + ' + H.toFixed(2) + ') × ' + L + '% — fórmula do Mapa da SEFAZ (coluna R)';
+        const baseCred = F + H + (usaAcr ? I + J : 0);
+        credito = credMapa; origemCredito = (usaAcr && (I + J) > 0 ? '(F+H+seguro+outras) × L = (' + F.toFixed(2) + ' + ' + H.toFixed(2) + ' + ' + I.toFixed(2) + ' + ' + J.toFixed(2) + ')' : '(F+H) × L = (' + F.toFixed(2) + ' + ' + H.toFixed(2) + ')') + ' × ' + L + '% = ' + baseCred.toFixed(2) + ' × ' + L + '% — fórmula do Mapa da SEFAZ (coluna R)';
       }
       // Base reduzida na origem?
       if (item.icms.pRedBC > 0 || (item.icms.vBC > 0 && item.icms.vBC < F - 0.01)) {
