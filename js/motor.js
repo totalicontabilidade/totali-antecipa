@@ -61,9 +61,10 @@ const MOTOR = (() => {
       const okNcm = (rg.match === 'igual') ? n === rn : n.startsWith(rn);
       if (!okNcm) return false;
       if (rg.descPadrao) {
-        const p = String(rg.descPadrao).toUpperCase();
-        if (rg.descMatch === 'inicia') return desc.startsWith(p);
-        return desc.includes(p);
+        // várias alternativas separadas por "|" (ex.: "MILHO|FUBA"): basta uma casar
+        const pats = String(rg.descPadrao).toUpperCase().split('|').map(s => s.trim()).filter(Boolean);
+        if (rg.descMatch === 'inicia') return pats.some(p => desc.startsWith(p));
+        return pats.some(p => desc.includes(p));
       }
       return true;
     };
@@ -141,7 +142,10 @@ const MOTOR = (() => {
     if (P.finalidadeCnae !== 'nao' && !ov.finalidade && ['revenda', 'bonificacao', 'outro'].includes(cfopTipo) && E.cnaes && E.cnaes.length) {
       sugFin = sugerirFinalidade(E, item);
       if (sugFin && sugFin.finalidade !== 'revenda') {
-        if (P.finalidadeCnae === 'aplicar' && sugFin.confianca === 'alta') { finalidade = sugFin.finalidade; sugFin.aplicada = true; alertas.push({ nivel: 'medio', msg: 'Finalidade ' + (finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' aplicada pelo CNAE: ' + sugFin.motivo + ' (ajuste no item se não for o caso).' }); }
+        // Aplica quando o parâmetro manda ("aplicar") OU quando a própria nota confirma (indFinal=1: o remetente vendeu como consumidor final,
+        // sinal independente de que não é revenda) — validado na Mais Barato fev/2026 (Fast Ariam, móveis de checkout)
+        const notaConsumidorFinal = nota.indFinal === '1';
+        if ((P.finalidadeCnae === 'aplicar' || notaConsumidorFinal) && sugFin.confianca === 'alta') { finalidade = sugFin.finalidade; sugFin.aplicada = true; alertas.push({ nivel: 'medio', msg: 'Finalidade ' + (finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' aplicada' + (notaConsumidorFinal && P.finalidadeCnae !== 'aplicar' ? ' (nota de consumidor final + CNAE: ' : ' pelo CNAE (') + sugFin.motivo + ') — fora do DIA; DIFAL à parte. Ajuste a finalidade no item se não for o caso.' }); }
         else alertas.push({ nivel: sugFin.confianca === 'alta' ? 'medio' : 'baixo', msg: 'Pelo CNAE da empresa este item parece ' + (sugFin.finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' (' + sugFin.motivo + '). Se for isso, ajuste a finalidade no item.' });
       }
     }

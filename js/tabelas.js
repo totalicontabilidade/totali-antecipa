@@ -164,12 +164,12 @@ const TABELAS_SE = {
     // Lista OFICIAL: RICMS/SE art. 40, § 3º (PDF vigente, set/2026). Optante do Regime Simplificado (art. 787, I):
     //   3,6% para sabão em barra, leite em pó e charque; 2,1% para os demais. Não optante (art. 787, II): alíquota interna × base com MVA 30%.
     ...[
-      ["1006", "Arroz branco, parboilizado ou integral", 2.1], ["0713", "Feijão", 2.1],
+      ["1006", "Arroz branco, parboilizado ou integral", 2.1, "ARROZ"], ["0713", "Feijão", 2.1],
       ["0401", "Leite in natura / pasteurizado", 2.1], ["0402", "Leite em pó (exceto modificado)", 3.6],
       ["09012", "Café torrado e moído (exceto solúvel, gourmet e em cápsula)", 2.1], ["2501", "Sal refinado comum", 2.1],
       ["1507", "Óleo comestível de soja", 2.1], ["34011", "Sabão em barra", 3.6], ["0405", "Manteiga comum a granel ou em garrafa", 2.1, "GRANEL"],
       ["0406", "Queijo coalho / requeijão tipo queijo-manteiga", 2.1, "COALHO"], ["021020", "Charque", 3.6],
-      ["1102", "Farinha e fubá de milho (pré-cozido)", 2.1], ["1104", "Flocos de milho (flocão, cuscuz)", 2.1, "MILHO"],
+      ["1102", "Farinha e fubá de milho (pré-cozido)", 2.1, "MILHO|FUBA"], ["1104", "Flocos de milho (flocão, cuscuz)", 2.1, "MILHO"],
       ["0302", "Pescado fresco (exceto os excluídos no art. 40, § 3º, XIV)", 2.1], ["0303", "Pescado congelado (exceto os excluídos)", 2.1], ["0304", "Filés de peixe (exceto os excluídos)", 2.1],
     ].map(([n, d, pct, pad]) => ({
       id: "cesta-" + n, prioridade: 20, ncm: n, match: "inicia", descricao: d + " — cesta básica (optante " + String(pct).replace(".", ",") + "%)",
@@ -181,6 +181,9 @@ const TABELAS_SE = {
     ...["3304", "3305", "3307"].map(n => ({ id: "cosm-" + n, prioridade: 20, ncm: n, match: "inicia", descricao: "Produtos de beleza/maquiagem/capilares — alíquota 25% + FECOEP 2 pontos", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: false, fundamento: "Lei 3.796/96 art. 18 (produtos de beleza 25%); Lei 4.731/2002 (supérfluos +2 pts) — validado no mapa e na planilha de FCP da Faro Tem jul/2026" })),
     // Escova dental (HPPC, CEST 20.058.00): antecipação com encerramento — MVA aplicada no mapa da Faro Tem (69,66% na origem 4%)
     { id: "hppc-escova", prioridade: 15, ncm: "96032100", match: "igual", simplesTambem: true, descricao: "Escova de dentes (HPPC, CEST 20.058.00) — ST com encerramento", regime: "antecip_encer", encerra: true, mva: { 4: 69.66, 7: 64.25, 12: 55.44, interna: 43.15 }, aliq: 19, fecoep: null, confirmar: true, fundamento: "RICMS/SE Anexo IX (HPPC) c/c art. 784, II — MVA conforme mapa do escritório (Faro Tem jul/2026); confirmar MVA original" },
+    // Fraldas, absorventes e tampões (9619, HPPC, CEST 20.048.00 a 20.050.00): ST com encerramento — MVA da planilha oficial de ST de SE (v0019),
+    // conferida no mapa da Mais Barato mai/2026 (Bracell, NF 136200: MVA 55,52% na origem 12%) e no espelho da SEFAZ
+    { id: "hppc-fraldas", prioridade: 15, ncm: "9619", match: "inicia", simplesTambem: true, descricao: "Fraldas, absorventes e tampões higiênicos (HPPC, CEST 20.048.00 a 20.050.00) — ST com encerramento", regime: "antecip_encer", encerra: true, mva: { 4: 69.66, 7: 64.35, 12: 55.52, interna: 41.38 }, aliq: 19, fecoep: null, confirmar: false, fundamento: "RICMS/SE art. 681, XXVII e art. 684, §§ 4º-D e 4º-E, XXV (Anexo IX, HPPC) c/c art. 784, II — MVA da planilha oficial de ST de SE v0019" },
     // Salgadinhos de trigo (1905.90.90, CEST 17.031.01): pratica do escritorio — antecipacao com encerramento, MVA 35%
     { id: "salg-trigo", prioridade: 15, ncm: "19059090", match: "igual", simplesTambem: true, descPadrao: "SALG", descMatch: "inicia", descricao: "Salgadinho de trigo (CEST 17.031.01) — ST com encerramento, MVA 35%",
       regime: "antecip_encer", encerra: true, mva: 35, aliq: 19, fecoep: null, confirmar: true, fundamento: "RICMS/SE Anexo IX (Alimenticios) — MVA 35% conforme mapa da Mais Barato jul/2026; confirmar" },
