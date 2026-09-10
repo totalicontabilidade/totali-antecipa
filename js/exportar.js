@@ -114,16 +114,33 @@ const EXPORTAR = (() => {
   // ------------------------------------------------------------------
   // 2. ITENS (padrão do sistema de referência)
   // ------------------------------------------------------------------
+  // Descreve em palavras o que o usuário mudou no item (coluna AJUSTE_MANUAL)
+  function descreverAjuste(ov) {
+    if (!ov) return '';
+    const p = [];
+    if (ov.ignorar) p.push('ITEM EXCLUÍDO');
+    if (ov.receita) p.push('receita: ' + (MOTOR.receita(ov.receita) || {}).nome);
+    if (ov.finalidade) p.push('finalidade: ' + ov.finalidade);
+    if (ov.mva != null) p.push('MVA: ' + ov.mva + '%');
+    if (ov.aliq != null) p.push('alíq. interna: ' + ov.aliq + '%');
+    if (ov.aliqOrigem != null) p.push('alíq. origem: ' + ov.aliqOrigem + '%');
+    if (ov.fecoep != null) p.push('FECOEP: ' + ov.fecoep + ' pt(s)');
+    if (ov.pauta != null) p.push('pauta: ' + ov.pauta);
+    return p.join(' · ');
+  }
   function abaItens(ctx) {
     const { empresa, competencia, resultados } = ctx;
     const ws = {};
     // Emitente, destinatário, nº da NF e chave ficam só na linha de cabeçalho da nota; as linhas começam no nº do item
     const cols = ['nItem', 'COD_ITEM', 'DESC_ITEM', 'NCM', 'CEST', 'CFOP', 'CST_ICMS',
       'VL_PROD', 'VL_DESC', 'VL_BC_ICMS', 'ALIQ_ICMS', 'VL_ICMS', 'VL_FCP', 'VL_FRETE', 'VL_SEG', 'VL_OUTROS', 'VL_IPI_NF', 'MVA_NF', 'VL_BC_ST_NF', 'ALIQ_ST_NF', 'VL_ICMS_ST_NF',
-      'RECEITA', 'COD_RECEITA', 'BC_ANTECIPACAO (K)', 'ALIQ_ORIGEM (L)', 'ALIQ_INTERNA (M)', 'MVA_DB (O)', 'BC_ICMS_ST (P)', 'DEBITO (Q)', 'ICMS_ORIGEM (R)', 'ICMS_ANTECIPADO (S)', 'ALIQ_FECOEP', 'FECOEP', 'CUSTO_TOTAL', 'ALERTAS'];
+      'RECEITA', 'COD_RECEITA', 'BC_ANTECIPACAO (K)', 'ALIQ_ORIGEM (L)', 'ALIQ_INTERNA (M)', 'MVA_DB (O)', 'BC_ICMS_ST (P)', 'DEBITO (Q)', 'ICMS_ORIGEM (R)', 'ICMS_ANTECIPADO (S)', 'ALIQ_FECOEP', 'FECOEP', 'CUSTO_TOTAL', 'AJUSTE_MANUAL', 'OBSERVACAO', 'ALERTAS'];
     cell(ws, 'A1', 'Antecipação ICMS — SERGIPE — ' + empresa.nome + ' — competência ' + fmtComp(competencia), { s: { font: { bold: true, sz: 13, color: { rgb: NAVY } } } });
     cell(ws, 'A2', 'MVA em amarelo = não encontrada na base (informar manualmente) · Alíquota interna em amarelo = valor padrão aplicado (verificar) · Gerado por Totali Antecipa', { s: { font: { italic: true, color: { rgb: '666666' } } } });
     let r = 3;
+    if (ctx.versaoModificada) { cell(ws, A(0, r), '*** VERSÃO MODIFICADA — ajustes manuais nesta apuração: ' + ctx.versaoModificada, { s: { font: { bold: true, color: { rgb: 'C0392B' } } } }); merge(ws, r, 0, r, cols.length - 1); r++; }
+    if (ctx.obs) { cell(ws, A(0, r), 'OBSERVAÇÕES: ' + ctx.obs, { s: { font: { bold: true, color: { rgb: '182C43' } } } }); merge(ws, r, 0, r, cols.length - 1); r++; }
+    if (ctx.versaoModificada || ctx.obs) r++;
     for (const res of resultados) {
       if (res.ignorada) continue;
       const n = res.nota;
@@ -137,7 +154,8 @@ const EXPORTAR = (() => {
         const aliqPadrao = !it.override.aliq && !(it.regra && it.regra.aliq != null) && MOTOR.receita(it.receita).aliq == null && it.receita !== 'nao_antecipa';
         const vals = [i.nItem, i.cProd, i.xProd, i.ncm, i.cest, i.cfop, i.icms.cst || i.icms.csosn,
           i.vProd, i.vDesc, i.icms.vBC, i.icms.pICMS, i.icms.vICMS, i.icms.vFCP, i.vFrete, i.vSeg, i.vOutro, i.vIPI, i.icms.pMVAST, i.icms.vBCST, i.icms.pICMSST, i.icms.vICMSST,
-          it.receitaNome, it.cod, it.K, it.L, it.M, it.O, it.P, it.Q, it.R, it.S, it.fecoepPts, it.fecoep, MOTOR.r2(it.K + it.S + it.fecoep), it.alertas.map(a => a.msg).join(' | ')];
+          it.receitaNome, it.cod, it.K, it.L, it.M, it.O, it.P, it.Q, it.R, it.S, it.fecoepPts, it.fecoep, MOTOR.r2(it.K + it.S + it.fecoep),
+          descreverAjuste(it.override), (it.override || {}).obs || '', it.alertas.map(a => a.msg).join(' | ')];
         vals.forEach((v, c) => {
           const isNum = typeof v === 'number';
           const s = (c === 26 && semMva) || (c === 25 && aliqPadrao) ? amarelo : { border: brd() };
@@ -227,5 +245,14 @@ const EXPORTAR = (() => {
     return nome;
   }
 
-  return { gerar };
+  // Só a planilha de itens (tela Itens): mesma aba do arquivo completo, em arquivo próprio
+  function gerarItens(ctx) {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, abaItens(ctx), 'Itens');
+    const nome = `Antecipa_SE_ITENS_${(ctx.empresa.ie || ctx.empresa.cnpj || 'empresa').replace(/\D/g, '')}_${(ctx.competencia || '').replace('-', '')}.xlsx`;
+    XLSX.writeFile(wb, nome);
+    return nome;
+  }
+
+  return { gerar, gerarItens };
 })();

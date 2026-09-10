@@ -152,6 +152,7 @@
   <nav class="side">
     <div class="lbl">Apuração</div>
     <button data-view="apuracao" class="on"><span class="ic">🧮</span> Apuração do mês</button>
+    <button data-view="itens"><span class="ic">🧾</span> Itens</button>
     <button data-view="mapa"><span class="ic">🗺️</span> Mapa SEFAZ</button>
     <div class="lbl">Cadastros</div>
     <button data-view="empresas"><span class="ic">🏢</span> Empresas</button>
@@ -172,8 +173,18 @@
         <div><h1>Apuração do ICMS Antecipado</h1><p>Lance o espelho do DIA, traga os XMLs e o sistema calcula nota a nota com a memória de cálculo da SEFAZ/SE.</p></div>
         <div class="row noprint">
           <button class="btn ghost sm" id="btnLimparApur">Limpar apuração</button>
+          <button class="btn soft" id="btnVerItens">🧾 Itens (ver e ajustar)</button>
           <button class="btn gold" id="btnExport">⬇ Exportar Excel (mapa + itens)</button>
         </div>
+      </div>
+
+      <div class="alert alto" id="avisoModificada" style="display:none;margin-bottom:12px"></div>
+      <div class="card" style="margin-bottom:12px">
+        <div class="row" style="justify-content:space-between;align-items:center;gap:10px">
+          <div class="fi-label" style="margin:0">Observações desta apuração <span class="small muted">(aparecem na planilha exportada e no Mapa impresso)</span></div>
+          <span class="small muted" id="obsStatus"></span>
+        </div>
+        <textarea class="fi" id="obsApur" rows="2" placeholder="Ex.: teve nota de devolução da NF 1234; item 3 excluído porque é brinde; imposto da NF 5678 pago em GNRE separada."></textarea>
       </div>
 
       <div class="grid g3">
@@ -234,6 +245,30 @@
         <div class="row noprint"><button class="btn ghost" onclick="window.print()">🖨 Imprimir</button><button class="btn gold" id="btnExport2">⬇ Exportar Excel</button></div>
       </div>
       <div class="mapa" id="mapaSefaz"></div>
+    </section>
+
+    <!-- ================= ITENS ================= -->
+    <section class="view" id="view-itens">
+      <div class="pagehdr">
+        <div><h1>Itens da competência</h1><p>Todos os itens das notas, item a item. Ajuste receita, MVA, alíquotas, FECOEP, finalidade e pauta direto na linha — vale só nesta apuração.</p></div>
+        <div class="row noprint"><button class="btn ghost sm" id="btnItensLimpar">Limpar ajustes</button><button class="btn gold" id="btnExportItens">⬇ Exportar só os itens</button></div>
+      </div>
+      <div class="card">
+        <div class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:10px">
+          <input class="fi" id="filtroItens" placeholder="filtrar por produto, NCM, CFOP, CST, NF ou emitente" style="max-width:340px">
+          <select class="fi" id="filtroItensRec" style="max-width:230px"><option value="">todas as receitas</option></select>
+          <label class="small"><input type="checkbox" id="chkItensAlerta"> só com alerta</label>
+          <label class="small"><input type="checkbox" id="chkItensAjust"> só ajustados</label>
+          <span class="small muted" id="cntItens"></span>
+        </div>
+        <div class="tblwrap"><table class="tbl compact" id="tblItens"><thead><tr>
+          <th>NF</th><th>#</th><th>Produto</th><th>NCM</th><th>CFOP</th><th>CST</th>
+          <th class="num">Valor (F)</th><th class="num">Base (P)</th><th class="num">L</th><th class="num">M</th><th class="num">O MVA</th>
+          <th class="num">Débito (Q)</th><th class="num">Créd. (R)</th><th class="num">ICMS (S)</th><th class="num">FECOEP</th>
+          <th>Receita</th><th>Finalidade</th><th class="num">MVA</th><th class="num">Alíq. int.</th><th class="num">Alíq. orig.</th><th class="num">FECOEP pts</th><th class="num">Pauta</th><th>Observação</th><th></th>
+        </tr></thead><tbody></tbody></table></div>
+        <div class="small muted" style="margin-top:8px">Campos em branco usam o cálculo automático (o valor sugerido aparece esmaecido). Clique no nome do produto para abrir a nota com a memória de cálculo completa.</div>
+      </div>
     </section>
 
     <!-- ================= EMPRESAS ================= -->

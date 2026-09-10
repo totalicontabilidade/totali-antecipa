@@ -40,7 +40,7 @@ function showView(v) {
   ST.view = v;
   document.querySelectorAll('.view').forEach(x => x.classList.toggle('on', x.id === 'view-' + v));
   document.querySelectorAll('.side button[data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === v));
-  if (v === 'mapa') renderMapa(); if (v === 'empresas') renderEmpresas(); if (v === 'regras') renderRegras(); if (v === 'params') renderParams(); if (v === 'materiais') renderMateriais();
+  if (v === 'mapa') renderMapa(); if (v === 'itens') renderItens(); if (v === 'empresas') renderEmpresas(); if (v === 'regras') renderRegras(); if (v === 'params') renderParams(); if (v === 'materiais') renderMateriais();
 }
 document.querySelectorAll('.side button[data-view]').forEach(b => b.onclick = () => showView(b.dataset.view));
 
@@ -78,7 +78,7 @@ function recalcular() {
   }
   CONF.sort((a, b) => (a.dtEmi || '').localeCompare(b.dtEmi || '') || String(a.nNF).localeCompare(String(b.nNF), undefined, { numeric: true }));
   CONS = MOTOR.consolidar(RES);
-  renderKpis(); renderNotas(); renderResumo(); if (ST.view === 'mapa') renderMapa();
+  renderKpis(); renderNotas(); renderResumo(); if (ST.view === 'mapa') renderMapa(); if (ST.view === 'itens') renderItens();
   $('infoEspelho').textContent = A.espelho ? `${A.espelho.linhas.length} nota(s) no espelho` + (A.espelho.nDia ? ` · DIA ${A.espelho.nDia}` : '') : 'nenhum espelho carregado';
   const pend = CONF.filter(l => l.semXml).length;
   $('infoXml').textContent = `${Object.keys(A.xmls).length} XML(s) carregado(s)` + (pend ? ` · ${pend} pendente(s)` : '');
@@ -86,7 +86,48 @@ function recalcular() {
 }
 
 // ------------------------------------------------------------------ render: apuração
+// Ajustes manuais feitos nesta apuração — usados no aviso "versão modificada" (tela, mapa e Excel)
+function ajustesManuais() {
+  const A = apur(), o = A.overrides || {};
+  const r = { itensExcluidos: [], itensAjustados: [], notas: [], total: 0 };
+  for (const k of Object.keys(o)) {
+    const v = o[k] || {}; if (!Object.keys(v).filter(c => c !== 'obs').length) continue;   // só observação não é modificação
+    const item = k.includes('#');
+    const nNF = (CONF.find(l => l.chave === (item ? k.split('#')[0] : k)) || {}).nNF || '?';
+    if (item) { const rot = nNF + '/item ' + k.split('#')[1]; if (v.ignorar) r.itensExcluidos.push(rot); else r.itensAjustados.push(rot); }
+    else if (v.ignorar) r.notas.push('NF ' + nNF + ' removida');
+    else if (v.situacao) r.notas.push('NF ' + nNF + ' (' + (v.situacao === 'difal_recolhido' ? 'DIFAL' : v.situacao === 'gnre_recolhido' ? 'GNRE' : v.situacao) + ')');
+    else if (v.receita) r.notas.push('NF ' + nNF + ' (receita trocada)');
+  }
+  r.total = r.itensExcluidos.length + r.itensAjustados.length + r.notas.length;
+  return r;
+}
+function textoVersaoModificada() {
+  const a = ajustesManuais(); if (!a.total) return '';
+  const p = [];
+  if (a.itensExcluidos.length) p.push(a.itensExcluidos.length + ' item(ns) EXCLUÍDO(S) (' + a.itensExcluidos.slice(0, 6).join(', ') + (a.itensExcluidos.length > 6 ? '…' : '') + ')');
+  if (a.itensAjustados.length) p.push(a.itensAjustados.length + ' item(ns) ajustado(s)');
+  if (a.notas.length) p.push(a.notas.length + ' nota(s): ' + a.notas.slice(0, 5).join(', ') + (a.notas.length > 5 ? '…' : ''));
+  return p.join(' · ');
+}
+function renderAvisoModificada() {
+  const el = $('avisoModificada'); if (!el) return;
+  const txt = textoVersaoModificada();
+  el.style.display = txt ? '' : 'none';
+  if (txt) el.innerHTML = '<b>⚠ VERSÃO MODIFICADA</b> — esta apuração não é mais a calculada automaticamente: ' + esc(txt) + '. Veja e desfaça em <b>Itens</b> ou na coluna Receita das notas.';
+}
+// Observações da competência (texto livre do usuário) — vão para o Excel e para o Mapa impresso
+function renderObs() {
+  const A = apur(), el = $('obsApur'); if (!el) return;
+  if (document.activeElement !== el) el.value = A.obs || '';
+  $('obsStatus').textContent = (A.obs || '').trim() ? 'salva nesta apuração' : '';
+}
+if ($('obsApur')) {
+  let tObs;
+  $('obsApur').oninput = () => { clearTimeout(tObs); tObs = setTimeout(() => { const A = apur(); A.obs = $('obsApur').value; salvar(); $('obsStatus').textContent = (A.obs || '').trim() ? 'salva nesta apuração' : ''; }, 500); };
+}
 function renderKpis() {
+  renderAvisoModificada(); renderObs();
   const E = empresaAtual();
   const difTot = CONF.filter(l => l.dif != null).reduce((s, l) => s + l.dif, 0);
   const sefazTot = CONF.filter(l => l.vSefaz != null).reduce((s, l) => s + l.vSefaz, 0);
@@ -139,6 +180,91 @@ function renderNotas() {
   tb.querySelectorAll('[data-ign]').forEach(el => el.onclick = () => { const o = apur().overrides; const k = el.dataset.ign; o[k] = { ...(o[k] || {}), ignorar: !(o[k] && o[k].ignorar) }; salvar(); recalcular(); });
   tb.querySelectorAll('[data-del]').forEach(el => el.onclick = () => { const A = apur(); if (A.espelho) A.espelho.linhas = A.espelho.linhas.filter(x => x.chave !== el.dataset.del); delete A.xmls[el.dataset.del]; salvar(); recalcular(); });
 }
+
+// ------------------------------------------------------------------ itens da competência (ver, ajustar e exportar)
+function itensDaCompetencia() {
+  const out = [];
+  for (const r of RES) {
+    if (!r || !r.nota) continue;
+    for (const it of (r.itens || [])) out.push({ res: r, it, chave: r.nota.chave, nNF: r.nota.nNF, emitente: r.nota.emit.nome, uf: r.nota.emit.uf, k: r.nota.chave + '#' + it.item.nItem, ignorada: !!r.ignorada });
+  }
+  return out;
+}
+function renderItens() {
+  const A = apur(), todos = itensDaCompetencia();
+  const f = ($('filtroItens').value || '').toLowerCase().trim();
+  const recF = $('filtroItensRec').value, soAlerta = $('chkItensAlerta').checked, soAjust = $('chkItensAjust').checked;
+  const tb = $('tblItens').querySelector('tbody');
+  // opções de receita do filtro (mantendo a escolha)
+  const recs = [...new Set(todos.map(x => x.it.receita))];
+  $('filtroItensRec').innerHTML = '<option value="">todas as receitas</option>' + recs.map(id => `<option value="${id}" ${id === recF ? 'selected' : ''}>${esc(MOTOR.receita(id).nome)}</option>`).join('');
+  const recOpts = id => TABELAS_SE.receitas.map(x => `<option value="${x.id}" ${x.id === id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
+  const linhas = todos.filter(x => {
+    const i = x.it.item, ov = A.overrides[x.k] || {};
+    if (recF && x.it.receita !== recF) return false;
+    if (soAlerta && !(x.it.alertas || []).length) return false;
+    if (soAjust && !Object.keys(ov).length) return false;
+    if (f && !((i.xProd || '').toLowerCase().includes(f) || String(i.ncm).includes(f) || String(i.cfop).includes(f) || String(i.icms.cst || i.icms.csosn).includes(f) || String(x.nNF).includes(f) || (x.emitente || '').toLowerCase().includes(f))) return false;
+    return true;
+  });
+  tb.innerHTML = linhas.length ? linhas.map(x => {
+    const it = x.it, i = it.item, ov = A.overrides[x.k] || {}, ajust = Object.keys(ov).filter(c => c !== 'obs').length;
+    const nv = (a) => a.some(y => y.nivel === 'alto') ? 'b-bad' : a.some(y => y.nivel === 'medio') ? 'b-warn' : 'b-info';
+    const alt = (it.alertas || []).length ? ` <span class="badge ${nv(it.alertas)}" title="${esc(it.alertas.map(a => a.msg).join('\n'))}">!${it.alertas.length}</span>` : '';
+    const num = (campo, val, auto, step) => `<td class="num"><input class="fi" type="number" step="${step || '0.01'}" style="padding:2px 4px;font-size:11px;width:74px;text-align:right" data-ovi="${x.k}" data-f="${campo}" value="${val ?? ''}" placeholder="${auto}"></td>`;
+    return `<tr${x.ignorada ? ' style="opacity:.5"' : ''}${ajust ? ' class="tot"' : ''}>
+      <td><b class="clickable" data-abrir="${x.chave}">${esc(x.nNF)}</b><div class="small muted">${esc((x.emitente || '').slice(0, 18))}</div></td>
+      <td>${i.nItem}</td>
+      <td><span title="${esc(i.xProd)}">${esc((i.xProd || '').slice(0, 34))}</span>${alt}${x.ignorada ? ' <span class="badge b-muted">fora</span>' : ''}<div class="small muted">${it.regra ? esc(String(it.regra.descricao).slice(0, 40)) : 'sem regra específica'}</div></td>
+      <td class="mono">${esc(i.ncm)}</td><td>${esc(i.cfop)}</td><td>${esc(i.icms.cst || i.icms.csosn)}</td>
+      <td class="num">${fmt(it.F)}</td><td class="num">${fmt(it.P)}</td><td class="num">${fmtP(it.L)}</td><td class="num">${fmtP(it.M)}</td><td class="num">${fmtP(it.O)}</td>
+      <td class="num">${fmt(it.Q)}</td><td class="num">${fmt(it.R)}</td><td class="num"><b>${fmt(it.S)}</b></td><td class="num">${fmt(it.fecoep)}</td>
+      <td><select class="fi" style="padding:2px 4px;font-size:11px;max-width:130px" data-ovi="${x.k}" data-f="receita"><option value="">auto</option>${recOpts(ov.receita)}</select></td>
+      <td><select class="fi" style="padding:2px 4px;font-size:11px" data-ovi="${x.k}" data-f="finalidade"><option value="">auto</option><option value="revenda" ${ov.finalidade === 'revenda' ? 'selected' : ''}>revenda</option><option value="usoConsumo" ${ov.finalidade === 'usoConsumo' ? 'selected' : ''}>uso/consumo</option><option value="ativo" ${ov.finalidade === 'ativo' ? 'selected' : ''}>ativo</option></select></td>
+      ${num('mva', ov.mva, it.O)}${num('aliq', ov.aliq, it.M)}${num('aliqOrigem', ov.aliqOrigem, it.L)}${num('fecoep', ov.fecoep, it.fecoepPts, '0.5')}${num('pauta', ov.pauta, '—')}
+      <td><input class="fi" style="padding:2px 4px;font-size:11px;min-width:150px" data-ovi="${x.k}" data-f="obs" value="${esc(ov.obs || '')}" placeholder="ex.: nota de devolução" title="${esc(ov.obs || '')}"></td>
+      <td style="white-space:nowrap"><button class="btn sm ${ov.ignorar ? 'soft' : 'ghost'}" data-igni="${x.k}" title="${ov.ignorar ? 'voltar a considerar este item' : 'excluir este item da apuração'}">${ov.ignorar ? '↩' : '✕'}</button>${ajust ? ` <button class="btn sm ghost" data-limpai="${x.k}" title="voltar este item ao cálculo automático">⟲</button>` : ''}</td></tr>`;
+  }).join('') : '<tr><td colspan="24" class="empty">Nenhum item. Carregue os XMLs na Apuração do mês.</td></tr>';
+  const ajustados = todos.filter(x => Object.keys(A.overrides[x.k] || {}).filter(c => c !== 'obs').length).length;
+  const excluidos = todos.filter(x => (A.overrides[x.k] || {}).ignorar).length;
+  const comObs = todos.filter(x => (A.overrides[x.k] || {}).obs).length;
+  $('cntItens').textContent = `${linhas.length} de ${todos.length} item(ns)` + (ajustados ? ` · ${ajustados} ajustado(s)` : '') + (excluidos ? ` · ${excluidos} excluído(s)` : '') + (comObs ? ` · ${comObs} com observação` : '');
+  tb.querySelectorAll('[data-abrir]').forEach(el => el.onclick = () => abrirNota(el.dataset.abrir));
+  tb.querySelectorAll('[data-limpai]').forEach(el => el.onclick = () => { delete apur().overrides[el.dataset.limpai]; salvar(); recalcular(); });
+  tb.querySelectorAll('[data-igni]').forEach(el => el.onclick = () => {
+    const o = apur().overrides, k = el.dataset.igni; o[k] = { ...(o[k] || {}) };
+    if (o[k].ignorar) delete o[k].ignorar; else o[k].ignorar = true;
+    const excluido = !!o[k].ignorar;
+    if (!Object.keys(o[k]).length) delete o[k];
+    salvar(); recalcular();
+    showToast(excluido ? 'Item excluído da apuração — a versão passa a ser MODIFICADA (veja o aviso no topo).' : 'Item recolocado na apuração.', excluido ? '' : 'success');
+  });
+  tb.querySelectorAll('[data-ovi]').forEach(el => el.onchange = () => {
+    const o = apur().overrides, k = el.dataset.ovi, f = el.dataset.f, v = el.value;
+    o[k] = { ...(o[k] || {}) };
+    if (v === '' || v == null) delete o[k][f];
+    else o[k][f] = ['mva', 'aliq', 'aliqOrigem', 'fecoep', 'pauta'].includes(f) ? parseFloat(String(v).replace(',', '.')) : v;
+    if (!Object.keys(o[k]).length) delete o[k];
+    salvar(); recalcular();   // recalcula sempre: mesmo a obs precisa entrar no resultado que vai para o Excel
+    if (f === 'obs') showToast('Observação salva neste item.', '');
+  });
+}
+$('filtroItens').oninput = renderItens; $('filtroItensRec').onchange = renderItens;
+$('chkItensAlerta').onchange = renderItens; $('chkItensAjust').onchange = renderItens;
+$('btnVerItens').onclick = () => showView('itens');
+$('btnItensLimpar').onclick = () => {
+  const A = apur(), n = Object.keys(A.overrides || {}).filter(k => k.includes('#')).length;
+  if (!n) return showToast('Nenhum ajuste de item nesta apuração.', '');
+  if (!confirm(`Limpar os ajustes de ${n} item(ns) desta apuração? As marcações por nota (DIFAL, GNRE, adiada) não são afetadas.`)) return;
+  for (const k of Object.keys(A.overrides)) if (k.includes('#')) delete A.overrides[k];
+  salvar(); recalcular(); showToast(`${n} ajuste(s) de item removido(s).`, 'success');
+};
+$('btnExportItens').onclick = () => {
+  const E = empresaAtual(); if (!E) return showToast('Selecione a empresa.', 'error');
+  if (!RES.length) return showToast('Nada para exportar — carregue os XMLs.', 'error');
+  const nome = EXPORTAR.gerarItens({ empresa: E, competencia: ST.comp, resultados: RES, consolidado: CONS, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, obs: (apur().obs || ""), versaoModificada: textoVersaoModificada() });
+  showToast('Planilha de itens gerada: ' + nome, 'success');
+};
 
 function renderResumo() {
   const rows = Object.entries(CONS.porReceita);
@@ -594,7 +720,7 @@ $('filtroNotas').oninput = renderNotas; $('chkSoDif').onchange = renderNotas;
 function exportar() {
   const E = empresaAtual(); if (!E) return showToast('Selecione a empresa.', 'error');
   if (!RES.length) return showToast('Nada para exportar — carregue os XMLs.', 'error');
-  const ctx = { empresa: E, competencia: ST.comp, resultados: RES, consolidado: CONS, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, linhasConferencia: CONF.map(l => ({ nNF: l.nNF, emitente: l.emitente, uf: l.uf, chave: l.chave, forma: l.forma, vSefaz: l.vSefaz ?? '', receita: l.receita, vCalc: l.vCalc ?? '', fecoep: l.fecoep, dif: l.dif ?? '', status: l.status === "ok" ? (Math.abs(l.dif || 0) > 0.05 ? "diverge da SEFAZ" : "confere") : l.status === "difal_recolhido" ? "já recolhida no DIFAL (fora da apuração)" : l.status === "gnre_recolhido" ? "já recolhida anteriormente por GNRE (fora da apuração)" : l.status === "adiada" ? "adiada para o mês seguinte" : l.status })) };
+  const ctx = { empresa: E, competencia: ST.comp, resultados: RES, obs: (apur().obs || ""), versaoModificada: textoVersaoModificada(), consolidado: CONS, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, linhasConferencia: CONF.map(l => ({ nNF: l.nNF, emitente: l.emitente, uf: l.uf, chave: l.chave, forma: l.forma, vSefaz: l.vSefaz ?? '', receita: l.receita, vCalc: l.vCalc ?? '', fecoep: l.fecoep, dif: l.dif ?? '', status: l.status === "ok" ? (Math.abs(l.dif || 0) > 0.05 ? "diverge da SEFAZ" : "confere") : l.status === "difal_recolhido" ? "já recolhida no DIFAL (fora da apuração)" : l.status === "gnre_recolhido" ? "já recolhida anteriormente por GNRE (fora da apuração)" : l.status === "adiada" ? "adiada para o mês seguinte" : l.status })) };
   const nome = EXPORTAR.gerar(ctx); showToast('Planilha gerada: ' + nome, 'success');
 }
 $('btnExport').onclick = exportar; $('btnExport2').onclick = exportar; $('btnExportTop').onclick = exportar;

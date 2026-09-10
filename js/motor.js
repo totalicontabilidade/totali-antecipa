@@ -115,6 +115,7 @@ const MOTOR = (() => {
   }
   function decidirReceita(ctx) {
     const { nota, item, empresa, tri, regra, ov } = ctx;
+    if (ov && ov.ignorar) return { id: 'nao_antecipa', motivo: 'Item EXCLUÍDO manualmente desta apuração pelo usuário — a versão deixa de ser a calculada automaticamente.' };
     if (ov && ov.receita) return { id: ov.receita, motivo: 'Receita definida manualmente pelo usuário.' };
     if (!tri.interestadual) return { id: 'nao_antecipa', motivo: 'Não é entrada interestadual para contribuinte de SE (emitente ' + nota.emit.uf + ' → destinatário ' + nota.dest.uf + ').' };
     if (['industrializacao', 'devolucao', 'remessaRetorno'].includes(tri.cfopTipo)) return { id: 'nao_antecipa', motivo: T.descCfop[tri.cfopTipo] + ' (CFOP ' + item.cfop + ').' };
