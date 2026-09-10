@@ -398,7 +398,10 @@ const FB = (() => {
     auth.onAuthStateChanged(u => { if (u) entrar(u); else sair(); });
     // ganchos no app: gravar na nuvem a cada salvar(); baixar XMLs ao trocar empresa/mês; tela de usuários
     const _salvar = salvar; salvar = function () { _salvar(); agendar(); };
-    const _recalcular = recalcular; recalcular = function () { const k = apurKey(); if (pronto && !xmlsCarregados.has(k)) { garantirXmls(k).then(ok => { if (ok) _recalcular(); }); } return _recalcular(); };
+    // Ao trocar de empresa/mês os XMLs vêm da nuvem: enquanto isso a tela mostra a apuração incompleta.
+    // O aviso abaixo deixa claro que os números ainda não são finais (evita ler valor parcial como se fosse o total).
+    const avisoXml = (ligado) => { const el = $('avisoCarregando'); if (el) el.style.display = ligado ? '' : 'none'; };
+    const _recalcular = recalcular; recalcular = function () { const k = apurKey(); if (pronto && !xmlsCarregados.has(k)) { avisoXml(true); garantirXmls(k).then(ok => { avisoXml(false); if (ok) _recalcular(); }).catch(() => avisoXml(false)); } return _recalcular(); };
     const _showView = showView; showView = function (v) { _showView(v); if (v === 'usuarios') renderUsuarios(); };
     const bu = $('btnViewUsuarios'); if (bu) bu.onclick = () => showView('usuarios');
   }

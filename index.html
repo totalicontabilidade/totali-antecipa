@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="js/firebase-config.js?v=1.9.3"></script>
+<script src="js/firebase-config.js?v=1.10.0"></script>
 <style>
   :root {
     --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
@@ -78,6 +78,18 @@
   .drop { border: 2px dashed #CBD5E1; border-radius: var(--r); padding: 18px; text-align: center; color: var(--muted); background: var(--gelo); cursor: pointer; transition: .15s; }
   .drop:hover, .drop.over { border-color: var(--gold); background: var(--areia); color: var(--navy); }
   .drop b { color: var(--navy); }
+  /* regua de competencias: verde = apuracao feita, ambar = falta XML, cinza = vazio */
+  .meses { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; }
+  @media (max-width: 900px) { .meses { grid-template-columns: repeat(6, 1fr); } }
+  .mchip { border: 1px solid var(--line); border-radius: 9px; padding: 7px 4px; text-align: center; cursor: pointer; background: #fff; font-size: 12px; font-weight: 700; font-family: Manrope, sans-serif; color: var(--muted); transition: .12s; line-height: 1.25; }
+  .mchip:hover { transform: translateY(-1px); box-shadow: var(--sh); }
+  .mchip .mv { display: block; font-size: 10px; font-weight: 600; opacity: .85; }
+  .mchip.vazio { background: var(--gelo); color: #9AA1AC; }
+  .mchip.parcial { background: #FDF3E0; border-color: var(--warn); color: #8A5B12; }
+  .mchip.ok { background: #E7F5EE; border-color: var(--ok); color: #14663F; }
+  .mchip.sel { outline: 2px solid var(--navy); outline-offset: 1px; }
+  .mchip.mod::after { content: " *"; color: var(--bad); }
+
   .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
   .b-ok { background: #E3F5EC; color: var(--ok); } .b-warn { background: #FDF1DC; color: var(--warn); } .b-bad { background: #FBE5E1; color: var(--bad); } .b-info { background: #E4EEF7; color: var(--info); } .b-navy { background: var(--navy); color: #fff; } .b-gold { background: var(--areia); color: #8A6620; } .b-muted { background: #EEE; color: var(--muted); }
   .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -178,6 +190,24 @@
         </div>
       </div>
 
+      <div class="card" id="cardMeses" style="margin-bottom:12px;padding:10px 14px">
+        <div class="row" style="justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">
+          <div class="fi-label" style="margin:0">Competências do ano <span class="small muted">clique para abrir o mês</span></div>
+          <div class="row" style="gap:8px">
+            <button class="btn sm ghost" id="btnAnoAnt" title="ano anterior">‹</button>
+            <b id="anoMeses" style="font-family:Manrope;font-size:15px"></b>
+            <button class="btn sm ghost" id="btnAnoProx" title="próximo ano">›</button>
+          </div>
+        </div>
+        <div class="meses" id="rguaMeses"></div>
+        <div class="small muted" style="margin-top:8px">
+          <span class="mchip ok" style="pointer-events:none">■</span> apuração feita ·
+          <span class="mchip parcial" style="pointer-events:none">■</span> falta XML ·
+          <span class="mchip vazio" style="pointer-events:none">■</span> sem apuração
+        </div>
+      </div>
+
+      <div class="alert baixo" id="avisoCarregando" style="display:none;margin-bottom:12px">⏳ <b>Baixando os XMLs desta competência…</b> os valores abaixo ainda não são os finais.</div>
       <div class="alert alto" id="avisoModificada" style="display:none;margin-bottom:12px"></div>
       <div class="card" style="margin-bottom:12px">
         <div class="row" style="justify-content:space-between;align-items:center;gap:10px">
@@ -535,19 +565,19 @@
 
 <div id="toast"></div>
 
-<script src="js/versao.js?v=1.9.3"></script>
-<script src="js/tabelas.js?v=1.9.3"></script>
-<script src="js/tabelas-fundamentos.js?v=1.9.3"></script>
-<script src="js/tabelas-cnae.js?v=1.9.3"></script>
-<script src="js/nfe.js?v=1.9.3"></script>
-<script src="js/materiais.js?v=1.9.3"></script>
-<script src="js/motor.js?v=1.9.3"></script>
-<script src="js/espelho.js?v=1.9.3"></script>
-<script src="js/exportar.js?v=1.9.3"></script>
-<script src="js/app.js?v=1.9.3"></script>
-<script src="js/app-regime.js?v=1.9.3"></script>
-<script src="js/app-materiais.js?v=1.9.3"></script>
-<script src="js/firebase-sync.js?v=1.9.3"></script>
-<script src="js/firebase-certs.js?v=1.9.3"></script>
+<script src="js/versao.js?v=1.10.0"></script>
+<script src="js/tabelas.js?v=1.10.0"></script>
+<script src="js/tabelas-fundamentos.js?v=1.10.0"></script>
+<script src="js/tabelas-cnae.js?v=1.10.0"></script>
+<script src="js/nfe.js?v=1.10.0"></script>
+<script src="js/materiais.js?v=1.10.0"></script>
+<script src="js/motor.js?v=1.10.0"></script>
+<script src="js/espelho.js?v=1.10.0"></script>
+<script src="js/exportar.js?v=1.10.0"></script>
+<script src="js/app.js?v=1.10.0"></script>
+<script src="js/app-regime.js?v=1.10.0"></script>
+<script src="js/app-materiais.js?v=1.10.0"></script>
+<script src="js/firebase-sync.js?v=1.10.0"></script>
+<script src="js/firebase-certs.js?v=1.10.0"></script>
 </body>
 </html>

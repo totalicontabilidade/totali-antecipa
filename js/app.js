@@ -116,6 +116,39 @@ function renderAvisoModificada() {
   el.style.display = txt ? '' : 'none';
   if (txt) el.innerHTML = '<b>⚠ VERSÃO MODIFICADA</b> — esta apuração não é mais a calculada automaticamente: ' + esc(txt) + '. Veja e desfaça em <b>Itens</b> ou na coluna Receita das notas.';
 }
+// Régua de competências do ano: verde = apuração feita, âmbar = falta XML, cinza = sem apuração
+const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+let ANO_REGUA = null;
+function estadoDaCompetencia(empresaId, comp) {
+  const A = (DB.apuracoes || {})[empresaId + '|' + comp];
+  if (!A) return { estado: 'vazio' };
+  const linhas = ((A.espelho || {}).linhas || []).length, xmls = Object.keys(A.xmls || {}).length;
+  if (!linhas && !xmls) return { estado: 'vazio' };
+  const semXml = ((A.espelho || {}).linhas || []).filter(l => !A.xmls[l.chave]).length;
+  const mod = Object.values(A.overrides || {}).some(o => Object.keys(o || {}).filter(c => c !== 'obs').length);
+  return { estado: semXml ? 'parcial' : 'ok', linhas, xmls, semXml, mod, obs: !!(A.obs || '').trim() };
+}
+function renderReguaMeses() {
+  const el = $('rguaMeses'); if (!el) return;
+  const E = empresaAtual();
+  if (!E) { $('cardMeses').style.display = 'none'; return; }
+  $('cardMeses').style.display = '';
+  const anoAtual = parseInt((ST.comp || '').slice(0, 4), 10) || new Date().getFullYear();
+  if (ANO_REGUA == null) ANO_REGUA = anoAtual;
+  $('anoMeses').textContent = ANO_REGUA;
+  el.innerHTML = MESES_ABREV.map((m, i) => {
+    const comp = ANO_REGUA + '-' + String(i + 1).padStart(2, '0');
+    const s = estadoDaCompetencia(E.id, comp);
+    const sel = comp === ST.comp ? ' sel' : '';
+    const tit = s.estado === 'vazio' ? 'sem apuração' : (s.xmls + ' XML(s)' + (s.semXml ? ' · ' + s.semXml + ' nota(s) sem XML' : ' · completa') + (s.mod ? ' · versão modificada' : '') + (s.obs ? ' · tem observações' : ''));
+    const marca = s.mod ? ' mod' : '';
+    return `<div class="mchip ${s.estado}${sel}${marca}" data-comp="${comp}" title="${esc(MESES_ABREV[i] + '/' + ANO_REGUA + ' — ' + tit)}">${m}<span class="mv">${s.estado === 'vazio' ? '—' : s.xmls + ' xml'}</span></div>`;
+  }).join('');
+  el.querySelectorAll('[data-comp]').forEach(c => c.onclick = () => { ST.comp = c.dataset.comp; $('inpComp').value = ST.comp; salvar(); recalcular(); });
+}
+if ($('btnAnoAnt')) $('btnAnoAnt').onclick = () => { ANO_REGUA = (ANO_REGUA || new Date().getFullYear()) - 1; renderReguaMeses(); };
+if ($('btnAnoProx')) $('btnAnoProx').onclick = () => { ANO_REGUA = (ANO_REGUA || new Date().getFullYear()) + 1; renderReguaMeses(); };
+
 // Observações da competência (texto livre do usuário) — vão para o Excel e para o Mapa impresso
 function renderObs() {
   const A = apur(), el = $('obsApur'); if (!el) return;
@@ -127,7 +160,7 @@ if ($('obsApur')) {
   $('obsApur').oninput = () => { clearTimeout(tObs); tObs = setTimeout(() => { const A = apur(); A.obs = $('obsApur').value; salvar(); $('obsStatus').textContent = (A.obs || '').trim() ? 'salva nesta apuração' : ''; }, 500); };
 }
 function renderKpis() {
-  renderAvisoModificada(); renderObs();
+  renderAvisoModificada(); renderObs(); renderReguaMeses();
   const E = empresaAtual();
   const difTot = CONF.filter(l => l.dif != null).reduce((s, l) => s + l.dif, 0);
   const sefazTot = CONF.filter(l => l.vSefaz != null).reduce((s, l) => s + l.vSefaz, 0);
@@ -393,8 +426,8 @@ $('btnSalvarEmpresa').onclick = () => {
   const i = DB.empresas.findIndex(x => x.id === e.id); if (i >= 0) DB.empresas[i] = e; else DB.empresas.push(e);
   ST.empresaId = e.id; salvar(); closeModal("modal-empresa"); renderEmpresasSelect(); renderEmpresas(); recalcular(); if (typeof checarSefaz === "function") checarSefaz(); showToast('Empresa salva.', 'success');
 };
-$('selEmpresa').onchange = () => { ST.empresaId = $('selEmpresa').value; salvar(); recalcular(); };
-$('inpComp').onchange = () => { ST.comp = $('inpComp').value; salvar(); recalcular(); };
+$('selEmpresa').onchange = () => { ST.empresaId = $('selEmpresa').value; salvar(); recalcular(); renderReguaMeses(); };
+$('inpComp').onchange = () => { ST.comp = $('inpComp').value; ANO_REGUA = parseInt((ST.comp || '').slice(0, 4), 10) || ANO_REGUA; salvar(); recalcular(); };
 // Empresa criada a partir do espelho: abre o cadastro já preenchido com o que o espelho trouxe (nome, IE, regime sugerido)
 function abrirEmpresaNova(id) {
   editarEmpresa(id);
