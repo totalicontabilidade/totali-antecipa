@@ -434,6 +434,18 @@
 </div>
 
 <!-- ============ MODAL: notas com erro (só fecha no OK) ============ -->
+<div class="modal-backdrop" id="modal-manual">
+  <div class="modal narrow" style="width:min(640px,100%)">
+    <div class="modal-hdr" style="background:var(--info)"><div><h2>XML pendente — importar manualmente?</h2><div class="sub2" style="color:#fff;opacity:.85" id="imSub"></div></div></div>
+    <div class="modal-body">
+      <div class="alert alto" style="margin-bottom:10px">Esta nota do espelho ainda não tem XML. <b>Deseja importar manualmente agora?</b> A chave de acesso é copiada e a tela de consulta do Portal Nacional abre em outra aba: cole a chave (Ctrl+V), resolva o captcha, baixe o XML e arraste o arquivo no Passo 2.</div>
+      <div class="fi-label">Chave de acesso</div>
+      <div class="mono" id="imChave" style="font-size:12px;word-break:break-all"></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" id="btnImNao">Agora não</button><a class="btn" id="btnImSim" style="text-decoration:none" href="https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx?tipoConsulta=resumo&amp;tipoConteudo=7PhJ+gAVw2g=" target="_blank" rel="noopener">🔎 Sim, abrir o Portal Nacional</a></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modal-fora">
   <div class="modal narrow" style="width:min(960px,100%)">
     <div class="modal-hdr" style="background:var(--warn)"><div><h2>Notas fora do espelho do DIA</h2><div class="sub2" style="color:#fff;opacity:.85" id="feSub"></div></div></div>

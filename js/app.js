@@ -150,7 +150,9 @@ function renderResumo() {
 
 // ------------------------------------------------------------------ detalhe da nota
 function abrirNota(chave) {
-  const l = CONF.find(x => x.chave === chave); if (!l || !l.res) return;
+  const l = CONF.find(x => x.chave === chave); if (!l) return;
+  // Nota do espelho sem XML: pergunta se quer importar manualmente pelo Portal Nacional
+  if (!l.res) { if (l.semXml && typeof perguntarImportarManual === 'function') perguntarImportarManual(l); return; }
   const r = l.res, n = r.nota, A = apur();
   $('mnTitulo').textContent = `NF-e ${n.nNF} · ${n.emit.nome}`;
   $('mnSub').textContent = `${n.emit.uf} → ${n.dest.uf} · ${fmtCnpj(n.emit.cnpj)} · emitida ${fmtDate(n.dataEmissao)} · chave ${n.chave}` + (n.emit.crt === '1' ? ' · emitente do SIMPLES' : '');

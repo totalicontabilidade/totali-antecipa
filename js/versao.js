@@ -1,5 +1,6 @@
 // Versão do sistema — atualize aqui a cada entrega (aparece no rodapé, na ajuda e nas planilhas exportadas)
-const APP_VERSAO = { numero: '1.6.1', data: '10/09/2026', nome: 'Totali Antecipa', historico: [
+const APP_VERSAO = { numero: '1.6.2', data: '10/09/2026', nome: 'Totali Antecipa', historico: [
+  { v: '1.6.2', data: '10/09/2026', o: 'Na lista de notas da competência, clicar no nº da NF de uma nota com XML pendente pergunta "Deseja importar manualmente agora?": ao confirmar, a chave é copiada e a tela de consulta do Portal Nacional abre em outra aba.' },
   { v: '1.6.1', data: '10/09/2026', o: 'A busca no Portal Nacional só roda pelo botão "Buscar pendentes no Portal Nacional": não dispara mais sozinha ao carregar o espelho nem ao enviar certificado/senha (o certificado só retoma a busca se ela tiver sido pedida pelo botão). Ao carregar o espelho, um aviso informa quantas notas estão sem XML.' },
   { v: '1.6.0', data: '10/09/2026', o: 'Importação de XML cruza com o espelho do DIA: com o espelho carregado, só entram direto as notas cuja chave está no espelho. As demais aparecem numa janela "Notas fora do espelho" (NF, emitente, emissão, valor, chave) para marcar as que devem ser incluídas; o resto fica fora da apuração. Sem espelho, todos os XMLs entram como antes.' },
   { v: '1.5.2', data: '10/09/2026', o: 'O atalho "consultar" e o botão do aviso passam a abrir direto a tela de consulta do Portal Nacional (consultaRecaptcha.aspx), já com a chave copiada: basta colar e resolver o captcha. A tela do portal não aceita a chave pela URL.' },

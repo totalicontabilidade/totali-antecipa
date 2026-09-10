@@ -68,6 +68,15 @@ function mostrarErros(lista, subtitulo, modo) {
   openModal('modal-erros');
 }
 $('btnErrosOk').onclick = () => closeModal('modal-erros');
+// Clique no nº da NF de uma nota do espelho sem XML: "Deseja importar manualmente agora?" → copia a chave e abre o Portal Nacional
+function perguntarImportarManual(l) {
+  $('imSub').textContent = `NF ${l.nNF || '—'} · ${l.emitente || 'emitente não identificado'}${l.uf ? ' · ' + l.uf : ''}`;
+  $('imChave').textContent = l.chave;
+  $('btnImSim').href = PORTAL_NFE_URL;
+  $('btnImSim').onclick = () => { try { navigator.clipboard.writeText(l.chave); } catch (e) { } closeModal('modal-manual'); showToast('Chave copiada — cole no campo da consulta (Ctrl+V), resolva o captcha, baixe o XML e arraste no Passo 2.', 'success'); };
+  $('btnImNao').onclick = () => closeModal('modal-manual');
+  openModal('modal-manual');
+}
 $('btnCopiarChaves').onclick = () => { $('meChaves').select(); try { navigator.clipboard.writeText($('meChaves').value); showToast('Chaves copiadas.', 'success'); } catch (e) { document.execCommand('copy'); } };
 
 // ------------------------------------------------------------------ documentos de apoio (skill icms-antecipado-se + Fiscal Certo)
