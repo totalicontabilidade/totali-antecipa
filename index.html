@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="js/firebase-config.js?v=1.15.0"></script>
+<script src="js/firebase-config.js?v=1.16.0"></script>
 <style>
   :root {
     --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
@@ -167,6 +167,7 @@
     <div class="lbl">Apuração</div>
     <button data-view="apuracao" class="on"><span class="ic">🧮</span> Apuração do mês</button>
     <button data-view="itens"><span class="ic">🧾</span> Itens</button>
+    <button data-view="conferir"><span class="ic">⚖️</span> Conferir mapa</button>
     <button data-view="mapa"><span class="ic">🗺️</span> Mapa SEFAZ</button>
     <div class="lbl">Cadastros</div>
     <button data-view="empresas"><span class="ic">🏢</span> Empresas</button>
@@ -262,6 +263,28 @@
         <div class="row noprint"><button class="btn ghost" onclick="window.print()">🖨 Imprimir</button><button class="btn gold" id="btnExport2">⬇ Exportar Excel</button></div>
       </div>
       <div class="mapa" id="mapaSefaz"></div>
+    </section>
+
+    <!-- ================= CONFERIR MAPA ================= -->
+    <section class="view" id="view-conferir">
+      <div class="pagehdr">
+        <div><h1>Conferir mapa</h1><p>Traga o <b>Mapa de Apuração do ICMS</b> (.xls) que o escritório preencheu. O sistema compara nota a nota e, onde não bater, diz por que difere e a base legal.</p></div>
+        <div class="row noprint"><button class="btn ghost sm" id="btnConfLimpar">Limpar</button><button class="btn gold" id="btnConfExport">⬇ Exportar conferência</button></div>
+      </div>
+      <div class="card">
+        <div class="drop" id="dropMapa">Arraste o <b>MAPA.xls</b> (Anexo I da Portaria 103/2006) ou clique para selecionar<input type="file" id="fileMapa" accept=".xls,.xlsx" hidden></div>
+        <div class="small muted" style="margin-top:8px">É o mesmo arquivo que gera o PDF do mapa. O sistema lê as colunas A a S: nota, receita, base, IPI, frete, alíquotas, MVA, débito, crédito e ICMS.</div>
+        <div id="confCab" style="margin-top:12px"></div>
+      </div>
+      <div class="card" id="confResultado" style="display:none">
+        <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+          <h3 style="margin:0">Nota a nota</h3>
+          <label class="small"><input type="checkbox" id="chkConfSoDif" checked> só as que divergem</label>
+        </div>
+        <div class="tblwrap"><table class="tbl compact" id="tblConf"><thead><tr>
+          <th>NF</th><th>Emitente</th><th class="num">Mapa</th><th class="num">Sistema</th><th class="num">Diferença</th><th>O que explica a diferença</th>
+        </tr></thead><tbody></tbody></table></div>
+      </div>
     </section>
 
     <!-- ================= ITENS ================= -->
@@ -552,19 +575,20 @@
 
 <div id="toast"></div>
 
-<script src="js/versao.js?v=1.15.0"></script>
-<script src="js/tabelas.js?v=1.15.0"></script>
-<script src="js/tabelas-fundamentos.js?v=1.15.0"></script>
-<script src="js/tabelas-cnae.js?v=1.15.0"></script>
-<script src="js/nfe.js?v=1.15.0"></script>
-<script src="js/materiais.js?v=1.15.0"></script>
-<script src="js/motor.js?v=1.15.0"></script>
-<script src="js/espelho.js?v=1.15.0"></script>
-<script src="js/exportar.js?v=1.15.0"></script>
-<script src="js/app.js?v=1.15.0"></script>
-<script src="js/app-regime.js?v=1.15.0"></script>
-<script src="js/app-materiais.js?v=1.15.0"></script>
-<script src="js/firebase-sync.js?v=1.15.0"></script>
-<script src="js/firebase-certs.js?v=1.15.0"></script>
+<script src="js/versao.js?v=1.16.0"></script>
+<script src="js/tabelas.js?v=1.16.0"></script>
+<script src="js/tabelas-fundamentos.js?v=1.16.0"></script>
+<script src="js/tabelas-cnae.js?v=1.16.0"></script>
+<script src="js/nfe.js?v=1.16.0"></script>
+<script src="js/materiais.js?v=1.16.0"></script>
+<script src="js/motor.js?v=1.16.0"></script>
+<script src="js/espelho.js?v=1.16.0"></script>
+<script src="js/exportar.js?v=1.16.0"></script>
+<script src="js/auditoria.js?v=1.16.0"></script>
+<script src="js/app.js?v=1.16.0"></script>
+<script src="js/app-regime.js?v=1.16.0"></script>
+<script src="js/app-materiais.js?v=1.16.0"></script>
+<script src="js/firebase-sync.js?v=1.16.0"></script>
+<script src="js/firebase-certs.js?v=1.16.0"></script>
 </body>
 </html>

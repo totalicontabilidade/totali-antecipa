@@ -40,7 +40,7 @@ function showView(v) {
   ST.view = v;
   document.querySelectorAll('.view').forEach(x => x.classList.toggle('on', x.id === 'view-' + v));
   document.querySelectorAll('.side button[data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === v));
-  if (v === 'mapa') renderMapa(); if (v === 'itens') renderItens(); if (v === 'empresas') renderEmpresas(); if (v === 'regras') renderRegras(); if (v === 'params') renderParams(); if (v === 'materiais') renderMateriais();
+  if (v === 'mapa') renderMapa(); if (v === 'itens') renderItens(); if (v === 'conferir') renderConfronto(); if (v === 'empresas') renderEmpresas(); if (v === 'regras') renderRegras(); if (v === 'params') renderParams(); if (v === 'materiais') renderMateriais();
 }
 document.querySelectorAll('.side button[data-view]').forEach(b => b.onclick = () => showView(b.dataset.view));
 
@@ -215,6 +215,85 @@ function renderNotas() {
   tb.querySelectorAll('[data-ign]').forEach(el => el.onclick = () => { const o = apur().overrides; const k = el.dataset.ign; o[k] = { ...(o[k] || {}), ignorar: !(o[k] && o[k].ignorar) }; salvar(); recalcular(); });
   tb.querySelectorAll('[data-del]').forEach(el => el.onclick = () => { const A = apur(); if (A.espelho) A.espelho.linhas = A.espelho.linhas.filter(x => x.chave !== el.dataset.del); delete A.xmls[el.dataset.del]; salvar(); recalcular(); });
 }
+
+// ------------------------------------------------------------------ conferir mapa (confronto com o .xls do escritório)
+let CONFRONTO = null;
+function ctxAuditoria() {
+  const E = empresaAtual();
+  return { CONF, RES, empresa: E, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, cad: { regras: DB.regras || [] } };
+}
+function renderConfronto() {
+  const card = $('confResultado'), tb = $('tblConf').querySelector('tbody');
+  if (!CONFRONTO) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  const soDif = $('chkConfSoDif').checked;
+  const linhas = CONFRONTO.linhas.filter(l => !soDif || Math.abs(l.dif) > 0.05);
+  tb.innerHTML = linhas.length ? linhas.map(l => {
+    const cor = Math.abs(l.dif) <= 0.05 ? 'b-ok' : l.dif > 0 ? 'b-warn' : 'b-bad';
+    const diag = l.achados.length ? l.achados.map(a => {
+      const quem = a.quem === 'mapa' ? '<span class="badge b-warn">mapa</span>' : a.quem === 'sistema' ? '<span class="badge b-info">sistema</span>'
+        : a.quem === 'parametro' ? '<span class="badge b-info">parâmetro</span>' : a.quem === 'ok' ? '<span class="badge b-ok">fecha</span>' : '<span class="badge b-muted">verificar</span>';
+      const btn = a.acao ? ` <button class="btn sm soft" data-aplicar="${l.chave}|${a.acao.item}|${a.acao.campo}|${a.acao.valor}">aplicar</button>` : '';
+      return `<div style="margin-bottom:6px">${quem} ${esc(a.texto)}${btn}<div class="small muted">${esc(a.base)}</div></div>`;
+    }).join('') : (Math.abs(l.dif) <= 0.05 ? '<span class="small muted">confere</span>' : '');
+    return `<tr><td><b class="clickable" data-abrirconf="${l.chave}">${esc(l.nNF)}</b>${l.soNoMapa ? ' <span class="badge b-muted">só no mapa</span>' : ''}</td>
+      <td class="small">${esc((l.emitente || '').slice(0, 24))}${l.uf ? ' <span class="badge b-muted">' + esc(l.uf) + '</span>' : ''}</td>
+      <td class="num">${fmt(l.doMapa)}</td><td class="num">${fmt(l.doSistema)}</td>
+      <td class="num"><span class="badge ${cor}">${l.dif > 0 ? '+' : ''}${fmt(l.dif)}</span></td>
+      <td style="max-width:520px">${diag}</td></tr>`;
+  }).join('') : '<tr><td colspan="6" class="empty">Nenhuma nota nesta seleção — tudo confere.</td></tr>';
+  tb.querySelectorAll('[data-abrirconf]').forEach(el => el.onclick = () => el.dataset.abrirconf && abrirNota(el.dataset.abrirconf));
+  tb.querySelectorAll('[data-aplicar]').forEach(el => el.onclick = () => {
+    const [chave, item, campo, valor] = el.dataset.aplicar.split('|');
+    const o = apur().overrides, k = chave + '#' + item;
+    o[k] = { ...(o[k] || {}), [campo]: parseFloat(valor) };
+    salvar(); recalcular();
+    const mapa = CONFRONTO.mapa;
+    CONFRONTO = AUDITORIA.confrontar(mapa, ctxAuditoria()); CONFRONTO.mapa = mapa;
+    showToast('Ajuste aplicado no item ' + item + '.', 'success'); renderCabConfronto(mapa); renderConfronto();
+  });
+}
+function renderCabConfronto(mapa) {
+  const E = empresaAtual();
+  const ieOk = !mapa.ie || !E || !E.ie || mapa.ie === String(E.ie).replace(/\D/g, '');
+  const cnpjOk = !mapa.cnpj || !E || !E.cnpj || mapa.cnpj === String(E.cnpj).replace(/\D/g, '');
+  const c = CONFRONTO;
+  $('confCab').innerHTML = `<div class="grid g4">
+      <div class="kpi light"><div class="k">Mapa (escritório)</div><div class="v">${fmtR(c.totalMapa)}</div><div class="s">${mapa.linhas.length} linha(s) · ${esc(mapa.comp || '')}</div></div>
+      <div class="kpi light"><div class="k">Sistema</div><div class="v">${fmtR(c.totalSistema)}</div><div class="s">${CONF.length} nota(s)</div></div>
+      <div class="kpi ${Math.abs(c.difTotal) <= 0.05 ? '' : 'gold'}"><div class="k">Diferença</div><div class="v">${c.difTotal > 0 ? '+' : ''}${fmtR(c.difTotal)}</div><div class="s">${c.conferem} conferem · ${c.divergem} divergem</div></div>
+      <div class="kpi light"><div class="k">Total do mapa (declarado)</div><div class="v" style="font-size:16px">${fmtR(mapa.totais.recolher || mapa.totais.devido || 0)}</div><div class="s">soma das linhas: ${fmt(c.totalMapa)}</div></div>
+    </div>
+    ${!ieOk ? '<div class="alert alto" style="margin-top:10px"><b>Atenção:</b> a inscrição estadual do mapa (' + esc(mapa.ie) + ') é diferente da empresa aberta (' + esc(E.ie) + '). Confira se é o mapa certo.</div>' : ''}
+    <div class="small muted" style="margin-top:8px">Contribuinte no mapa: <b>${esc(mapa.contribuinte || '—')}</b> · competência <b>${esc(mapa.comp || '—')}</b> · IE ${esc(mapa.ie || '—')} · CNPJ ${esc(fmtCnpj(mapa.cnpj) || '—')}
+      ${cnpjOk ? '' : ' <span class="badge b-warn">CNPJ diferente do cadastro (' + esc(fmtCnpj(E.cnpj)) + ')</span>'}</div>`;
+}
+bindDrop('dropMapa', 'fileMapa', async files => {
+  const f = files[0]; if (!f) return;
+  const E = empresaAtual(); if (!E) return showToast('Selecione a empresa antes de conferir o mapa.', 'error');
+  if (!RES.length) return showToast('Carregue os XMLs desta competência antes de conferir o mapa.', 'error');
+  try {
+    const mapa = AUDITORIA.lerMapa(await f.arrayBuffer());
+    if (mapa.erro) return showToast(mapa.erro, 'error');
+    CONFRONTO = AUDITORIA.confrontar(mapa, ctxAuditoria()); CONFRONTO.mapa = mapa;
+    renderCabConfronto(mapa); renderConfronto();
+    showToast(`Mapa lido: ${mapa.linhas.length} linha(s). ${CONFRONTO.divergem} nota(s) divergem.`, CONFRONTO.divergem ? '' : 'success');
+  } catch (e) { console.error(e); showToast('Não consegui ler o mapa: ' + e.message, 'error'); }
+});
+$('chkConfSoDif').onchange = renderConfronto;
+$('btnConfLimpar').onclick = () => { CONFRONTO = null; $('confCab').innerHTML = ''; renderConfronto(); };
+$('btnConfExport').onclick = () => {
+  if (!CONFRONTO) return showToast('Traga o mapa primeiro.', 'error');
+  const E = empresaAtual();
+  const linhas = CONFRONTO.linhas.map(l => ({ NF: l.nNF, EMITENTE: l.emitente, UF: l.uf, MAPA: l.doMapa, SISTEMA: l.doSistema, DIFERENCA: l.dif,
+    DIAGNOSTICO: l.achados.map(a => '[' + a.quem + '] ' + a.texto).join(' | '), BASE_LEGAL: l.achados.map(a => a.base).join(' | ') }));
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 5 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 70 }, { wch: 90 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Conferência');
+  const nome = `Antecipa_CONFERENCIA_${(E.ie || E.cnpj || '').replace(/\D/g, '')}_${(ST.comp || '').replace('-', '')}.xlsx`;
+  XLSX.writeFile(wb, nome); showToast('Conferência exportada: ' + nome, 'success');
+};
 
 // ------------------------------------------------------------------ itens da competência (ver, ajustar e exportar)
 function itensDaCompetencia() {
