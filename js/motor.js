@@ -123,7 +123,9 @@ const MOTOR = (() => {
     const agropet = empresaAgropet(empresa);
     const origemReduzidaOuIsenta = ['20', '30', '40', '41', '51', '70'].includes(cstO);
     const ncmInsumo = /^(230[1-9]|310[1-5]|3808)/.test(ncmI);
-    const descCriacao = /SUIN|BOVIN|\bAVES?\b|FRANGO|GADO|EQUIN|POTRO|CAVAL|OVIN|CAPRIN|PEIXE|CAMAR|POEDEIRA|VACA|BEZERR|CORDEIR|PORC|GALINH|NOVILH/.test(descI);
+    // ração pet: CEST 22.001.00 ou palavras de pet no nome — sabores ("frango e arroz", "peixe", "cordeiro") não a tornam ração de criação
+    const petInd = String(item.cest || '') === '2200100' || /\b(PET|DOG|CAT|CAO|CAES|GATO|GATOS|CANINE|FELINE|PUPPY|KITTEN|FILHOTE|FILHOTES)\b/.test(descI);
+    const descCriacao = !petInd && /SUIN|BOVIN|\bAVES?\b|FRANGO|GADO|EQUIN|POTRO|CAVAL|OVIN|CAPRIN|PEIXE|CAMAR|POEDEIRA|VACA|BEZERR|CORDEIR|PORC|GALINH|NOVILH/.test(descI);
     if (ncmInsumo && (origemReduzidaOuIsenta || (agropet && (/^(310[1-5]|3808)/.test(ncmI) || descCriacao)))) return { id: 'nao_antecipa', motivo: 'Insumo agropecuário (ração/suplemento para criação, fertilizante, substrato, defensivo — NCM ' + ncmI + (origemReduzidaOuIsenta ? ', CST ' + cstO + ' com base reduzida/isenta na origem' : '') + '): Convênio ICMS 100/97, isento nas operações internas de SE (RICMS/SE Anexo I) — não entra na antecipação (prática do escritório; a SEFAZ marca como não antecipada).' };
     if (agropet && /^(3002|3003|3004)/.test(ncmI)) return { id: 'nao_antecipa', motivo: 'Medicamento/vacina de uso veterinário (NCM ' + ncmI + ') em empresa do ramo agropet: Convênio ICMS 100/97 (vacinas, soros e medicamentos de uso na pecuária) — sem antecipação (prática do escritório, J C de Lira mar/2026; confirmar se a SEFAZ cobrar).' };
     if (regra && regra.regime === 'nao_antecipa') return { id: 'nao_antecipa', motivo: regra.descricao + '.' };
