@@ -119,8 +119,10 @@ const MOTOR = (() => {
     if (ov && ov.receita) return { id: ov.receita, motivo: 'Receita definida manualmente pelo usuário.' };
     if (!tri.interestadual) return { id: 'nao_antecipa', motivo: 'Não é entrada interestadual para contribuinte de SE (emitente ' + nota.emit.uf + ' → destinatário ' + nota.dest.uf + ').' };
     if (['industrializacao', 'devolucao', 'remessaRetorno'].includes(tri.cfopTipo)) return { id: 'nao_antecipa', motivo: T.descCfop[tri.cfopTipo] + ' (CFOP ' + item.cfop + ').' };
-    // ST já retida pelo remetente: nada a antecipar em QUALQUER regime (no Simples a SEFAZ marca "operação não antecipada" — J C de Lira mar/2026)
-    if (tri.stRetida) return { id: "nao_antecipa", motivo: "ICMS-ST já retido na origem (CST/CSOSN " + (item.icms.cst || item.icms.csosn) + (tri.cfopTipo === "stRetida" ? ", CFOP " + item.cfop : "") + ") — não cabe nova antecipação" + (empresa.regime === "simples" ? " nem complementação de alíquota (a SEFAZ marca como operação não antecipada)" : "") + "." };
+    // ST retida PARA SERGIPE nesta operação: nada a antecipar em qualquer regime (a SEFAZ marca "operação não antecipada" — J C de Lira mar/2026)
+    if (tri.stRetida) return { id: "nao_antecipa", motivo: "ICMS-ST retido pelo remetente nesta operação (CST/CSOSN " + (item.icms.cst || item.icms.csosn) + (tri.cfopTipo === "stRetida" ? ", CFOP " + item.cfop : "") + ") — não cabe nova antecipação" + (empresa.regime === "simples" ? " nem complementação de alíquota (a SEFAZ marca como operação não antecipada)" : "") + "." };
+    // CST 60 / CSOSN 500 numa entrada interestadual: o imposto "cobrado anteriormente" foi do estado de ORIGEM, não de Sergipe.
+    if (tri.stAnteriorOutraUF && ctx.alertas) ctx.alertas.push({ nivel: 'medio', msg: 'CST/CSOSN ' + (item.icms.cst || item.icms.csosn) + ' (imposto cobrado anteriormente por ST) numa entrada INTERESTADUAL: essa retenção foi para ' + nota.emit.uf + ', não para Sergipe. Como o substituto não reteve para SE, cabe a antecipação com encerramento (RICMS/SE art. 784, II, "a"). Se o remetente tiver retido para SE, informe a receita do item manualmente.' });
     // ---- Agropecuária / pet shop (conferido com o mapa da J C de Lira, mar/2026) ----
     const ncmI = String(item.ncm || ''), cstO = String(item.icms.cst || ''), descI = String(item.xProd || '').toUpperCase();
     const agropet = empresaAgropet(empresa);
@@ -163,7 +165,14 @@ const MOTOR = (() => {
 
     // ---- Triagem ----
     const cfopTipo = classificarCfop(item.cfop);
-    const stRetida = T.cstStRetida.includes(item.icms.cst) || T.csosnStRetida.includes(item.icms.csosn) || cfopTipo === 'stRetida';
+    // ST retida: só vale se a retenção foi PARA SERGIPE (o remetente destacou o ICMS-ST nesta operação — CST 10/30/70, CFOP 64xx de
+    // substituto). CST 60 / CSOSN 500 dizem "imposto cobrado anteriormente", mas numa entrada interestadual esse imposto foi do estado
+    // de ORIGEM: o substituto não reteve para SE, e o RICMS/SE art. 784, II, "a" manda antecipar aqui (J C de Lira, Vetminas mai/jun/2026).
+    const cstItem = String(item.icms.cst || ''), csosnItem = String(item.icms.csosn || '');
+    const cstRet = T.cstStRetida.includes(cstItem) || T.csosnStRetida.includes(csosnItem) || cfopTipo === 'stRetida';
+    const stAnterior = ['60'].includes(cstItem) || ['500'].includes(csosnItem);          // "imposto cobrado anteriormente" (substituído)
+    const reteveAgora = (item.icms.vICMSST > 0) || ['10', '30', '70'].includes(cstItem) || ['201', '202', '203'].includes(csosnItem);
+    const stRetida = cstRet && !(stAnterior && !reteveAgora);   // ST anterior sem retenção nesta operação não vale para SE
     let finalidade = ov.finalidade || (cfopTipo === 'ativo' ? 'ativo' : cfopTipo === 'usoConsumo' ? 'usoConsumo' : 'revenda');
     // Finalidade suposta pelos CNAEs da empresa (só quando o CFOP não diz explicitamente)
     let sugFin = null;
@@ -179,7 +188,7 @@ const MOTOR = (() => {
     }
     const tri = {
       interestadual: nota.emit.uf !== 'SE' && nota.dest.uf === 'SE',
-      cfopTipo, stRetida, finalidade,
+      cfopTipo, stRetida, stAnteriorOutraUF: stAnterior && !reteveAgora, finalidade,
       emitenteSimples: nota.emit.crt === '1',
       destContribuinte: !!nota.dest.ie && !/^(ISENTO|0+)$/i.test(nota.dest.ie),
     };
