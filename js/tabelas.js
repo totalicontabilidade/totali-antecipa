@@ -169,7 +169,7 @@ const TABELAS_SE = {
       ["09012", "Café torrado e moído (exceto solúvel, gourmet e em cápsula)", 2.1], ["2501", "Sal refinado comum", 2.1],
       ["1507", "Óleo comestível de soja", 2.1], ["34011", "Sabão em barra", 3.6], ["0405", "Manteiga comum a granel ou em garrafa", 2.1, "GRANEL"],
       ["0406", "Queijo coalho / requeijão tipo queijo-manteiga", 2.1, "COALHO"], ["021020", "Charque", 3.6],
-      ["1102", "Farinha e fubá de milho (pré-cozido)", 2.1, "MILHO|FUBA"], ["1104", "Flocos de milho (flocão, cuscuz)", 2.1, "MILHO"],
+      ["1102", "Farinha e fubá de milho (pré-cozido)", 2.1, "MILHO|FUBA|FLOCAO|FLOCÃO|CUSCUZ|XEREM|CANJIC|MUNGUNZ"], ["1104", "Flocos de milho (flocão, cuscuz)", 2.1, "MILHO"],
       ["0302", "Pescado fresco (exceto os excluídos no art. 40, § 3º, XIV)", 2.1], ["0303", "Pescado congelado (exceto os excluídos)", 2.1], ["0304", "Filés de peixe (exceto os excluídos)", 2.1],
     ].map(([n, d, pct, pad]) => ({
       id: "cesta-" + n, prioridade: 20, ncm: n, match: "inicia", descricao: d + " — cesta básica (optante " + String(pct).replace(".", ",") + "%)",
