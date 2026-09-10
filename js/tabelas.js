@@ -195,6 +195,7 @@ const TABELAS_SE = {
       ['8517625', 'Hubs e modems', null],
       ['852351', 'Dispositivos de armazenamento não volátil (pen drive, cartão de memória, SSD)', null],
       ['85258029', 'Câmeras digitais de uso em informática', null],
+      ['852589', 'Câmeras de vídeo e webcams (numeração da NCM 2022 para o antigo 8525.80)', null],
       ['85284', 'Monitores com tubo de raios catódicos', null],
       ['85285', 'Outros monitores', null],
       ['85340000', 'Circuitos impressos', null],
