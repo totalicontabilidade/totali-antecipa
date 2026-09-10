@@ -353,11 +353,11 @@ $('btnImportRegras').onclick = () => { const i = document.createElement('input')
 // ------------------------------------------------------------------ parâmetros
 function renderParams() {
   const p = { ...MOTOR.PARAMS_PADRAO, ...DB.params };
-  $('pAliq').value = p.aliqModal; $('pMvaApto').value = p.mvaApto; $('pMvaInapto').value = p.mvaInapto; $('pCredSimples').checked = !!p.creditoEmitenteSimples; $("pCredModo").value = p.creditoModo || "mapa"; $("pAjustarMva").checked = p.ajustarMva !== false; $("pTabelaSt").value = p.tabelaSt || "alertar"; $("pFinalidadeCnae").value = p.finalidadeCnae || "sugerir";
+  $('pAliq').value = p.aliqModal; $('pMvaApto').value = p.mvaApto; $('pMvaInapto').value = p.mvaInapto; $('pCredSimples').checked = !!p.creditoEmitenteSimples; $('pCredIsento').checked = p.creditoIsentoOrigem !== false; $("pCredModo").value = p.creditoModo || "mapa"; $("pAjustarMva").checked = p.ajustarMva !== false; $("pTabelaSt").value = p.tabelaSt || "alertar"; $("pFinalidadeCnae").value = p.finalidadeCnae || "sugerir";
   $('pFecoepAtivo').checked = !!p.fecoepAtivo; $('pFecoepPts').value = p.fecoepPadrao; $('pFecoepBase').value = p.fecoepBase || 'K'; $('pBackend').value = p.backendUrl || '';
 }
 $('btnSalvarParams').onclick = () => {
-  DB.params = { ...DB.params, aliqModal: parseFloat($('pAliq').value) || 19, mvaApto: parseFloat($('pMvaApto').value) || 10, mvaInapto: parseFloat($('pMvaInapto').value) || 20, creditoEmitenteSimples: $('pCredSimples').checked, creditoModo: $("pCredModo").value, ajustarMva: $("pAjustarMva").checked, tabelaSt: $("pTabelaSt").value, finalidadeCnae: $("pFinalidadeCnae").value, fecoepAtivo: $('pFecoepAtivo').checked, fecoepPadrao: parseFloat($('pFecoepPts').value) || 0, fecoepBase: $('pFecoepBase').value, backendUrl: $('pBackend').value.trim().replace(/\/$/, '') };
+  DB.params = { ...DB.params, aliqModal: parseFloat($('pAliq').value) || 19, mvaApto: parseFloat($('pMvaApto').value) || 10, mvaInapto: parseFloat($('pMvaInapto').value) || 20, creditoEmitenteSimples: $('pCredSimples').checked, creditoIsentoOrigem: $('pCredIsento').checked, creditoModo: $("pCredModo").value, ajustarMva: $("pAjustarMva").checked, tabelaSt: $("pTabelaSt").value, finalidadeCnae: $("pFinalidadeCnae").value, fecoepAtivo: $('pFecoepAtivo').checked, fecoepPadrao: parseFloat($('pFecoepPts').value) || 0, fecoepBase: $('pFecoepBase').value, backendUrl: $('pBackend').value.trim().replace(/\/$/, '') };
   salvar(); recalcular(); showToast('Parâmetros salvos.', 'success');
 };
 $('btnBackup').onclick = () => { const b = new Blob([JSON.stringify(DB, null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'totali-antecipa-backup.json'; a.click(); };

@@ -25,6 +25,7 @@ const MOTOR = (() => {
     fecoepPadrao: T.fecoep.geral,
     creditoModo: 'mapa',            // 'mapa' = (F+H) × L como no Mapa da SEFAZ (é como o DIA calcula) | 'destacado' = vICMS da nota
     creditoEmitenteSimples: true,   // emitente do Simples não destaca ICMS: presume crédito pela alíquota interestadual (prática do escritório)
+    creditoIsentoOrigem: true,      // CST 40/41/50/51 (isenta/não tributada na origem): presume crédito pela alíquota interestadual, como faz o mapa do escritório
     fecoepBase: 'auto',             // 'auto' = Simples: K em todas | normal: P só com encerramento (prática do escritório); 'K' | 'P'
     finalidadeCnae: 'sugerir',      // 'sugerir' | 'aplicar' | 'nao' — finalidade da compra suposta pelos CNAEs da empresa
     tabelaSt: 'alertar',            // 'alertar' = planilha ST/SE só avisa (prática do escritório: regra geral 10%) | 'aplicar' = decide a receita quando o NCM é exato
@@ -250,8 +251,17 @@ const MOTOR = (() => {
           alertas.push({ nivel: 'baixo', msg: 'Emitente do Simples: crédito presumido de ' + L + '% aplicado. Se preferir sem crédito, desligue em Parâmetros.' });
         } else { L = 0; credito = 0; origemCredito = 'Emitente do Simples sem destaque de ICMS — sem crédito (parâmetro)'; }
       } else if (['40', '41', '50', '51', '60'].includes(cst)) {
-        L = 0; credito = 0; origemCredito = 'CST ' + cst + ' — operação isenta/não tributada/diferida na origem, sem crédito';
-        if (rec.id !== 'nao_antecipa') alertas.push({ nivel: 'medio', msg: 'CST ' + cst + ' sem ICMS na origem: o antecipado sai pela alíquota interna cheia. Confira se cabe.' });
+        // Prática do escritório (mapas da Mais Barato jan e mai/2026 e da J C de Lira abr/2026): mesmo isento na origem,
+        // o mapa abate o crédito pela alíquota interestadual da UF de origem. CST 60 (ST já retida) fica sem crédito.
+        const aliqInter = NFE.aliquotaInterestadual(nota.emit.uf, item.icms.orig, T);
+        if (P.creditoIsentoOrigem && cst !== '60' && rec.id !== 'nao_antecipa') {
+          L = aliqInter; credito = (F + H) * L / 100;
+          origemCredito = 'CST ' + cst + ' (isenta/não tributada na origem): crédito presumido pela alíquota interestadual de ' + L + '% sobre (F+H) — como no mapa do escritório';
+          alertas.push({ nivel: 'medio', msg: 'CST ' + cst + ' sem ICMS destacado: aplicado crédito presumido de ' + L + '% por opção em Parâmetros (prática do escritório). ATENÇÃO: o art. 788 do RICMS/SE manda deduzir "o valor do ICMS destacado na Nota Fiscal de aquisição", e a CF/88 (art. 155, § 2º, II, "a") diz que a isenção não gera crédito — sem imposto na origem, o crédito não tem amparo literal. Para calcular sem crédito, desligue em Parâmetros.' });
+        } else {
+          L = 0; credito = 0; origemCredito = 'CST ' + cst + ' — operação isenta/não tributada/diferida na origem, sem crédito';
+          if (rec.id !== 'nao_antecipa') alertas.push({ nivel: 'medio', msg: 'CST ' + cst + ' sem ICMS na origem: o antecipado sai pela alíquota interna cheia. Confira se cabe.' });
+        }
       } else { credito = 0; origemCredito = 'Sem ICMS destacado (vICMS = 0)'; }
     } else {
       // Modo do crédito: fórmula do mapa (F+H)×L ou ICMS destacado
