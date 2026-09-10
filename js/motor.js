@@ -205,6 +205,9 @@ const MOTOR = (() => {
     if (cfopTipo === 'outro') alertas.push({ nivel: 'medio', msg: 'CFOP ' + item.cfop + ' não mapeado — confira a natureza da operação.' });
     if (cfopTipo === 'bonificacao') alertas.push({ nivel: 'medio', msg: 'Bonificação (CFOP ' + item.cfop + ') — confirme se entra na antecipação.' });
     if (nota.indFinal === '1' && finalidade === 'revenda') alertas.push({ nivel: 'baixo', msg: 'Nota marcada como consumidor final (indFinal=1). Se a entrada for uso/consumo ou ativo, é DIFAL.' });
+    // Manual de Preenchimento do Mapa (Anexo II da Portaria 103/2006, observação da coluna C): a planilha do DIA não
+    // serve para recolhimento de massas alimentícias, biscoitos e bolachas — esses produtos têm guia própria.
+    if (/^(1902|1905)/.test(String(item.ncm || ''))) alertas.push({ nivel: 'medio', msg: 'Massa alimentícia, biscoito ou bolacha (NCM ' + item.ncm + '): o Manual de Preenchimento do Mapa (Portaria 103/2006, Anexo II) diz que a planilha do DIA NÃO deve ser usada para recolher esses produtos. Confira se o imposto sai por guia própria e, se for o caso, tire a nota da apuração.' });
 
     // ---- Regra de NCM (usuário > embutidas > tabela oficial de ST de SE) ----
     let regra = buscarRegra(item.ncm, item.xProd, cad && cad.regras);
@@ -316,6 +319,16 @@ const MOTOR = (() => {
     // ---- Carga de destino (M) ----
     let M = ov.aliq ?? R.aliq ?? (regra && regra.aliq != null ? regra.aliq : P.aliqModal);
     let origemM = ov.aliq != null ? 'informada manualmente' : R.aliq != null ? 'fixa da receita' : (regra && regra.aliq != null) ? 'regra do NCM (' + regra.descricao + ')' : 'alíquota modal de SE';
+
+    // Manual de Preenchimento do Mapa (Anexo II da Portaria 103/2006, item 12.2, na redação da Portaria 705/2014):
+    // quando a carga de destino (M) é MENOR que a praticada na operação interestadual, a coluna L usa a carga interna.
+    // Ou seja, o crédito nunca supera o imposto que seria devido aqui — evita saldo credor na antecipação.
+    if (ov.aliqOrigem == null && L > M && M > 0 && rec.id !== 'nao_antecipa') {
+      const Lantes = L;
+      L = M; credito = (F + H + (usaAcr ? I + J : 0)) * L / 100;
+      origemCredito = 'alíquota de origem limitada à carga interna: ' + Lantes + '% → ' + M + '% (Manual do Mapa, item 12.2, Portaria 705/2014)';
+      alertas.push({ nivel: 'baixo', msg: 'Carga de destino (' + M + '%) menor que a alíquota da operação interestadual (' + Lantes + '%): pelo item 12.2 do Manual de Preenchimento do Mapa, a coluna L passa a ser a carga interna, limitando o crédito.' });
+    }
 
     // ---- MVA (O) ----
     let O = 0, origemO = 'sem MVA nesta receita';
