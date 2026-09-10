@@ -149,7 +149,7 @@ const AUDITORIA = (() => {
     // efeito de adotar o critério do mapa, medido isoladamente (mantendo o resto como está)
     const imp = (mudaItem, ovPorItem) => r2(recalcularNota(nota, empresa, params, cad, null, mudaItem, null, ovPorItem) - doSistema);
     const sentido = e => (e >= 0 ? 'aumenta ' : 'reduz ') + fn(Math.abs(e)) + ' no ICMS da nota';
-    const mods = []; const ovAll = {};                  // guardados para o teste combinado no fim
+    const mods = [], ovAll = {}, extras = [];           // guardados para o teste combinado no fim
 
     // 1) colunas acessórias: IPI, frete, seguro, outras
     for (const [c, nome, base] of ACESSORIOS) {
@@ -168,10 +168,14 @@ const AUDITORIA = (() => {
     // 2) faixas de alíquota (origem L × destino M): mostra para onde o mapa levou a base
     const kf = (L, M) => fp(L) + ' / ' + fp(M);
     const fx = {};
-    const põe = (k, campo, v, it) => { (fx[k] = fx[k] || { sis: 0, map: 0, itens: [] }); fx[k][campo] += v; if (it) fx[k].itens.push(it); };
-    itens.forEach(i => põe(kf(i.L, i.M), 'sis', i.F, i));
-    linhasMapa.forEach(l => põe(kf(l.L, l.M), 'map', l.F));
-    const difs = Object.keys(fx).map(k => ({ k, d: r2(fx[k].map - fx[k].sis), ...fx[k] })).filter(x => Math.abs(x.d) > 0.05);
+    const põe = (k, lado, o, it) => {
+      fx[k] = fx[k] || { sis: { F: 0, P: 0, Q: 0, R: 0 }, map: { F: 0, P: 0, Q: 0, R: 0 }, itens: [] };
+      ['F', 'P', 'Q', 'R'].forEach(c => fx[k][lado][c] += (o[c] || 0));
+      if (it) fx[k].itens.push(it);
+    };
+    itens.forEach(i => põe(kf(i.L, i.M), 'sis', i, i));
+    linhasMapa.forEach(l => põe(kf(l.L, l.M), 'map', l));
+    const difs = Object.keys(fx).map(k => ({ k, d: r2(fx[k].map.F - fx[k].sis.F), ...fx[k] })).filter(x => Math.abs(x.d) > 0.05);
     const usados = new Set();
     for (const a of difs) {
       if (usados.has(a.k) || a.d >= 0) continue;                 // parte do doador: base que saiu desta faixa no mapa
@@ -203,25 +207,74 @@ const AUDITORIA = (() => {
         const semDesc = it => ({ ...it, vDesc: 0 });
         const efeito = imp(semDesc, null); mods.push(semDesc);
         ach.push({ tipo: 'desconto', quem: 'mapa',
-          texto: `Na faixa ${a.k} o mapa usou base de ${fn(a.map)} e o sistema ${fn(a.sis)}: a diferença de ${fn(a.d)} é exatamente o desconto da nota, que o mapa não abateu. Esse critério ${sentido(efeito)}.`,
+          texto: `Na faixa ${a.k} o mapa usou base de ${fn(a.map.F)} e o sistema ${fn(a.sis.F)}: a diferença de ${fn(a.d)} é exatamente o desconto da nota, que o mapa não abateu. Esse critério ${sentido(efeito)}.`,
           base: 'Lei 3.796/96, art. 17-A: a base é "o valor que serviu de base de cálculo para cobrança do ICMS da operação de entrada interestadual", e o desconto incondicional já está fora daquela base (art. 13, § 1º, II, "a" da LC 87/96, a contrario sensu). O próprio XML traz o desconto no campo vDesc e a base do ICMS de origem já vem líquida.' });
       } else {
         ach.push({ tipo: 'faixa-solta', quem: 'verificar',
-          texto: `Na faixa ${a.k} o mapa usou base de ${fn(a.map)} e o sistema ${fn(a.sis)} (diferença de ${fn(a.d)}).`,
+          texto: `Na faixa ${a.k} o mapa usou base de ${fn(a.map.F)} e o sistema ${fn(a.sis.F)} (diferença de ${fn(a.d)}).`,
           base: 'Compare as colunas F a K desta faixa no mapa com a memória de cálculo da nota. Pode ser item a mais ou a menos, quantidade diferente ou valor digitado à mão.' });
       }
       usados.add(a.k);
     }
 
+    // 3) mesma base, contas diferentes: débito (Q) e crédito (R) da mesma faixa
+    for (const k of Object.keys(fx)) {
+      const f = fx[k];
+      if (usados.has(k) || !f.itens.length || f.map.F <= 0) continue;
+      if (Math.abs(f.map.F - f.sis.F) > 0.05) continue;                 // base diferente já foi explicada acima
+      const L = parseFloat(k.split(' / ')[0].replace(',', '.'));
+      const destaque = r2(f.itens.reduce((s, i) => s + (i.item.icms.vICMS || 0) * (i.fatorQtd || 1), 0));
+      const dP = r2(f.map.P - f.sis.P), dQ = r2(f.map.Q - f.sis.Q);
+
+      // base de cálculo diferente com o mesmo valor de produtos: MVA, pauta ou despesa acessória.
+      // Se algo já foi apontado acima, essa diferença é consequência dele e não vira achado novo.
+      if (Math.abs(dP) > 0.01) {
+        if (ach.length) continue;
+        ach.push({ tipo: 'base-faixa', quem: 'verificar',
+          texto: `Na faixa ${k} o valor dos produtos bate, mas a base de cálculo não: mapa ${fn(f.map.P)} e sistema ${fn(f.sis.P)}, o que dá débito de ${fn(f.map.Q)} contra ${fn(f.sis.Q)}. Isso ${sentido(dQ)}.`,
+          base: 'Colunas N a Q do Manual do Mapa: a base de cálculo (P) é o valor composto (K) acrescido da MVA (O) ou substituído pela pauta (N), e o débito (Q) é essa base pela carga interna (M). Confira MVA e pauta no RICMS/SE, art. 786, II, e art. 787.' });
+        extras.push(dQ);
+        usados.add(k);
+        continue;
+      }
+      if (Math.abs(dQ) > 0.01) {
+        ach.push({ tipo: 'debito-faixa', quem: 'verificar',
+          texto: `Na faixa ${k} a base de cálculo bate (${fn(f.sis.P)}), mas o débito não: mapa ${fn(f.map.Q)} e sistema ${fn(f.sis.Q)}. Isso ${sentido(dQ)}.`,
+          base: 'Coluna Q do Manual do Mapa: o débito é a base de cálculo (P) multiplicada pela carga tributária de destino (M). Sobre a mesma base, débito diferente é erro de digitação ou arredondamento.' });
+        extras.push(dQ);
+      }
+
+      const dR = r2(f.sis.R - f.map.R);                                  // crédito a menos no mapa vira imposto a mais
+      if (Math.abs(dR) > 0.01) {
+        const soProdutos = r2(f.sis.F * L / 100);
+        const semDespesas = Math.abs(f.map.R - soProdutos) <= 0.02 && Math.abs(f.sis.R - soProdutos) > 0.02;
+        const quem = !destaque ? 'verificar' : Math.abs(destaque - f.sis.R) <= 0.05 ? 'mapa' : Math.abs(destaque - f.map.R) <= 0.05 ? 'sistema' : 'verificar';
+        ach.push({ tipo: 'credito-faixa', quem,
+          texto: `Na faixa ${k} o valor dos produtos bate, mas o crédito não: o mapa deduziu ${fn(f.map.R)} e o sistema ${fn(f.sis.R)}` +
+            (destaque ? `, e o ICMS destacado na nota nesses itens é ${fn(destaque)}` : '') +
+            (semDespesas ? `. O mapa aplicou ${fp(L)} só sobre o valor dos produtos (${fn(f.sis.F)}) e deixou de fora as demais despesas` : '') +
+            `. Isso ${sentido(dR)}` + (Math.abs(dR) < 0.05 && !semDespesas ? ', ou seja, é arredondamento de centavos.' : '.'),
+          base: destaque
+            ? 'Lei 3.796/96, art. 42-A, § 1º, e RICMS/SE, art. 788: deduz-se o ICMS DESTACADO na nota de origem. Como as despesas acessórias integram a base do imposto na saída interestadual (LC 87/96, art. 13, § 1º, II, "b"), o destaque do emitente já as inclui, e o crédito tem de ser o valor destacado, não a alíquota aplicada apenas sobre as mercadorias.'
+            : 'Lei 3.796/96, art. 42-A, § 1º: na falta de destaque, deduz-se "o correspondente à aplicação da alíquota legalmente prevista para operação interestadual" sobre a base da operação, que inclui frete, seguro e demais despesas debitadas ao destinatário.' });
+        extras.push(dR);
+      }
+      usados.add(k);
+    }
+
     // fechamento: aplicando tudo o que foi apontado, o sistema chega ao valor do mapa?
-    if (ach.length && (mods.length || Object.keys(ovAll).length)) {
-      const junto = recalcularNota(nota, empresa, params, cad, null,
-        mods.length ? (it => mods.reduce((x, f) => f(x), it)) : null, null, Object.keys(ovAll).length ? ovAll : null);
+    if (ach.length && (mods.length || Object.keys(ovAll).length || extras.length)) {
+      const recalc = (mods.length || Object.keys(ovAll).length)
+        ? recalcularNota(nota, empresa, params, cad, null, mods.length ? (it => mods.reduce((x, f) => f(x), it)) : null, null, Object.keys(ovAll).length ? ovAll : null)
+        : doSistema;
+      const junto = r2(recalc + extras.reduce((s, e) => s + e, 0));      // extras: diferenças de débito e crédito, que não passam pelo motor
       const sobra = r2(junto - ctx.doMapa);
       ach.push({ tipo: 'fechamento', quem: Math.abs(sobra) <= 0.05 ? 'ok' : 'verificar',
-        texto: Math.abs(sobra) <= 0.05
+        texto: Math.abs(sobra) <= 0.005
           ? `Somando os pontos acima, o cálculo chega a ${fn(junto)}, exatamente o valor do mapa: a diferença está toda explicada.`
-          : `Somando os pontos acima o cálculo chega a ${fn(junto)} e o mapa traz ${fn(ctx.doMapa)}: ainda sobram ${fn(Math.abs(sobra))} sem explicação.`,
+          : Math.abs(sobra) <= 0.05
+            ? `Somando os pontos acima, o cálculo chega a ${fn(junto)} e o mapa traz ${fn(ctx.doMapa)}: a diferença está explicada, sobrando só ${fn(Math.abs(sobra))} de arredondamento.`
+            : `Somando os pontos acima o cálculo chega a ${fn(junto)} e o mapa traz ${fn(ctx.doMapa)}: ainda sobram ${fn(Math.abs(sobra))} sem explicação.`,
         base: Math.abs(sobra) <= 0.05
           ? 'Cada valor acima é medido isoladamente, por isso a soma dos efeitos pode não bater com a diferença total: o que fecha é este cálculo combinado.'
           : 'Abra a nota e compare coluna a coluna com o mapa: base (F a K), alíquotas (L e M), MVA (O), débito (Q) e crédito (R).' });
