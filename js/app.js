@@ -468,9 +468,9 @@ async function buscarPendentes() {
     } catch (e) { fail++; detalhes.push({ ...infoDe(ch), motivo: "Falha de comunicação: " + e.message }); }
   }
   btn.disabled = false; btn.textContent = '☁ Buscar pendentes no Portal Nacional'; salvar(); recalcular();
-  let msg = `${ok} XML(s) obtido(s) do Portal Nacional da NF-e`; if (pendentes) msg += `, ${pendentes} aguardando liberação após a ciência (tente de novo em alguns minutos)`; if (fail) msg += `, ${fail} com erro`;
+  let msg = `${ok} XML(s) obtido(s) do Portal Nacional da NF-e`; if (pendentes) msg += `, ${pendentes} aguardando liberação após a ciência (tente de novo em alguns minutos)`; if (fail) msg += `, ${fail} com erro — consulte manualmente no Portal Nacional (link no aviso)`;
   showToast(msg, fail ? 'error' : 'success');
-  if (detalhes.length) mostrarErros(detalhes, `${detalhes.length} de ${pend.length} nota(s) não vieram do Portal Nacional`);
+  if (detalhes.length) mostrarErros(detalhes, `${detalhes.length} de ${pend.length} nota(s) não vieram do Portal Nacional`, 'sefaz');
 }
 $('btnBuscarOnline').onclick = buscarPendentes;
 $('btnDistribuicao').onclick = async () => {

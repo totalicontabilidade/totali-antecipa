@@ -438,11 +438,11 @@
   <div class="modal narrow" style="width:min(900px,100%)">
     <div class="modal-hdr" style="background:var(--bad)"><div><h2>Notas que não foram importadas</h2><div class="sub2" style="color:#fff;opacity:.85" id="meSub"></div></div></div>
     <div class="modal-body">
-      <div class="alert alto" style="margin-bottom:10px">Baixe o XML dessas notas manualmente (Portal Nacional, e-mail do fornecedor ou o programa Procura XML) e arraste no Passo 2. As chaves estão abaixo para copiar.</div>
+      <div class="alert alto" style="margin-bottom:10px" id="meAjuda">Baixe o XML dessas notas manualmente (Portal Nacional, e-mail do fornecedor ou o programa Procura XML) e arraste no Passo 2. As chaves estão abaixo para copiar.</div>
       <div class="tblwrap" style="max-height:50vh"><table class="tbl compact"><thead><tr><th>NF</th><th>Emitente</th><th>Chave de acesso</th><th>Motivo</th></tr></thead><tbody id="meLista"></tbody></table></div>
       <textarea class="fi mono" id="meChaves" rows="3" style="margin-top:10px" readonly></textarea>
     </div>
-    <div class="modal-foot"><button class="btn ghost" id="btnCopiarChaves">Copiar chaves</button><button class="btn" id="btnErrosOk">OK, entendi</button></div>
+    <div class="modal-foot"><a class="btn ghost" id="btnPortalNfe" style="text-decoration:none" href="https://www.nfe.fazenda.gov.br/portal/principal.aspx?AspxAutoDetectCookieSupport=1" target="_blank" rel="noopener" title="Abre o Portal Nacional da NF-e em outra aba para consultar a nota pela chave de acesso">🔎 Consultar no Portal Nacional</a><button class="btn ghost" id="btnCopiarChaves">Copiar chaves</button><button class="btn" id="btnErrosOk">OK, entendi</button></div>
   </div>
 </div>
 
