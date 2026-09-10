@@ -252,6 +252,7 @@ function renderItens() {
       <td>${i.nItem}</td>
       <td><span title="${esc(i.xProd)}">${esc((i.xProd || '').slice(0, 34))}</span>${alt}${x.ignorada ? ' <span class="badge b-muted">fora</span>' : ''}<div class="small muted">${it.regra ? esc(String(it.regra.descricao).slice(0, 40)) : 'sem regra específica'}</div></td>
       <td class="mono">${esc(i.ncm)}</td><td>${esc(i.cfop)}</td><td>${esc(i.icms.cst || i.icms.csosn)}</td>
+      <td class="num"><input class="fi" type="number" step="0.0001" min="0" style="padding:2px 4px;font-size:11px;width:70px;text-align:right${it.fatorQtd !== 1 ? ';border-color:var(--warn);background:#FDF3E0' : ''}" data-ovi="${x.k}" data-f="qtd" value="${ov.qtd ?? ''}" placeholder="${it.qtdNota}" title="Quantidade considerada. Em branco usa a da nota (${it.qtdNota} ${esc(i.uCom || 'un')}). Menor = devolução parcial, quebra ou recusa: todos os valores entram na proporção."></td>
       <td class="num">${fmt(it.F)}</td><td class="num">${fmt(it.P)}</td><td class="num">${fmtP(it.L)}</td><td class="num">${fmtP(it.M)}</td><td class="num">${fmtP(it.O)}</td>
       <td class="num">${fmt(it.Q)}</td><td class="num">${fmt(it.R)}</td><td class="num"><b>${fmt(it.S)}</b></td><td class="num">${fmt(it.fecoep)}</td>
       <td><select class="fi" style="padding:2px 4px;font-size:11px;max-width:130px" data-ovi="${x.k}" data-f="receita"><option value="">auto</option>${recOpts(ov.receita)}</select></td>
@@ -259,7 +260,7 @@ function renderItens() {
       ${num('mva', ov.mva, it.O)}${num('aliq', ov.aliq, it.M)}${num('aliqOrigem', ov.aliqOrigem, it.L)}${num('fecoep', ov.fecoep, it.fecoepPts, '0.5')}${num('pauta', ov.pauta, '—')}
       <td><input class="fi" style="padding:2px 4px;font-size:11px;min-width:150px" data-ovi="${x.k}" data-f="obs" value="${esc(ov.obs || '')}" placeholder="ex.: nota de devolução" title="${esc(ov.obs || '')}"></td>
       <td style="white-space:nowrap"><button class="btn sm ${ov.ignorar ? 'soft' : 'ghost'}" data-igni="${x.k}" title="${ov.ignorar ? 'voltar a considerar este item' : 'excluir este item da apuração'}">${ov.ignorar ? '↩' : '✕'}</button>${ajust ? ` <button class="btn sm ghost" data-limpai="${x.k}" title="voltar este item ao cálculo automático">⟲</button>` : ''}</td></tr>`;
-  }).join('') : '<tr><td colspan="24" class="empty">Nenhum item. Carregue os XMLs na Apuração do mês.</td></tr>';
+  }).join('') : '<tr><td colspan="25" class="empty">Nenhum item. Carregue os XMLs na Apuração do mês.</td></tr>';
   const ajustados = todos.filter(x => Object.keys(A.overrides[x.k] || {}).filter(c => c !== 'obs').length).length;
   const excluidos = todos.filter(x => (A.overrides[x.k] || {}).ignorar).length;
   const comObs = todos.filter(x => (A.overrides[x.k] || {}).obs).length;
@@ -278,7 +279,7 @@ function renderItens() {
     const o = apur().overrides, k = el.dataset.ovi, f = el.dataset.f, v = el.value;
     o[k] = { ...(o[k] || {}) };
     if (v === '' || v == null) delete o[k][f];
-    else o[k][f] = ['mva', 'aliq', 'aliqOrigem', 'fecoep', 'pauta'].includes(f) ? parseFloat(String(v).replace(',', '.')) : v;
+    else o[k][f] = ['mva', 'aliq', 'aliqOrigem', 'fecoep', 'pauta', 'qtd'].includes(f) ? parseFloat(String(v).replace(',', '.')) : v;
     if (!Object.keys(o[k]).length) delete o[k];
     salvar(); recalcular();   // recalcula sempre: mesmo a obs precisa entrar no resultado que vai para o Excel
     if (f === 'obs') showToast('Observação salva neste item.', '');
@@ -338,6 +339,7 @@ function abrirNota(chave) {
         <div><h3>Ajustes deste item</h3>
           <div class="grid g3" style="gap:8px">
             <div class="field"><label class="fi-label">Finalidade</label><select class="fi" data-ov="${k}" data-f="finalidade"><option value="">auto (CFOP)</option><option value="revenda" ${ov.finalidade === 'revenda' ? 'selected' : ''}>Revenda</option><option value="usoConsumo" ${ov.finalidade === 'usoConsumo' ? 'selected' : ''}>Uso/consumo</option><option value="ativo" ${ov.finalidade === 'ativo' ? 'selected' : ''}>Ativo imobilizado</option></select></div>
+            <div class="field"><label class="fi-label">Quantidade</label><input class="fi" type="number" step="0.0001" min="0" data-ov="${k}" data-f="qtd" value="${ov.qtd ?? ''}" placeholder="nota ${it.qtdNota}" title="Devolução parcial, quebra ou recusa: informe a quantidade que ficou. Todos os valores entram na proporção."></div>
             <div class="field"><label class="fi-label">MVA (%)</label><input class="fi" type="number" step="0.01" data-ov="${k}" data-f="mva" value="${ov.mva ?? ''}" placeholder="auto ${it.O}"></div>
             <div class="field"><label class="fi-label">Alíq. interna (%)</label><input class="fi" type="number" step="0.01" data-ov="${k}" data-f="aliq" value="${ov.aliq ?? ''}" placeholder="auto ${it.M}"></div>
             <div class="field"><label class="fi-label">Alíq. origem (%)</label><input class="fi" type="number" step="0.01" data-ov="${k}" data-f="aliqOrigem" value="${ov.aliqOrigem ?? ''}" placeholder="auto ${it.L}"></div>

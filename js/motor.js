@@ -261,10 +261,17 @@ const MOTOR = (() => {
     const R = receita(rec.id);
 
     // ---- Formação do preço (colunas F..K) ----
-    const F = r2(item.vProd - item.vDesc);
-    const G = r2(item.vIPI), H = r2(item.vFrete), I = r2(item.vSeg), J = r2(item.vOutro);
+    // Quantidade ajustada (ov.qtd): devolução parcial, quebra ou item recusado — tudo é reduzido na mesma proporção,
+    // como o escritório faz no mapa (Central Net mai/2026: 1 das 10 fontes devolvida, base de 10 para 9 unidades).
+    const qNota = item.qCom > 0 ? item.qCom : 1;
+    const qUsada = (ov.qtd != null && ov.qtd >= 0) ? ov.qtd : qNota;
+    const fatorQtd = qUsada === qNota ? 1 : (qUsada / qNota);
+    const px = v => r2((v || 0) * fatorQtd);
+    const F = px(item.vProd - item.vDesc);
+    const G = px(item.vIPI), H = px(item.vFrete), I = px(item.vSeg), J = px(item.vOutro);
     const usaAcr = !!R.acrescimos;
     const K = usaAcr ? r2(F + G + H + I + J) : F;
+    if (fatorQtd !== 1) alertas.push({ nivel: 'medio', msg: 'Quantidade ajustada de ' + qNota + ' para ' + qUsada + ' ' + (item.uCom || 'un') + ': todos os valores do item entram na proporção de ' + (fatorQtd * 100).toFixed(2).replace('.', ',') + '%. Use para devolução parcial, quebra ou recusa.' });
 
     // ---- Alíquota de origem (L) e crédito (R) ----
     let L = item.icms.pICMS, credito = item.icms.vICMS, origemCredito = 'ICMS destacado na nota (vICMS)';
@@ -399,6 +406,7 @@ const MOTOR = (() => {
     mem.push({ passo: '2. Regra do produto', txt: (ncmInfo && ncmInfo.descricao ? 'NCM ' + item.ncm + ' = ' + ncmInfo.descricao + ' · ' : '') + (regra ? regra.descricao + ' [' + regra.fundamento + ']' : 'Nenhuma regra específica para o NCM — regra geral.') + (stTab && stTab.linhas.length && regra && regra.fonte !== 'st_se' ? ' · consta da planilha ST/SE (' + stTab.linhas[0].segmento + ', MVA ' + stTab.linhas[0].mva + '%)' : '') });
     mem.push({ passo: '3. Receita (coluna C do mapa)', txt: R.titulo + (R.cod ? ' · código ' + R.cod : '') + ' — ' + rec.motivo });
     if (rec.id !== 'nao_antecipa') {
+      if (fatorQtd !== 1) mem.push({ passo: '3b. Quantidade ajustada', txt: qNota + ' ' + (item.uCom || 'un') + ' na nota → ' + qUsada + ' considerada(s) (devolução parcial/quebra): valores na proporção de ' + (fatorQtd * 100).toFixed(2).replace('.', ',') + '%' });
       mem.push({ passo: '4. Formação do preço', txt: 'F valor = ' + f(F) + (usaAcr ? ' · G IPI = ' + f(G) + ' · H frete = ' + f(H) + ' · I seguro = ' + f(I) + ' · J outras = ' + f(J) + ' → K = ' + f(K) : ' → K = F = ' + f(K) + ' (sem encerramento: IPI/frete/seguro não entram na base — manual da SEFAZ, itens 7 a 10)') });
       mem.push({ passo: '5. Alíquota de origem (L)', txt: L + '% — ' + origemCredito });
       mem.push({ passo: '6. Carga de destino (M)', txt: M + '% — ' + origemM });
@@ -416,6 +424,7 @@ const MOTOR = (() => {
     return {
       chave: nota.chave, nItem: item.nItem, item, tri, regra, receita: rec.id, cod: R.cod, receitaNome: R.nome, motivo: rec.motivo,
       F, G, H, I, J, K, L, M, N, O, P: Pb, Q, R: credito, S, fecoep, fecoepPts, fecoepBase, usaAcrescimos: usaAcr, usouPauta,
+      qtdNota: qNota, qtdUsada: qUsada, fatorQtd,
       memoria: mem, alertas, override: ov, ncmInfo, stTab: stTab && stTab.linhas.length ? stTab.linhas[0] : null, beneficios: benef, sugestaoFinalidade: sugFin,
     };
   }

@@ -119,6 +119,7 @@ const EXPORTAR = (() => {
     if (!ov) return '';
     const p = [];
     if (ov.ignorar) p.push('ITEM EXCLUÍDO');
+    if (ov.qtd != null) p.push('quantidade ajustada para ' + ov.qtd);
     if (ov.receita) p.push('receita: ' + (MOTOR.receita(ov.receita) || {}).nome);
     if (ov.finalidade) p.push('finalidade: ' + ov.finalidade);
     if (ov.mva != null) p.push('MVA: ' + ov.mva + '%');
