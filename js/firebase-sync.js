@@ -307,6 +307,9 @@ const FB = (() => {
       // apurações (espelho + ajustes) e XMLs por nota
       for (const k of Object.keys(DB.apuracoes)) {
         const A = DB.apuracoes[k]; const m = KEY_RE.exec(k) || [];
+        // Proteção: nunca gravar por cima de uma apuração da nuvem que ainda não foi baixada por completo.
+        // Sem isso, abrir e trocar de mês rápido apagava os ajustes manuais salvos (J C de Lira jun/2026).
+        if (snap.apur[k] && !xmlsCarregados.has(k)) continue;
         const meta = paraJson({ espelho: A.espelho || null, overrides: A.overrides || {} });
         if (meta !== snap.apur[k]) ops.push(['set', docApur(k), { empresaId: m[1] || '', comp: m[2] || '', espelho: limpar(A.espelho || null), overrides: limpar(A.overrides || {}), ...carimbo }, () => snap.apur[k] = meta]);
         if (!xmlsCarregados.has(k)) continue;                     // ainda não baixamos os xmls dessa apuração: não mexe

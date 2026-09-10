@@ -62,6 +62,8 @@ const MOTOR = (() => {
       if (!rn) return false;
       const okNcm = (rg.match === 'igual') ? n === rn : n.startsWith(rn);
       if (!okNcm) return false;
+      // descExcluir: a DESCRIÇÃO do produto manda mais que o CEST/NCM da nota, que o emitente às vezes carimba errado
+      if (rg.descExcluir && new RegExp(rg.descExcluir).test(desc)) return false;
       if (rg.descPadrao) {
         // várias alternativas separadas por "|" (ex.: "MILHO|FUBA"): basta uma casar
         const pats = String(rg.descPadrao).toUpperCase().split('|').map(s => s.trim()).filter(Boolean);
@@ -133,6 +135,9 @@ const MOTOR = (() => {
     const descCriacao = /SUIN|BOVIN|GADO|EQUIN|POTRO|CAVAL|OVIN|CAPRIN|POEDEIR|\bVACA|BEZERR|NOVILH|LEITA[OÕ]|BUBALIN|MUAR|RUMINANT|\bAVES\b|DE CORTE|ENGORDA|POSTURA|TILAPIA|PISCICULT|CAMAR[AÃ]O/.test(descI);
     // ração pet: CEST 22.001.00 ou palavra de pet no nome — vale inclusive em amostra/bonificação (CST 40), como no mapa da J C de Lira abr/2026
     const petInd = !descCriacao && (String(item.cest || '') === '2200100' || /\b(PET|DOG|CAT|CAO|CAES|GATO|GATOS|CANINE|FELINE|PUPPY|KITTEN|FILHOTE|FILHOTES|PASSARO)\b/.test(descI));
+    // CEST de ração na nota mas descrição de suplemento: a descrição manda (o emitente às vezes carimba o CEST errado)
+    if (String(item.cest || '') === '2200100' && regra && regra.id !== 'rac-pet' && ctx.alertas)
+      ctx.alertas.push({ nivel: 'baixo', msg: 'A nota traz o CEST 22.001.00 (ração tipo pet), mas a descrição é de suplemento/vitamina: a ST de ração NÃO foi aplicada, porque a substituição alcança ração e não suplemento. Se for ração mesmo, troque a receita do item.' });
     // Adubo/defensivo de JARDINAGEM ORNAMENTAL em embalagem de varejo: o Conv. ICMS 100/97 exige "uso na agricultura e na pecuária,
     // vedada a aplicação quando dada ao produto destinação diversa" — jardim doméstico é destinação diversa (J C de Lira abr/2026, linha Forth)
     const jardinagem = ncmFertDefens && (/JARDIM|FLOR|ORQUID|ORQ\.|SAMAMBAIA|ROSA DO DESERTO|ROSA DESERTO|ROSEIRA|BONSAI|SUCULENT|CACTO|GRAMAD|ORNAMENT|VIOLETA|ANTURIO|\bVASO/.test(descI) || /\d+\s*X\s*\d+([.,]\d+)?\s*(G|ML|KG|L)\b/.test(descI));
