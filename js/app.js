@@ -120,13 +120,18 @@ function renderAvisoModificada() {
 const MESES_ABREV = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 let ANO_REGUA = null;
 function estadoDaCompetencia(empresaId, comp) {
-  const A = (DB.apuracoes || {})[empresaId + '|' + comp];
+  const key = empresaId + '|' + comp;
+  const A = (DB.apuracoes || {})[key];
   if (!A) return { estado: 'vazio' };
   const linhas = ((A.espelho || {}).linhas || []).length, xmls = Object.keys(A.xmls || {}).length;
+  const mod = Object.values(A.overrides || {}).some(o => Object.keys(o || {}).filter(c => c !== 'obs').length);
+  const obs = !!(A.obs || '').trim();
+  // XMLs vêm da nuvem só quando o mês é aberto: até lá não dá para dizer se está completo
+  const baixado = typeof FB === 'undefined' || !FB.ATIVO || !FB.xmlsBaixados ? true : FB.xmlsBaixados(key);
+  if (!baixado && (linhas || mod || obs)) return { estado: 'aconferir', linhas, xmls, mod, obs };
   if (!linhas && !xmls) return { estado: 'vazio' };
   const semXml = ((A.espelho || {}).linhas || []).filter(l => !A.xmls[l.chave]).length;
-  const mod = Object.values(A.overrides || {}).some(o => Object.keys(o || {}).filter(c => c !== 'obs').length);
-  return { estado: semXml ? 'parcial' : 'ok', linhas, xmls, semXml, mod, obs: !!(A.obs || '').trim() };
+  return { estado: semXml ? 'parcial' : 'ok', linhas, xmls, semXml, mod, obs };
 }
 function renderReguaMeses() {
   const el = $('rguaMeses'); if (!el) return;
@@ -140,9 +145,12 @@ function renderReguaMeses() {
     const comp = ANO_REGUA + '-' + String(i + 1).padStart(2, '0');
     const s = estadoDaCompetencia(E.id, comp);
     const sel = comp === ST.comp ? ' sel' : '';
-    const tit = s.estado === 'vazio' ? 'sem apuração' : (s.xmls + ' XML(s)' + (s.semXml ? ' · ' + s.semXml + ' nota(s) sem XML' : ' · completa') + (s.mod ? ' · versão modificada' : '') + (s.obs ? ' · tem observações' : ''));
-    const marca = s.mod ? ' mod' : '';
-    return `<div class="mchip ${s.estado}${sel}${marca}" data-comp="${comp}" title="${esc(MESES_ABREV[i] + '/' + ANO_REGUA + ' — ' + tit)}">${m}<span class="mv">${s.estado === 'vazio' ? '—' : s.xmls + ' xml'}</span></div>`;
+    const tit = s.estado === 'vazio' ? 'sem apuração'
+      : s.estado === 'aconferir' ? ('apuração salva na nuvem' + (s.linhas ? ' · ' + s.linhas + ' nota(s) no espelho' : '') + ' — clique para abrir e baixar os XMLs')
+        : (s.xmls + ' XML(s)' + (s.semXml ? ' · ' + s.semXml + ' nota(s) sem XML' : ' · completa'));
+    const extra = (s.mod ? ' · versão modificada' : '') + (s.obs ? ' · tem observações' : '');
+    const rodape = s.estado === 'vazio' ? '—' : s.estado === 'aconferir' ? 'abrir' : s.xmls + ' xml';
+    return `<div class="mchip ${s.estado}${sel}${s.mod ? ' mod' : ''}" data-comp="${comp}" title="${esc(MESES_ABREV[i] + '/' + ANO_REGUA + ' — ' + tit + extra)}">${m}<span class="mv">${rodape}</span></div>`;
   }).join('');
   el.querySelectorAll('[data-comp]').forEach(c => c.onclick = () => { ST.comp = c.dataset.comp; $('inpComp').value = ST.comp; salvar(); recalcular(); });
 }

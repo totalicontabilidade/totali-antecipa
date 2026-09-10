@@ -405,6 +405,9 @@ const FB = (() => {
     const _showView = showView; showView = function (v) { _showView(v); if (v === 'usuarios') renderUsuarios(); };
     const bu = $('btnViewUsuarios'); if (bu) bu.onclick = () => showView('usuarios');
   }
-  return { ATIVO, ADMIN_EMAIL, iniciar, renderUsuarios, get usuario() { return user; }, get perfil() { return perfil; }, get db() { return db; }, get pronto() { return pronto; } };
+  // A régua de competências precisa saber se os XMLs daquele mês já vieram da nuvem — sem isso um mês
+  // completo aparece como "falta XML" só porque ainda não foi aberto.
+  return { ATIVO, ADMIN_EMAIL, iniciar, renderUsuarios, xmlsBaixados: (key) => !ATIVO || !pronto || xmlsCarregados.has(key),
+    get usuario() { return user; }, get perfil() { return perfil; }, get db() { return db; }, get pronto() { return pronto; } };
 })();
 FB.iniciar();
