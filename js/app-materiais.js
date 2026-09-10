@@ -52,9 +52,10 @@ if (typeof APP_VERSAO !== 'undefined') {
 
 // ------------------------------------------------------------------ aviso de notas com erro (só fecha no OK)
 // Portal Nacional da NF-e — consulta manual pela chave de acesso (exige captcha, por isso abre em outra aba)
-const PORTAL_NFE_URL = 'https://www.nfe.fazenda.gov.br/portal/principal.aspx?AspxAutoDetectCookieSupport=1';
+// A tela de consulta não aceita a chave pela URL (o captcha existe para isso), então o atalho copia a chave e abre a tela: basta colar.
+const PORTAL_NFE_URL = 'https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx?tipoConsulta=resumo&tipoConteudo=7PhJ+gAVw2g=';
 const AJUDA_ERROS_PADRAO = 'Baixe o XML dessas notas manualmente (Portal Nacional, e-mail do fornecedor ou o programa Procura XML) e arraste no Passo 2. As chaves estão abaixo para copiar.';
-const AJUDA_ERROS_SEFAZ = `A SEFAZ não entregou o XML dessas notas (rejeição, fora de prazo ou sem resposta). Consulte cada uma manualmente no <a href="${PORTAL_NFE_URL}" target="_blank" rel="noopener"><b>Portal Nacional da NF-e</b></a>: em <i>Consultar NF-e</i>, cole a chave de acesso (use <b>Copiar chaves</b> abaixo), resolva o captcha e baixe o XML. Depois arraste o arquivo no Passo 2. Se o portal não liberar o download, peça o XML ao fornecedor.`;
+const AJUDA_ERROS_SEFAZ = `A SEFAZ não entregou o XML dessas notas (rejeição, fora de prazo ou sem resposta). Clique em <b>consultar</b> na nota: a chave é copiada e a <a href="${PORTAL_NFE_URL}" target="_blank" rel="noopener"><b>tela de consulta do Portal Nacional</b></a> abre em outra aba — cole a chave (Ctrl+V), resolva o captcha e baixe o XML. Depois arraste o arquivo no Passo 2. Se o portal não liberar o download, peça o XML ao fornecedor.`;
 // modo 'sefaz': aviso com o link do Portal Nacional e um atalho de consulta em cada nota
 function mostrarErros(lista, subtitulo, modo) {
   if (!lista || !lista.length) return;
@@ -62,7 +63,7 @@ function mostrarErros(lista, subtitulo, modo) {
   $('meSub').textContent = subtitulo || (lista.length + ' nota(s)');
   $('meAjuda').innerHTML = sefaz ? AJUDA_ERROS_SEFAZ : AJUDA_ERROS_PADRAO;
   $('meLista').innerHTML = lista.map(e => `<tr><td><b>${esc(e.nNF || '—')}</b></td><td>${esc(e.emitente || '—')}${e.uf ? ' <span class="badge b-muted">' + esc(e.uf) + '</span>' : ''}</td><td class="mono" style="font-size:11px">${esc(e.chave || '—')}${sefaz && e.chave ? ` <a href="${PORTAL_NFE_URL}" target="_blank" rel="noopener" class="small" data-chave="${esc(e.chave)}" title="Copia a chave e abre o Portal Nacional em outra aba">consultar ↗</a>` : ''}</td><td class="small">${esc(e.motivo || '')}</td></tr>`).join('');
-  $('meLista').querySelectorAll('a[data-chave]').forEach(a => a.addEventListener('click', () => { try { navigator.clipboard.writeText(a.dataset.chave); showToast('Chave copiada — cole na consulta do Portal Nacional.', 'success'); } catch (e) { } }));
+  $('meLista').querySelectorAll('a[data-chave]').forEach(a => a.addEventListener('click', () => { try { navigator.clipboard.writeText(a.dataset.chave); showToast('Chave copiada — cole no campo da consulta (Ctrl+V) e resolva o captcha.', 'success'); } catch (e) { } }));
   $('meChaves').value = lista.map(e => e.chave).filter(Boolean).join('\n');
   openModal('modal-erros');
 }
