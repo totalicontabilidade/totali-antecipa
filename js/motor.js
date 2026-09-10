@@ -176,7 +176,11 @@ const MOTOR = (() => {
     const cstItem = String(item.icms.cst || ''), csosnItem = String(item.icms.csosn || '');
     const cstRet = T.cstStRetida.includes(cstItem) || T.csosnStRetida.includes(csosnItem) || cfopTipo === 'stRetida';
     const stAnterior = ['60'].includes(cstItem) || ['500'].includes(csosnItem);          // "imposto cobrado anteriormente" (substituído)
-    const reteveAgora = (item.icms.vICMSST > 0) || ['10', '30', '70'].includes(cstItem) || ['201', '202', '203'].includes(csosnItem);
+    // O CFOP diz quem é quem: 6404 é o SUBSTITUÍDO revendendo (ST anterior, de outra UF); 6401, 6403, 6408 e 6409 são do
+    // SUBSTITUTO, que recolhe para o destino — caso do moinho de trigo, que recolhe para SE pelo Protocolo ICMS 46/2000
+    // sem destacar ICMS-ST na nota (Mais Barato mai/2026, Grande Moinho Cearense).
+    const cfopSubstituto = ['6401', '6403', '6408', '6409'].includes(String(item.cfop));
+    const reteveAgora = (item.icms.vICMSST > 0) || ['10', '30', '70'].includes(cstItem) || ['201', '202', '203'].includes(csosnItem) || cfopSubstituto;
     const stRetida = cstRet && !(stAnterior && !reteveAgora);   // ST anterior sem retenção nesta operação não vale para SE
     let finalidade = ov.finalidade || (cfopTipo === 'ativo' ? 'ativo' : cfopTipo === 'usoConsumo' ? 'usoConsumo' : 'revenda');
     // Finalidade suposta pelos CNAEs da empresa (só quando o CFOP não diz explicitamente)
