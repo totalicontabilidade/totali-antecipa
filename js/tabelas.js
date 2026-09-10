@@ -176,6 +176,28 @@ const TABELAS_SE = {
       descPadrao: pad || null, descMatch: "contem",
       regime: "cesta", encerra: false, mva: null, aliq: 12, cestaPct: pct, fecoep: 0, confirmar: ["0302", "0303", "0304", "0406"].includes(n),
       fundamento: "RICMS/SE art. 40, VIII, b e § 3º (lista da cesta básica); art. 786, I; art. 787 (3,6% / 2,1%); FECOEP excluído (art. 616-C-A)" })),
+    // ---- Informática: alíquota interna de 12% (RICMS/SE art. 40, IX — Lei 8.499/2018; lista do Anexo III do Regulamento) ----
+    // Conferido no mapa da Central Net fev/2026: tablet 8471, processador 8542 e switch 8517.62 a 12%; cabo e fio 8544 ficam em 19%.
+    ...[
+      ['8443', 'Impressoras, copiadoras e fax; partes e acessórios'],
+      ['84705010', 'Caixas registradoras eletrônicas'],
+      ['8471', 'Computadores, notebooks, tablets e unidades de processamento de dados'],
+      ['84729020', 'Máquinas de caixa de banco com autenticador'],
+      ['847330', 'Partes e acessórios de máquinas de processamento de dados (84.71)'],
+      ['847340', 'Partes e acessórios das máquinas da posição 84.72'],
+      ['847350', 'Partes e acessórios comuns às posições 84.69 a 84.72'],
+      ['851762', 'Roteadores, switches, hubs e modems de rede'],
+      ['852329', 'Discos e fitas magnéticas não gravados'],
+      ['852340', 'Suportes ópticos'],
+      ['85284', 'Monitores com tubo de raios catódicos'],
+      ['85285', 'Outros monitores'],
+      ['85340000', 'Circuitos impressos'],
+      ['8542', 'Circuitos integrados eletrônicos (processadores, memórias)'],
+    ].map(([n, d]) => ({
+      id: 'info-' + n, prioridade: 22, ncm: n, match: 'inicia', simplesTambem: true,
+      descricao: d + ' — produto de informática do Anexo III: alíquota interna 12%',
+      regime: null, encerra: false, mva: null, aliq: 12, fecoep: 0, confirmar: n === '851762',
+      fundamento: 'RICMS/SE art. 40, IX (Lei 8.499/2018) c/c Anexo III do Regulamento — produto ou material de informática, alíquota interna de 12%' })),
     // Cosméticos e perfumaria: alíquota interna 25% (Lei 3.796/96, art. 18); FECOEP +2 só nos extratos de perfume 3303.00.10 (Dec. 295/2023)
     { id: "cosm-3303", prioridade: 20, ncm: "3303", match: "inicia", descricao: "Perfumes e águas-de-colônia — alíquota 25%", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: true, fundamento: "Lei 3.796/96 art. 18 (25%); Dec. 295/2023 (+2 pts nos extratos 3303.00.10)" },
     ...["3304", "3305", "3307"].map(n => ({ id: "cosm-" + n, prioridade: 20, ncm: n, match: "inicia", descricao: "Produtos de beleza/maquiagem/capilares — alíquota 25% + FECOEP 2 pontos", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: false, fundamento: "Lei 3.796/96 art. 18 (produtos de beleza 25%); Lei 4.731/2002 (supérfluos +2 pts) — validado no mapa e na planilha de FCP da Faro Tem jul/2026" })),
