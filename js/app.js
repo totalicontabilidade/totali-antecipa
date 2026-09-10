@@ -268,6 +268,40 @@ $('btnSalvarEmpresa').onclick = () => {
 };
 $('selEmpresa').onchange = () => { ST.empresaId = $('selEmpresa').value; salvar(); recalcular(); };
 $('inpComp').onchange = () => { ST.comp = $('inpComp').value; salvar(); recalcular(); };
+// Empresa criada a partir do espelho: abre o cadastro já preenchido com o que o espelho trouxe (nome, IE, regime sugerido)
+function abrirEmpresaNova(id) {
+  editarEmpresa(id);
+  const info = $('eRegimeInfo'); if (!info) return;
+  const E = DB.empresas.find(x => x.id === id) || {};
+  info.style.display = '';
+  info.innerHTML = '<b>Empresa nova, criada a partir do espelho do DIA.</b> Complete o <b>CNPJ</b> (ou arraste um XML no Passo 2, que ele vem da nota), confira o <b>regime</b>' + (E.regimeFonte ? ' (sugerido: ' + esc(E.regime === 'simples' ? 'Simples Nacional' : 'normal') + ' — ' + esc(E.regimeFonte) + ')' : '') + ', o perfil e a cesta básica, e clique em Salvar.';
+}
+// Empresa do regime normal: notas com indício forte de uso/consumo ou imobilizado (pelo CNAE) — pergunta se não é DIFAL
+function perguntarDifal() {
+  const E = empresaAtual(); if (!E || E.regime === 'simples') return;
+  const A = apur(); A.difalPerguntado = A.difalPerguntado || [];
+  const cand = [];
+  for (const r of RES) {
+    if (!r || !r.nota || r.ignorada || r.naoAntecipada) continue;
+    const ch = r.nota.chave; if (A.difalPerguntado.includes(ch)) continue;
+    const ov = A.overrides[ch] || {}; if (ov.situacao || ov.ignorar) continue;
+    const itens = (r.itens || []).filter(g => g.sugestaoFinalidade && !g.sugestaoFinalidade.aplicada && g.sugestaoFinalidade.confianca === 'alta' && ['ativo', 'usoConsumo'].includes(g.sugestaoFinalidade.finalidade) && !(g.override && g.override.finalidade) && g.receita !== 'nao_antecipa');
+    if (!itens.length) continue;
+    cand.push({ chave: ch, nNF: r.nota.nNF, emitente: r.nota.emit.nome, uf: r.nota.emit.uf, valor: r.totais.devido, tipo: itens.some(g => g.sugestaoFinalidade.finalidade === 'ativo') ? 'ativo imobilizado' : 'uso/consumo', itens: itens.map(g => (g.item.xProd || '').slice(0, 40)), motivo: itens[0].sugestaoFinalidade.motivo, nItens: itens.length, total: (r.itens || []).length });
+  }
+  if (!cand.length) return;
+  $('dfSub').textContent = `${cand.length} nota(s) com indício de uso/consumo ou imobilizado — se for isso, o caso é DIFAL, não antecipação`;
+  $('dfLista').innerHTML = cand.map((c, i) => `<tr><td><input type="checkbox" data-i="${i}" checked></td><td><b>${esc(c.nNF)}</b></td><td>${esc((c.emitente || '').slice(0, 30))} <span class="badge b-muted">${esc(c.uf || '')}</span></td><td class="small"><b>${esc(c.tipo)}</b> · ${c.nItens} de ${c.total} item(ns)<div class="muted">${esc(c.itens.slice(0, 3).join(' · '))}${c.itens.length > 3 ? ' …' : ''}</div><div class="muted">${esc(c.motivo)}</div></td><td class="num">${fmt(c.valor)}</td></tr>`).join('');
+  const caixas = () => [...$('dfLista').querySelectorAll('input[type=checkbox]')];
+  $('btnDfNao').onclick = () => { cand.forEach(c => A.difalPerguntado.push(c.chave)); salvar(); closeModal('modal-difal'); };
+  $('btnDfSim').onclick = () => {
+    let n = 0;
+    caixas().forEach(c => { const x = cand[+c.dataset.i]; A.difalPerguntado.push(x.chave); if (c.checked) { A.overrides[x.chave] = { ...(A.overrides[x.chave] || {}), situacao: 'difal_recolhido' }; n++; } });
+    salvar(); closeModal('modal-difal'); recalcular();
+    showToast(n ? `${n} nota(s) marcada(s) como DIFAL — fora desta apuração (volte pela coluna Receita, se precisar).` : 'Nenhuma nota alterada.', n ? 'success' : '');
+  };
+  openModal('modal-difal');
+}
 
 // ------------------------------------------------------------------ regras NCM
 function mvaTxt(m) { if (m == null) return '—'; if (typeof m === 'number') return fmtP(m); return [4, 7, 12, 'interna'].map(k => m[k] != null ? fmtP(m[k]) : '·').join(' / '); }
@@ -343,9 +377,10 @@ bindDrop('dropEspelho', 'fileEspelho', async files => {
     const esp = ESPELHO.lerPlanilha(await f.arrayBuffer());
     if (!esp.linhas.length) return showToast(esp.avisos.join(' '), 'error');
     // Empresa: casa pela IE do espelho ou cria
+    let novaEmpresa = null;
     if (esp.ie) {
       let e = DB.empresas.find(x => x.ie === esp.ie);
-      if (!e) { e = { id: uid(), nome: esp.contribuinte || 'Contribuinte ' + esp.ie, cnpj: '', ie: esp.ie, regime: 'normal', perfil: 'apto', cestaOptante: false, obs: 'criada a partir do espelho do DIA — confira regime e CNPJ' }; DB.empresas.push(e); showToast('Empresa criada a partir do espelho: confira o REGIME (Simples/normal) em Cadastros › Empresas.', ''); }
+      if (!e) { e = { id: uid(), nome: esp.contribuinte || 'Contribuinte ' + esp.ie, cnpj: '', ie: esp.ie, regime: 'normal', perfil: 'apto', cestaOptante: false, obs: 'criada a partir do espelho do DIA — confira regime e CNPJ' }; DB.empresas.push(e); novaEmpresa = e; }
       ST.empresaId = e.id;
     }
     const m = (esp.linhas[0].mesRef || '').match(/^(\d{1,2})\/(\d{4})$/); if (m) ST.comp = m[2] + '-' + m[1].padStart(2, '0');
@@ -356,6 +391,8 @@ bindDrop('dropEspelho', 'fileEspelho', async files => {
     salvar(); recalcular();
     if (typeof sugerirRegimePeloEspelho === "function") sugerirRegimePeloEspelho(esp);
     showToast(`Espelho carregado: ${esp.linhas.length} nota(s).`, 'success');
+    // Empresa nova: abre o cadastro para completar CNPJ e conferir regime/perfil/cesta
+    if (novaEmpresa) setTimeout(() => abrirEmpresaNova(novaEmpresa.id), 700);
     // A busca no Portal Nacional só roda quando o usuário clica em "Buscar pendentes" (não dispara sozinha)
     const faltam = CONF.filter(l => l.semXml).length;
     if (faltam) setTimeout(() => showToast(`${faltam} nota(s) do espelho sem XML — arraste os XMLs no Passo 2 ou clique em "Buscar pendentes no Portal Nacional".`, ''), 1800);
@@ -382,6 +419,7 @@ async function carregarXmls(files) {
     } else addXml(await f.text(), f.name);
   }
   salvar(); recalcular(); if (typeof checarSefaz === "function") checarSefaz(); if (typeof identificarRegime === "function") identificarRegime(); if (typeof sugerirCestaPelosXmls === "function") sugerirCestaPelosXmls();
+  if (ok && !fora.length) setTimeout(perguntarDifal, 900);
   showToast(`${ok} XML(s) carregado(s)` + (fora.length ? `, ${fora.length} fora do espelho (confirme se quer adicionar)` : "") + (ign ? `, ${ign} ignorado(s) (não é NF-e mod. 55)` : "") + (err.length ? `, ${err.length} com erro` : ""), err.length ? "error" : "success");
   if (errDet.length) mostrarErros(errDet, `${errDet.length} arquivo(s) não importado(s)`);
   if (fora.length) perguntarForaEspelho(fora);
@@ -402,6 +440,7 @@ function perguntarForaEspelho(fora) {
     closeModal('modal-fora');
     if (n) { salvar(); recalcular(); if (typeof identificarRegime === "function") identificarRegime(); if (typeof sugerirCestaPelosXmls === "function") sugerirCestaPelosXmls(); }
     showToast(n ? `${n} nota(s) fora do espelho adicionada(s) à apuração.` : 'Nenhuma nota adicionada.', n ? 'success' : '');
+    setTimeout(perguntarDifal, 900);
   };
   openModal('modal-fora');
 }
@@ -493,6 +532,7 @@ async function buscarPendentes() {
     } catch (e) { fail++; detalhes.push({ ...infoDe(ch), motivo: "Falha de comunicação: " + e.message }); }
   }
   btn.disabled = false; btn.textContent = '☁ Buscar pendentes no Portal Nacional'; salvar(); recalcular(); BUSCA_PEDIDA = false;
+  if (ok) setTimeout(perguntarDifal, 900);
   let msg = `${ok} XML(s) obtido(s) do Portal Nacional da NF-e`; if (pendentes) msg += `, ${pendentes} aguardando liberação após a ciência (tente de novo em alguns minutos)`; if (fail) msg += `, ${fail} com erro — consulte manualmente no Portal Nacional (link no aviso)`;
   showToast(msg, fail ? 'error' : 'success');
   if (detalhes.length) mostrarErros(detalhes, `${detalhes.length} de ${pend.length} nota(s) não vieram do Portal Nacional`, 'sefaz');

@@ -434,6 +434,17 @@
 </div>
 
 <!-- ============ MODAL: notas com erro (só fecha no OK) ============ -->
+<div class="modal-backdrop" id="modal-difal">
+  <div class="modal narrow" style="width:min(960px,100%)">
+    <div class="modal-hdr" style="background:var(--warn)"><div><h2>Não é DIFAL? Notas com indício de uso/consumo ou imobilizado</h2><div class="sub2" style="color:#fff;opacity:.85" id="dfSub"></div></div></div>
+    <div class="modal-body">
+      <div class="alert alto" style="margin-bottom:10px">A empresa é do regime normal e estas notas trazem produtos que, pelo CNAE, <b>parecem uso/consumo ou ativo imobilizado</b> (móveis, equipamentos, material de expediente, embalagens…). Se for isso, a entrada <b>não é antecipação: é DIFAL</b>, apurado à parte. Marque as que são DIFAL e confirme; elas saem desta apuração (como "Já recolhida no DIFAL") e podem voltar pela coluna Receita.</div>
+      <div class="tblwrap" style="max-height:50vh"><table class="tbl compact"><thead><tr><th></th><th>NF</th><th>Emitente</th><th>Indício</th><th class="num">ICMS calc.</th></tr></thead><tbody id="dfLista"></tbody></table></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" id="btnDfNao">Não, manter na apuração</button><button class="btn" id="btnDfSim">Sim, é DIFAL — tirar as marcadas</button></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modal-manual">
   <div class="modal narrow" style="width:min(640px,100%)">
     <div class="modal-hdr" style="background:var(--info)"><div><h2>XML pendente — importar manualmente?</h2><div class="sub2" style="color:#fff;opacity:.85" id="imSub"></div></div></div>
