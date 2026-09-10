@@ -25,7 +25,8 @@ const MOTOR = (() => {
     fecoepPadrao: T.fecoep.geral,
     creditoModo: 'mapa',            // 'mapa' = (F+H) × L como no Mapa da SEFAZ (é como o DIA calcula) | 'destacado' = vICMS da nota
     creditoEmitenteSimples: true,   // emitente do Simples não destaca ICMS: presume crédito pela alíquota interestadual (prática do escritório)
-    creditoIsentoOrigem: true,      // CST 40/41/50/51 (isenta/não tributada na origem): presume crédito pela alíquota interestadual, como faz o mapa do escritório
+    creditoIsentoOrigem: false,     // CST 40/41/50/51: DESLIGADO segue o art. 788 (deduz só o ICMS destacado — sem destaque, alíquota interna cheia).
+                                    // LIGADO reproduz a prática do mapa (crédito presumido pela alíquota interestadual). Ver art. 785, § 2º, I.
     fecoepBase: 'auto',             // 'auto' = Simples: K em todas | normal: P só com encerramento (prática do escritório); 'K' | 'P'
     finalidadeCnae: 'sugerir',      // 'sugerir' | 'aplicar' | 'nao' — finalidade da compra suposta pelos CNAEs da empresa
     tabelaSt: 'alertar',            // 'alertar' = planilha ST/SE só avisa (prática do escritório: regra geral 10%) | 'aplicar' = decide a receita quando o NCM é exato
@@ -259,8 +260,12 @@ const MOTOR = (() => {
           origemCredito = 'CST ' + cst + ' (isenta/não tributada na origem): crédito presumido pela alíquota interestadual de ' + L + '% sobre (F+H) — como no mapa do escritório';
           alertas.push({ nivel: 'medio', msg: 'CST ' + cst + ' sem ICMS destacado: aplicado crédito presumido de ' + L + '% por opção em Parâmetros (prática do escritório). ATENÇÃO: o art. 788 do RICMS/SE manda deduzir "o valor do ICMS destacado na Nota Fiscal de aquisição", e a CF/88 (art. 155, § 2º, II, "a") diz que a isenção não gera crédito — sem imposto na origem, o crédito não tem amparo literal. Para calcular sem crédito, desligue em Parâmetros.' });
         } else {
-          L = 0; credito = 0; origemCredito = 'CST ' + cst + ' — operação isenta/não tributada/diferida na origem, sem crédito';
-          if (rec.id !== 'nao_antecipa') alertas.push({ nivel: 'medio', msg: 'CST ' + cst + ' sem ICMS na origem: o antecipado sai pela alíquota interna cheia. Confira se cabe.' });
+          L = 0; credito = 0; origemCredito = 'CST ' + cst + ' — isenta/não tributada na origem: sem ICMS destacado, nada a deduzir (art. 788 do RICMS/SE)';
+          if (rec.id !== 'nao_antecipa') {
+            const credPresumido = r2((F + H) * aliqInter / 100);
+            alertas.push({ nivel: 'medio', isento: true, cst, aliqInter, credPresumido,
+              msg: 'Entrada com CST ' + cst + ' (isenta/não tributada na origem, sem ICMS destacado). Calculado pela ALÍQUOTA INTERNA CHEIA: o art. 788 do RICMS/SE manda deduzir "o valor do ICMS destacado na Nota Fiscal de aquisição", e não há destaque. Se quiser seguir a prática do mapa (só a DIFERENÇA, com crédito presumido de ' + aliqInter + '% = ' + credPresumido.toFixed(2) + '), ligue em Parâmetros. Fora da antecipação (art. 785, § 2º, I) só quando o produto for isento AQUI em SE (Anexo I do RICMS/SE) — isenção de outro estado não vale em Sergipe.' });
+          }
         }
       } else { credito = 0; origemCredito = 'Sem ICMS destacado (vICMS = 0)'; }
     } else {

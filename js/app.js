@@ -277,6 +277,28 @@ function abrirEmpresaNova(id) {
   info.style.display = '';
   info.innerHTML = '<b>Empresa nova, criada a partir do espelho do DIA.</b> Complete o <b>CNPJ</b> (ou arraste um XML no Passo 2, que ele vem da nota), confira o <b>regime</b>' + (E.regimeFonte ? ' (sugerido: ' + esc(E.regime === 'simples' ? 'Simples Nacional' : 'normal') + ' — ' + esc(E.regimeFonte) + ')' : '') + ', o perfil e a cesta básica, e clique em Salvar.';
 }
+// Entradas sem ICMS destacado (CST 40/41/50/51): pergunta o critério — alíquota cheia (art. 788) ou só a diferença (crédito presumido, prática do mapa)
+function perguntarIsentoOrigem() {
+  const A = apur(); if (A.isentoPerguntado) return;
+  const cand = [];
+  for (const r of RES) {
+    if (!r || !r.nota || r.ignorada || r.naoAntecipada) continue;
+    const itens = (r.itens || []).filter(g => (g.alertas || []).some(a => a.isento));
+    if (!itens.length) continue;
+    const a0 = itens[0].alertas.find(x => x.isento);
+    const cheia = itens.reduce((s, g) => s + (g.S || 0), 0);
+    const cred = itens.reduce((s, g) => s + ((g.alertas.find(x => x.isento) || {}).credPresumido || 0), 0);
+    cand.push({ nNF: r.nota.nNF, emitente: r.nota.emit.nome, uf: r.nota.emit.uf, cst: a0.cst, aliq: a0.aliqInter, n: itens.length, cheia, dif: Math.max(0, cheia - cred), ex: itens.slice(0, 2).map(g => (g.item.xProd || '').slice(0, 26)) });
+  }
+  if (!cand.length) return;
+  const tCheia = cand.reduce((s, c) => s + c.cheia, 0), tDif = cand.reduce((s, c) => s + c.dif, 0);
+  $('isSub').textContent = `${cand.length} nota(s) com item sem ICMS destacado — alíquota cheia ${fmtR(tCheia)} × só a diferença ${fmtR(tDif)}`;
+  $('isLista').innerHTML = cand.map(c => `<tr><td><b>${esc(c.nNF)}</b></td><td>${esc((c.emitente || '').slice(0, 26))} <span class="badge b-muted">${esc(c.uf || '')}</span></td><td><span class="badge b-warn">CST ${esc(c.cst)}</span></td><td class="small">${c.n} item(ns)<div class="muted">${esc(c.ex.join(' · '))}</div></td><td class="num">${fmt(c.cheia)}</td><td class="num">${fmt(c.dif)}</td></tr>`).join('');
+  const escolher = (ligar) => { A.isentoPerguntado = true; DB.params = { ...DB.params, creditoIsentoOrigem: ligar }; salvar(); closeModal('modal-isento'); recalcular(); if (ST.view === 'params') renderParams(); showToast(ligar ? 'Calculando só a diferença (crédito presumido) — prática do mapa. Muda em Parâmetros.' : 'Calculando pela alíquota interna cheia (art. 788 do RICMS/SE). Muda em Parâmetros.', 'success'); };
+  $('btnIsCheia').onclick = () => escolher(false);
+  $('btnIsDif').onclick = () => escolher(true);
+  openModal('modal-isento');
+}
 // Empresa do regime normal: notas com indício forte de uso/consumo ou imobilizado (pelo CNAE) — pergunta se não é DIFAL
 function perguntarDifal() {
   const E = empresaAtual(); if (!E || E.regime === 'simples') return;
@@ -294,12 +316,13 @@ function perguntarDifal() {
   $('dfSub').textContent = `${cand.length} nota(s) com indício de uso/consumo ou imobilizado — se for isso, o caso é DIFAL, não antecipação`;
   $('dfLista').innerHTML = cand.map((c, i) => `<tr><td><input type="checkbox" data-i="${i}" checked></td><td><b>${esc(c.nNF)}</b></td><td>${esc((c.emitente || '').slice(0, 30))} <span class="badge b-muted">${esc(c.uf || '')}</span></td><td class="small"><b>${esc(c.tipo)}</b> · ${c.nItens} de ${c.total} item(ns)<div class="muted">${esc(c.itens.slice(0, 3).join(' · '))}${c.itens.length > 3 ? ' …' : ''}</div><div class="muted">${esc(c.motivo)}</div></td><td class="num">${fmt(c.valor)}</td></tr>`).join('');
   const caixas = () => [...$('dfLista').querySelectorAll('input[type=checkbox]')];
-  $('btnDfNao').onclick = () => { cand.forEach(c => A.difalPerguntado.push(c.chave)); salvar(); closeModal('modal-difal'); };
+  $('btnDfNao').onclick = () => { cand.forEach(c => A.difalPerguntado.push(c.chave)); salvar(); closeModal('modal-difal'); setTimeout(perguntarIsentoOrigem, 400); };
   $('btnDfSim').onclick = () => {
     let n = 0;
     caixas().forEach(c => { const x = cand[+c.dataset.i]; A.difalPerguntado.push(x.chave); if (c.checked) { A.overrides[x.chave] = { ...(A.overrides[x.chave] || {}), situacao: 'difal_recolhido' }; n++; } });
     salvar(); closeModal('modal-difal'); recalcular();
     showToast(n ? `${n} nota(s) marcada(s) como DIFAL — fora desta apuração (volte pela coluna Receita, se precisar).` : 'Nenhuma nota alterada.', n ? 'success' : '');
+    setTimeout(perguntarIsentoOrigem, 600);
   };
   openModal('modal-difal');
 }
@@ -353,7 +376,7 @@ $('btnImportRegras').onclick = () => { const i = document.createElement('input')
 // ------------------------------------------------------------------ parâmetros
 function renderParams() {
   const p = { ...MOTOR.PARAMS_PADRAO, ...DB.params };
-  $('pAliq').value = p.aliqModal; $('pMvaApto').value = p.mvaApto; $('pMvaInapto').value = p.mvaInapto; $('pCredSimples').checked = !!p.creditoEmitenteSimples; $('pCredIsento').checked = p.creditoIsentoOrigem !== false; $("pCredModo").value = p.creditoModo || "mapa"; $("pAjustarMva").checked = p.ajustarMva !== false; $("pTabelaSt").value = p.tabelaSt || "alertar"; $("pFinalidadeCnae").value = p.finalidadeCnae || "sugerir";
+  $('pAliq').value = p.aliqModal; $('pMvaApto').value = p.mvaApto; $('pMvaInapto').value = p.mvaInapto; $('pCredSimples').checked = !!p.creditoEmitenteSimples; $('pCredIsento').checked = !!p.creditoIsentoOrigem; $("pCredModo").value = p.creditoModo || "mapa"; $("pAjustarMva").checked = p.ajustarMva !== false; $("pTabelaSt").value = p.tabelaSt || "alertar"; $("pFinalidadeCnae").value = p.finalidadeCnae || "sugerir";
   $('pFecoepAtivo').checked = !!p.fecoepAtivo; $('pFecoepPts').value = p.fecoepPadrao; $('pFecoepBase').value = p.fecoepBase || 'K'; $('pBackend').value = p.backendUrl || '';
 }
 $('btnSalvarParams').onclick = () => {
@@ -420,7 +443,7 @@ async function carregarXmls(files) {
     } else addXml(await f.text(), f.name);
   }
   salvar(); recalcular(); if (typeof checarSefaz === "function") checarSefaz(); if (typeof identificarRegime === "function") identificarRegime(); if (typeof sugerirCestaPelosXmls === "function") sugerirCestaPelosXmls();
-  if (ok && !fora.length) setTimeout(perguntarDifal, 900);
+  if (ok && !fora.length) setTimeout(() => { perguntarDifal(); setTimeout(perguntarIsentoOrigem, 600); }, 900);
   showToast(`${ok} XML(s) carregado(s)` + (fora.length ? `, ${fora.length} fora do espelho (confirme se quer adicionar)` : "") + (ign ? `, ${ign} ignorado(s) (não é NF-e mod. 55)` : "") + (err.length ? `, ${err.length} com erro` : ""), err.length ? "error" : "success");
   if (errDet.length) mostrarErros(errDet, `${errDet.length} arquivo(s) não importado(s)`);
   if (fora.length) perguntarForaEspelho(fora);
@@ -441,7 +464,7 @@ function perguntarForaEspelho(fora) {
     closeModal('modal-fora');
     if (n) { salvar(); recalcular(); if (typeof identificarRegime === "function") identificarRegime(); if (typeof sugerirCestaPelosXmls === "function") sugerirCestaPelosXmls(); }
     showToast(n ? `${n} nota(s) fora do espelho adicionada(s) à apuração.` : 'Nenhuma nota adicionada.', n ? 'success' : '');
-    setTimeout(perguntarDifal, 900);
+    setTimeout(() => { perguntarDifal(); setTimeout(perguntarIsentoOrigem, 600); }, 900);
   };
   openModal('modal-fora');
 }
@@ -533,7 +556,7 @@ async function buscarPendentes() {
     } catch (e) { fail++; detalhes.push({ ...infoDe(ch), motivo: "Falha de comunicação: " + e.message }); }
   }
   btn.disabled = false; btn.textContent = '☁ Buscar pendentes no Portal Nacional'; salvar(); recalcular(); BUSCA_PEDIDA = false;
-  if (ok) setTimeout(perguntarDifal, 900);
+  if (ok) setTimeout(() => { perguntarDifal(); setTimeout(perguntarIsentoOrigem, 600); }, 900);
   let msg = `${ok} XML(s) obtido(s) do Portal Nacional da NF-e`; if (pendentes) msg += `, ${pendentes} aguardando liberação após a ciência (tente de novo em alguns minutos)`; if (fail) msg += `, ${fail} com erro — consulte manualmente no Portal Nacional (link no aviso)`;
   showToast(msg, fail ? 'error' : 'success');
   if (detalhes.length) mostrarErros(detalhes, `${detalhes.length} de ${pend.length} nota(s) não vieram do Portal Nacional`, 'sefaz');

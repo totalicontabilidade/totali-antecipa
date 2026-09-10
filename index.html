@@ -268,7 +268,7 @@
           <div class="field"><label class="fi-label">Planilha oficial de ST/SE (materiais)</label><select class="fi" id="pTabelaSt"><option value="alertar">Só avisar — cálculo pela regra geral (10%/20%), como o escritório faz</option><option value="aplicar">Aplicar — NCM exato na planilha vira "com encerramento" com a MVA da tabela</option></select><div class="hint">Cuidado: a planilha lista NCM de 4 dígitos (ex. 1806 em "Sorvetes"), que puxam produtos de outro segmento.</div></div>
           <div class="field"><label class="small"><input type="checkbox" id="pAjustarMva"> Ajustar a MVA da planilha ST/SE pela alíquota interestadual (Convênio ICMS 142/2018, cláusula 11)</label><div class="hint">MVA ajustada = [(1+MVA) × (1−alíq. interestadual) ÷ (1−alíq. interna)] − 1. Desligue para usar a MVA original da tabela.</div></div>
           <div class="field"><label class="small"><input type="checkbox" id="pCredSimples"> Emitente do Simples sem destaque: presumir crédito pela alíquota interestadual (7%/12%/4%)</label><div class="hint">É o que o escritório faz no mapa (crédito de 7% em NF de SP do Simples). Desligue para calcular sem crédito.</div></div>
-          <div class="field"><label class="small"><input type="checkbox" id="pCredIsento"> Item isento/não tributado na origem (CST 40, 41, 50, 51): presumir crédito pela alíquota interestadual</label><div class="hint">É o que o escritório faz no mapa (rapadura CST 40 com crédito de 12%; amostra de MG com 7%). <b>Atenção:</b> o art. 788 do RICMS/SE manda deduzir o ICMS <i>destacado</i> na nota, e a CF/88 (art. 155, § 2º, II, "a") diz que a isenção não gera crédito — sem imposto na origem esse crédito não tem amparo literal, e o risco é do contribuinte. Desligue para calcular sem crédito. Não vale para CST 60 (ST já retida).</div></div>
+          <div class="field"><label class="small"><input type="checkbox" id="pCredIsento"> Item isento/não tributado na origem (CST 40, 41, 50, 51): presumir crédito pela alíquota interestadual</label><div class="hint"><b>Desligado (padrão):</b> alíquota interna cheia — art. 788 do RICMS/SE, que manda deduzir o ICMS <i>destacado</i> na nota; sem destaque, nada a deduzir. <b>Ligado:</b> só a diferença, com crédito presumido pela alíquota interestadual — é o que o escritório faz no mapa (rapadura CST 40 com 12%, amostra de MG com 7%), mas a CF/88 (art. 155, § 2º, II, "a") diz que isenção não gera crédito, e o risco é do contribuinte. Tirar da antecipação (art. 785, § 2º, I) só cabe se o produto for isento <i>em Sergipe</i> — isenção de outro estado não vale aqui. Não se aplica a CST 60 (ST já retida).</div></div>
         </div>
         <div class="card">
           <h3>FECOEP / FUNPOBREZA</h3>
@@ -435,6 +435,23 @@
 </div>
 
 <!-- ============ MODAL: notas com erro (só fecha no OK) ============ -->
+<div class="modal-backdrop" id="modal-isento">
+  <div class="modal narrow" style="width:min(960px,100%)">
+    <div class="modal-hdr" style="background:var(--warn)"><div><h2>Entradas isentas na origem — como calcular?</h2><div class="sub2" style="color:#fff;opacity:.85" id="isSub"></div></div></div>
+    <div class="modal-body">
+      <div class="alert alto" style="margin-bottom:10px">Estas notas trazem itens sem ICMS destacado (CST de entrada isenta ou não tributada). Como não há imposto na origem, é preciso escolher o critério:
+        <ul style="margin:6px 0 0 18px">
+          <li><b>Alíquota interna cheia</b> — art. 788 do RICMS/SE: deduz-se "o valor do ICMS destacado na Nota Fiscal de aquisição"; sem destaque, não há o que deduzir. É a letra da norma.</li>
+          <li><b>Só a diferença</b> — prática do mapa do escritório: abate crédito presumido pela alíquota interestadual da origem (4%, 7% ou 12%). Recolhe menos, mas a CF/88 (art. 155, § 2º, II, "a") diz que isenção não gera crédito, e o risco é do contribuinte.</li>
+        </ul>
+        <div style="margin-top:6px">Sair da antecipação (art. 785, § 2º, I) só cabe se o produto for isento <b>aqui em Sergipe</b> (Anexo I do RICMS/SE): isenção concedida por outro estado não vale em SE. Nesse caso, mude a receita da nota para "OPERAÇÃO NÃO ANTECIPADA".</div>
+      </div>
+      <div class="tblwrap" style="max-height:42vh"><table class="tbl compact"><thead><tr><th>NF</th><th>Emitente</th><th>CST</th><th>Itens</th><th class="num">Alíquota cheia</th><th class="num">Só a diferença</th></tr></thead><tbody id="isLista"></tbody></table></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" id="btnIsDif">Só a diferença (crédito presumido)</button><button class="btn" id="btnIsCheia">Alíquota cheia (art. 788)</button></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modal-difal">
   <div class="modal narrow" style="width:min(960px,100%)">
     <div class="modal-hdr" style="background:var(--warn)"><div><h2>Não é DIFAL? Notas com indício de uso/consumo ou imobilizado</h2><div class="sub2" style="color:#fff;opacity:.85" id="dfSub"></div></div></div>
