@@ -271,15 +271,17 @@ const MOTOR = (() => {
           alertas.push({ nivel: 'baixo', msg: 'Emitente do Simples: crédito presumido de ' + L + '% aplicado. Se preferir sem crédito, desligue em Parâmetros.' });
         } else { L = 0; credito = 0; origemCredito = 'Emitente do Simples sem destaque de ICMS — sem crédito (parâmetro)'; }
       } else if (['40', '41', '50', '51', '60'].includes(cst)) {
-        // Prática do escritório (mapas da Mais Barato jan e mai/2026 e da J C de Lira abr/2026): mesmo isento na origem,
-        // o mapa abate o crédito pela alíquota interestadual da UF de origem. CST 60 (ST já retida) fica sem crédito.
+        // Prática do escritório (mapas da Mais Barato jan e mai/2026 e da J C de Lira abr e jun/2026): mesmo sem ICMS destacado
+        // na origem, o mapa abate o crédito pela alíquota interestadual da UF do remetente.
         const aliqInter = NFE.aliquotaInterestadual(nota.emit.uf, item.icms.orig, T);
-        if (P.creditoIsentoOrigem && cst !== '60' && rec.id !== 'nao_antecipa') {
+        // CST 60 entra aqui também: quando a ST foi de OUTRO estado, a entrada é antecipada em SE e a nota não destaca ICMS —
+        // é o mesmo caso dos demais CST sem destaque, e quem decide é o parâmetro (Vetminas, J C de Lira jun/2026).
+        if (P.creditoIsentoOrigem && rec.id !== 'nao_antecipa') {
           L = aliqInter; credito = (F + H) * L / 100;
-          origemCredito = 'CST ' + cst + ' (isenta/não tributada na origem): crédito presumido pela alíquota interestadual de ' + L + '% sobre (F+H) — como no mapa do escritório';
+          origemCredito = 'CST ' + cst + (cst === '60' ? ' (ST cobrada em outro estado)' : ' (isenta/não tributada na origem)') + ': crédito presumido pela alíquota interestadual de ' + L + '% sobre (F+H) — como no mapa do escritório';
           alertas.push({ nivel: 'medio', msg: 'CST ' + cst + ' sem ICMS destacado: aplicado crédito presumido de ' + L + '% por opção em Parâmetros (prática do escritório). ATENÇÃO: o art. 788 do RICMS/SE manda deduzir "o valor do ICMS destacado na Nota Fiscal de aquisição", e a CF/88 (art. 155, § 2º, II, "a") diz que a isenção não gera crédito — sem imposto na origem, o crédito não tem amparo literal. Para calcular sem crédito, desligue em Parâmetros.' });
         } else {
-          L = 0; credito = 0; origemCredito = 'CST ' + cst + ' — isenta/não tributada na origem: sem ICMS destacado, nada a deduzir (art. 788 do RICMS/SE)';
+          L = 0; credito = 0; origemCredito = 'CST ' + cst + (cst === '60' ? ' — ST cobrada em outro estado' : ' — isenta/não tributada na origem') + ': sem ICMS destacado, nada a deduzir (art. 788 do RICMS/SE)';
           if (rec.id !== 'nao_antecipa') {
             const credPresumido = r2((F + H) * aliqInter / 100);
             alertas.push({ nivel: 'medio', isento: true, cst, aliqInter, credPresumido,
