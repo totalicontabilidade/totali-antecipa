@@ -105,7 +105,7 @@ if (CERTS.ativo) {
       const j = await api('/api/certificado', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cnpj, pfxBase64: c.pfxBase64, senha, lembrar: $('cLembrar').checked }) });
       if (!j.ok) throw new Error(j.erro || 'senha recusada');
       showToast('Certificado do seu login pronto neste computador — válido até ' + (j.certificado.validade || ''), 'success');
-      await checarSefaz(); closeModal('modal-cert'); if (CONF.some(l => l.semXml)) buscarPendentes();
+      await checarSefaz(); closeModal('modal-cert'); continuarBuscaSeSolicitada();
     } catch (e) { showToast('Não foi possível usar o certificado: ' + e.message, 'error'); }
   };
 
@@ -135,7 +135,7 @@ if (CERTS.ativo) {
         showToast('Arquivo do certificado guardado no seu login' + (info.validade ? ' — válido até ' + info.validade : '') + (SEFAZ.online ? ' e neste computador.' : '. A senha será pedida no computador com o INICIAR.bat.'), 'success');
       } else if (SEFAZ.online) showToast('Certificado guardado' + (nuvem ? ' no seu login (nuvem)' : ' neste computador') + ' — válido até ' + info.validade, 'success');
       await checarSefaz(); closeModal('modal-cert');
-      if (SEFAZ.online && CONF.some(l => l.semXml)) buscarPendentes();
+      if (SEFAZ.online) continuarBuscaSeSolicitada();
     } catch (e) { showToast('Não foi possível usar o certificado: ' + e.message, 'error'); }
     $('btnSalvarCert').disabled = false;
   };

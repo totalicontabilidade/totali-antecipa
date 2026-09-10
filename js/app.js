@@ -354,8 +354,9 @@ bindDrop('dropEspelho', 'fileEspelho', async files => {
     salvar(); recalcular();
     if (typeof sugerirRegimePeloEspelho === "function") sugerirRegimePeloEspelho(esp);
     showToast(`Espelho carregado: ${esp.linhas.length} nota(s).`, 'success');
-    // Busca automática dos XMLs que faltam (pede só o certificado, se ainda não tiver)
-    if (CONF.some(l => l.semXml)) setTimeout(buscarPendentes, 600);
+    // A busca no Portal Nacional só roda quando o usuário clica em "Buscar pendentes" (não dispara sozinha)
+    const faltam = CONF.filter(l => l.semXml).length;
+    if (faltam) setTimeout(() => showToast(`${faltam} nota(s) do espelho sem XML — arraste os XMLs no Passo 2 ou clique em "Buscar pendentes no Portal Nacional".`, ''), 1800);
   } catch (e) { console.error(e); showToast('Não consegui ler o espelho: ' + e.message, 'error'); }
 });
 $('btnAddChaves').onclick = () => {
@@ -433,7 +434,7 @@ async function checarSefaz() {
 function abrirCert(msg) {
   const E = empresaAtual();
   $('cCnpj').value = E && E.cnpj ? fmtCnpj(E.cnpj) : ''; $('cSenha').value = ''; $('cPfx').value = '';
-  $('certStatus').textContent = msg || (SEFAZ.online ? 'Envie o certificado A1 (.pfx) da empresa e a senha. Depois disso a busca dos XMLs é automática.' : 'O serviço local não está ativo. Abra o sistema pelo INICIAR.bat.');
+  $('certStatus').textContent = msg || (SEFAZ.online ? 'Envie o certificado A1 (.pfx) da empresa e a senha. Depois, use "Buscar pendentes no Portal Nacional" quando quiser baixar os XMLs.' : 'O serviço local não está ativo. Abra o sistema pelo INICIAR.bat.');
   $('certLista').innerHTML = SEFAZ.certificados.length ? '<table class="tbl compact"><thead><tr><th>CNPJ</th><th>Titular</th><th>Validade</th><th>Senha</th><th></th></tr></thead><tbody>' + SEFAZ.certificados.map(c => `<tr><td class="mono">${fmtCnpj(c.cnpj)}</td><td class="small">${esc((c.titular || c.erro || '').slice(0, 60))}</td><td>${c.vencido ? '<span class="badge b-bad">vencido</span> ' : ''}${esc(c.validade || '')}</td><td>${c.senhaSalva ? 'salva' : c.senhaEmMemoria ? 'nesta sessão' : '<span class="badge b-warn">falta</span>'}</td><td><button class="btn sm danger" data-rmcert="${c.cnpj}">✕</button></td></tr>`).join('') + '</tbody></table>' : '<div class="small muted">Nenhum certificado cadastrado neste computador.</div>';
   $('certLista').querySelectorAll('[data-rmcert]').forEach(b => b.onclick = async () => { if (confirm('Remover o certificado ' + fmtCnpj(b.dataset.rmcert) + ' deste computador?')) { await api('/api/certificado/' + b.dataset.rmcert, { method: 'DELETE' }); await checarSefaz(); abrirCert(); } });
   openModal('modal-cert');
@@ -451,7 +452,7 @@ $('btnSalvarCert').onclick = async () => {
     if (E && E.cnpj && j.certificado.cnpjCertificado && j.certificado.cnpjCertificado !== E.cnpj) showToast('Atenção: o CNPJ do certificado (' + fmtCnpj(j.certificado.cnpjCertificado) + ') é diferente do CNPJ da empresa.', 'error');
     else showToast('Certificado salvo — válido até ' + j.certificado.validade, 'success');
     await checarSefaz(); closeModal('modal-cert');
-    if (CONF.some(l => l.semXml)) buscarPendentes();
+    continuarBuscaSeSolicitada();
   } catch (e) { showToast('Não foi possível usar o certificado: ' + e.message, 'error'); }
   $('btnSalvarCert').disabled = false;
 };
@@ -460,7 +461,7 @@ $('btnSoSenha').onclick = async () => {
   if (!senha || !cnpj) return showToast('Informe CNPJ e senha.', 'error');
   const j = await api('/api/senha', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cnpj, senha }) });
   if (!j.ok) return showToast('Senha recusada: ' + (j.erro || ''), 'error');
-  showToast('Senha aceita para esta sessão.', 'success'); await checarSefaz(); closeModal('modal-cert'); if (CONF.some(l => l.semXml)) buscarPendentes();
+  showToast('Senha aceita para esta sessão.', 'success'); await checarSefaz(); closeModal('modal-cert'); continuarBuscaSeSolicitada();
 };
 async function garantirCertificado() {
   if (!(await checarSefaz())) { showToast('Serviço local desligado — abra pelo INICIAR.bat para buscar no Portal Nacional da NF-e.', 'error'); return false; }
@@ -489,12 +490,16 @@ async function buscarPendentes() {
       else { if (j.pendente) pendentes++; else fail++; falhas.push(ch); detalhes.push({ ...infoDe(ch), motivo: (j.pendente ? "Aguardando liberação após a ciência — tente de novo em alguns minutos. " : "") + (j.motivo || j.erro || "sem resposta") }); console.warn(ch, j); }
     } catch (e) { fail++; detalhes.push({ ...infoDe(ch), motivo: "Falha de comunicação: " + e.message }); }
   }
-  btn.disabled = false; btn.textContent = '☁ Buscar pendentes no Portal Nacional'; salvar(); recalcular();
+  btn.disabled = false; btn.textContent = '☁ Buscar pendentes no Portal Nacional'; salvar(); recalcular(); BUSCA_PEDIDA = false;
   let msg = `${ok} XML(s) obtido(s) do Portal Nacional da NF-e`; if (pendentes) msg += `, ${pendentes} aguardando liberação após a ciência (tente de novo em alguns minutos)`; if (fail) msg += `, ${fail} com erro — consulte manualmente no Portal Nacional (link no aviso)`;
   showToast(msg, fail ? 'error' : 'success');
   if (detalhes.length) mostrarErros(detalhes, `${detalhes.length} de ${pend.length} nota(s) não vieram do Portal Nacional`, 'sefaz');
 }
-$('btnBuscarOnline').onclick = buscarPendentes;
+// A busca no Portal Nacional só roda por este botão. Se ela parar para pedir certificado/senha,
+// o fluxo do certificado retoma a busca (continuarBuscaSeSolicitada); fora isso, nada dispara sozinho.
+let BUSCA_PEDIDA = false;
+function continuarBuscaSeSolicitada() { if (BUSCA_PEDIDA && CONF.some(l => l.semXml)) buscarPendentes(); }
+$('btnBuscarOnline').onclick = () => { BUSCA_PEDIDA = true; buscarPendentes(); };
 $('btnDistribuicao').onclick = async () => {
   if (!(await garantirCertificado())) return;
   const E = empresaAtual(); const btn = $('btnDistribuicao'); btn.disabled = true; btn.textContent = '⬇ baixando…';
