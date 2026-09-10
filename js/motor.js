@@ -107,12 +107,25 @@ const MOTOR = (() => {
     return { finalidade: 'revenda', confianca: doRamo ? 'alta' : 'baixa', motivo: doRamo ? 'NCM do ramo da empresa (' + ramo + ')' : 'sem indício contrário' };
   }
 
+  // Empresa do ramo agropecuário / pet (pet shop, veterinária, atacado de alimentos para animais, agropecuária): pelos CNAEs do cadastro
+  function empresaAgropet(E) {
+    return !!(E && E.cnaes && E.cnaes.some(c => /^(4789004|7500100|4623109|4771704|4692300|0161|0162|4683400)/.test(String((c && c.codigo) || c || '').replace(/\D/g, ''))));
+  }
   function decidirReceita(ctx) {
     const { nota, item, empresa, tri, regra, ov } = ctx;
     if (ov && ov.receita) return { id: ov.receita, motivo: 'Receita definida manualmente pelo usuário.' };
     if (!tri.interestadual) return { id: 'nao_antecipa', motivo: 'Não é entrada interestadual para contribuinte de SE (emitente ' + nota.emit.uf + ' → destinatário ' + nota.dest.uf + ').' };
     if (['industrializacao', 'devolucao', 'remessaRetorno'].includes(tri.cfopTipo)) return { id: 'nao_antecipa', motivo: T.descCfop[tri.cfopTipo] + ' (CFOP ' + item.cfop + ').' };
-    if (tri.stRetida && empresa.regime !== "simples") return { id: "nao_antecipa", motivo: "ICMS-ST já retido na origem (CST/CSOSN " + (item.icms.cst || item.icms.csosn) + (tri.cfopTipo === "stRetida" ? ", CFOP " + item.cfop : "") + ") — não cabe nova antecipação." };
+    // ST já retida pelo remetente: nada a antecipar em QUALQUER regime (no Simples a SEFAZ marca "operação não antecipada" — J C de Lira mar/2026)
+    if (tri.stRetida) return { id: "nao_antecipa", motivo: "ICMS-ST já retido na origem (CST/CSOSN " + (item.icms.cst || item.icms.csosn) + (tri.cfopTipo === "stRetida" ? ", CFOP " + item.cfop : "") + ") — não cabe nova antecipação" + (empresa.regime === "simples" ? " nem complementação de alíquota (a SEFAZ marca como operação não antecipada)" : "") + "." };
+    // ---- Agropecuária / pet shop (conferido com o mapa da J C de Lira, mar/2026) ----
+    const ncmI = String(item.ncm || ''), cstO = String(item.icms.cst || ''), descI = String(item.xProd || '').toUpperCase();
+    const agropet = empresaAgropet(empresa);
+    const origemReduzidaOuIsenta = ['20', '30', '40', '41', '51', '70'].includes(cstO);
+    const ncmInsumo = /^(230[1-9]|310[1-5]|3808)/.test(ncmI);
+    const descCriacao = /SUIN|BOVIN|\bAVES?\b|FRANGO|GADO|EQUIN|POTRO|CAVAL|OVIN|CAPRIN|PEIXE|CAMAR|POEDEIRA|VACA|BEZERR|CORDEIR|PORC|GALINH|NOVILH/.test(descI);
+    if (ncmInsumo && (origemReduzidaOuIsenta || (agropet && (/^(310[1-5]|3808)/.test(ncmI) || descCriacao)))) return { id: 'nao_antecipa', motivo: 'Insumo agropecuário (ração/suplemento para criação, fertilizante, substrato, defensivo — NCM ' + ncmI + (origemReduzidaOuIsenta ? ', CST ' + cstO + ' com base reduzida/isenta na origem' : '') + '): Convênio ICMS 100/97, isento nas operações internas de SE (RICMS/SE Anexo I) — não entra na antecipação (prática do escritório; a SEFAZ marca como não antecipada).' };
+    if (agropet && /^(3002|3003|3004)/.test(ncmI)) return { id: 'nao_antecipa', motivo: 'Medicamento/vacina de uso veterinário (NCM ' + ncmI + ') em empresa do ramo agropet: Convênio ICMS 100/97 (vacinas, soros e medicamentos de uso na pecuária) — sem antecipação (prática do escritório, J C de Lira mar/2026; confirmar se a SEFAZ cobrar).' };
     if (regra && regra.regime === 'nao_antecipa') return { id: 'nao_antecipa', motivo: regra.descricao + '.' };
     if (regra && regra.regime === "cesta") { const pct = regra.cestaPct != null ? regra.cestaPct : 2.1; return empresa.cestaOptante
       ? { id: pct >= 3.6 ? "cesta_opt36" : "cesta_opt21", motivo: "Produto da cesta básica (art. 40, § 3º) e adquirente optante do Regime Simplificado: " + String(pct).replace(".", ",") + "% direto sobre o valor, sem crédito (art. 787, I)." }
