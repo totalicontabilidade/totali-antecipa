@@ -365,9 +365,12 @@ $('btnAddChaves').onclick = () => {
   $('txtChaves').value = ''; salvar(); recalcular(); showToast(n + ' chave(s) adicionada(s).', 'success');
 };
 async function carregarXmls(files) {
-  const A = apur(); let ok = 0, ign = 0, err = [], errDet = [];
+  const A = apur(); let ok = 0, ign = 0, err = [], errDet = [], fora = [];
   const E = empresaAtual();
-  const addXml = (txt, nome) => { try { const n = NFE.parse(txt, nome); if (n.mod !== "55") { ign++; errDet.push({ nNF: n.nNF, emitente: n.emit.nome, uf: n.emit.uf, chave: n.chave, motivo: "Não é NF-e modelo 55 (modelo " + n.mod + ") — ignorado" }); return; } A.xmls[n.chave] = txt; ok++; if (E && !E.cnpj && n.dest.ie && n.dest.ie === E.ie) { E.cnpj = n.dest.cnpj; if (!E.nome || /^Contribuinte /.test(E.nome)) E.nome = n.dest.nome; renderEmpresasSelect(); } } catch (e) { err.push(nome); errDet.push({ nNF: nome, emitente: "", chave: (String(nome).match(/d{44}/) || [""])[0], motivo: e.message }); } };
+  // Com espelho carregado, só entram direto os XMLs cuja chave está no espelho; os demais passam pela confirmação
+  const chavesEspelho = new Set(((A.espelho || {}).linhas || []).map(l => l.chave));
+  const temEspelho = chavesEspelho.size > 0;
+  const addXml = (txt, nome) => { try { const n = NFE.parse(txt, nome); if (n.mod !== "55") { ign++; errDet.push({ nNF: n.nNF, emitente: n.emit.nome, uf: n.emit.uf, chave: n.chave, motivo: "Não é NF-e modelo 55 (modelo " + n.mod + ") — ignorado" }); return; } if (E && !E.cnpj && n.dest.ie && n.dest.ie === E.ie) { E.cnpj = n.dest.cnpj; if (!E.nome || /^Contribuinte /.test(E.nome)) E.nome = n.dest.nome; renderEmpresasSelect(); } if (temEspelho && !chavesEspelho.has(n.chave) && !A.xmls[n.chave]) { fora.push({ chave: n.chave, nNF: n.nNF, emitente: n.emit.nome, uf: n.emit.uf, data: n.dataEmissao, valor: n.tot.vNF, txt }); return; } A.xmls[n.chave] = txt; ok++; } catch (e) { err.push(nome); errDet.push({ nNF: nome, emitente: "", chave: (String(nome).match(/d{44}/) || [""])[0], motivo: e.message }); } };
   for (const f of files) {
     if (/\.zip$/i.test(f.name)) {
       if (typeof JSZip === 'undefined') { showToast('ZIP não suportado sem internet (JSZip). Extraia os XML.', 'error'); continue; }
@@ -376,10 +379,29 @@ async function carregarXmls(files) {
     } else addXml(await f.text(), f.name);
   }
   salvar(); recalcular(); if (typeof checarSefaz === "function") checarSefaz(); if (typeof identificarRegime === "function") identificarRegime(); if (typeof sugerirCestaPelosXmls === "function") sugerirCestaPelosXmls();
-  showToast(`${ok} XML(s) carregado(s)` + (ign ? `, ${ign} ignorado(s) (não é NF-e mod. 55)` : "") + (err.length ? `, ${err.length} com erro` : ""), err.length ? "error" : "success");
+  showToast(`${ok} XML(s) carregado(s)` + (fora.length ? `, ${fora.length} fora do espelho (confirme se quer adicionar)` : "") + (ign ? `, ${ign} ignorado(s) (não é NF-e mod. 55)` : "") + (err.length ? `, ${err.length} com erro` : ""), err.length ? "error" : "success");
   if (errDet.length) mostrarErros(errDet, `${errDet.length} arquivo(s) não importado(s)`);
+  if (fora.length) perguntarForaEspelho(fora);
 }
 bindDrop('dropXml', 'fileXml', carregarXmls);
+// XMLs cuja chave não está no espelho do DIA: pergunta antes de incluir na apuração
+function perguntarForaEspelho(fora) {
+  fora.sort((a, b) => (a.data || '').localeCompare(b.data || '') || String(a.nNF).localeCompare(String(b.nNF)));
+  $('feSub').textContent = `${fora.length} nota(s) não constam no espelho do DIA desta competência — marque as que quiser incluir`;
+  $('feLista').innerHTML = fora.map((n, i) => `<tr><td><input type="checkbox" data-i="${i}"></td><td><b>${esc(n.nNF || '—')}</b></td><td>${esc(n.emitente || '—')}${n.uf ? ' <span class="badge b-muted">' + esc(n.uf) + '</span>' : ''}</td><td>${fmtDate(n.data)}</td><td style="text-align:right">${fmt(n.valor)}</td><td class="mono" style="font-size:11px">${esc(n.chave)}</td></tr>`).join('');
+  const caixas = () => [...$('feLista').querySelectorAll('input[type=checkbox]')];
+  $('btnFeTodas').onclick = () => caixas().forEach(c => c.checked = true);
+  $('btnFeNenhuma').onclick = () => caixas().forEach(c => c.checked = false);
+  $('btnFeNao').onclick = () => { closeModal('modal-fora'); showToast(`${fora.length} nota(s) fora do espelho não entraram na apuração.`, ''); };
+  $('btnFeAdd').onclick = () => {
+    const A = apur(); let n = 0;
+    caixas().filter(c => c.checked).forEach(c => { const x = fora[+c.dataset.i]; A.xmls[x.chave] = x.txt; n++; });
+    closeModal('modal-fora');
+    if (n) { salvar(); recalcular(); if (typeof identificarRegime === "function") identificarRegime(); if (typeof sugerirCestaPelosXmls === "function") sugerirCestaPelosXmls(); }
+    showToast(n ? `${n} nota(s) fora do espelho adicionada(s) à apuração.` : 'Nenhuma nota adicionada.', n ? 'success' : '');
+  };
+  openModal('modal-fora');
+}
 
 // ------------------------------------------------------------------ SEFAZ: certificado A1 + Distribuição DF-e (servir.ps1)
 let SEFAZ = { online: false, certificados: [] };

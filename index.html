@@ -434,6 +434,17 @@
 </div>
 
 <!-- ============ MODAL: notas com erro (só fecha no OK) ============ -->
+<div class="modal-backdrop" id="modal-fora">
+  <div class="modal narrow" style="width:min(960px,100%)">
+    <div class="modal-hdr" style="background:var(--warn)"><div><h2>Notas fora do espelho do DIA</h2><div class="sub2" style="color:#fff;opacity:.85" id="feSub"></div></div></div>
+    <div class="modal-body">
+      <div class="alert alto" style="margin-bottom:10px">Estes XMLs <b>não constam no espelho do DIA</b> desta competência. A apuração usa só as notas do espelho; as demais ficam de fora, a não ser que você marque aqui. As que você adicionar aparecem na lista com a etiqueta "fora do espelho" e podem ser removidas pelo ✕.</div>
+      <div class="tblwrap" style="max-height:50vh"><table class="tbl compact"><thead><tr><th></th><th>NF</th><th>Emitente</th><th>Emissão</th><th style="text-align:right">Valor NF</th><th>Chave de acesso</th></tr></thead><tbody id="feLista"></tbody></table></div>
+    </div>
+    <div class="modal-foot"><button class="btn ghost" id="btnFeTodas">Marcar todas</button><button class="btn ghost" id="btnFeNenhuma">Desmarcar</button><button class="btn ghost" id="btnFeNao">Não adicionar</button><button class="btn" id="btnFeAdd">Adicionar selecionadas</button></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modal-erros">
   <div class="modal narrow" style="width:min(900px,100%)">
     <div class="modal-hdr" style="background:var(--bad)"><div><h2>Notas que não foram importadas</h2><div class="sub2" style="color:#fff;opacity:.85" id="meSub"></div></div></div>
