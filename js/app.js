@@ -610,6 +610,30 @@ async function carregarXmls(files) {
   if (fora.length) perguntarForaEspelho(fora);
 }
 bindDrop('dropXml', 'fileXml', carregarXmls);
+// Exporta os XMLs da competência (os baixados do Portal Nacional e os arrastados) num .zip, nomeados pela chave de acesso
+$('btnBaixarXmls').onclick = async () => {
+  const E = empresaAtual(); if (!E) return showToast('Selecione a empresa.', 'error');
+  const A = apur(), chaves = Object.keys(A.xmls || {});
+  if (!chaves.length) return showToast('Nenhum XML nesta competência.', 'error');
+  if (typeof JSZip === 'undefined') return showToast('Não consegui montar o .zip (biblioteca JSZip não carregou). Tente recarregar a página.', 'error');
+  const btn = $('btnBaixarXmls'); btn.disabled = true; btn.textContent = '⬇ montando…';
+  try {
+    const zip = new JSZip();
+    let noEspelho = 0;
+    for (const ch of chaves) {
+      const l = CONF.find(x => x.chave === ch);
+      const nome = (l && l.nNF ? String(l.nNF).replace(/\D/g, '').padStart(6, '0') + '-' : '') + ch + '.xml';
+      zip.file((l && !l.noEspelho ? 'fora-do-espelho/' : '') + nome, A.xmls[ch]);
+      if (l && !l.noEspelho) noEspelho++;
+    }
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const nomeZip = `Antecipa_XMLs_${(E.ie || E.cnpj || 'empresa').replace(/\D/g, '')}_${(ST.comp || '').replace('-', '')}.zip`;
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nomeZip; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    showToast(`${chaves.length} XML(s) no arquivo ${nomeZip}` + (noEspelho ? ` — ${noEspelho} em "fora-do-espelho/"` : '') + '.', 'success');
+  } catch (e) { showToast('Não consegui gerar o .zip: ' + e.message, 'error'); }
+  btn.disabled = false; btn.textContent = '⬇ Baixar os XMLs (.zip)';
+};
 // XMLs cuja chave não está no espelho do DIA: pergunta antes de incluir na apuração
 function perguntarForaEspelho(fora) {
   fora.sort((a, b) => (a.data || '').localeCompare(b.data || '') || String(a.nNF).localeCompare(String(b.nNF)));

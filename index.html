@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="js/firebase-config.js?v=1.11.2"></script>
+<script src="js/firebase-config.js?v=1.12.0"></script>
 <style>
   :root {
     --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
@@ -210,6 +210,7 @@
           <div class="drop" id="dropXml">Arraste os <b>XML da NF-e</b> (vários) ou clique para selecionar<input type="file" id="fileXml" accept=".xml,.zip" multiple hidden></div>
           <div class="small muted" id="infoXml" style="margin-top:8px"></div>
           <div class="hint">Aceita XML avulso ou .zip com vários. As notas são casadas com o espelho pela chave.</div>
+          <div class="row" style="margin-top:8px"><button class="btn sm ghost" id="btnBaixarXmls" title="Baixa um .zip com os XMLs desta competência (os que vieram do Portal Nacional e os que você arrastou)">⬇ Baixar os XMLs (.zip)</button></div>
           <div style="border-top:1px dashed var(--line); margin:12px 0 8px"></div>
           <div class="row" style="justify-content:space-between">
             <div><b>Busca automática no Portal Nacional da NF-e</b><div class="small muted" id="infoCert">verificando serviço…</div></div>
@@ -551,19 +552,19 @@
 
 <div id="toast"></div>
 
-<script src="js/versao.js?v=1.11.2"></script>
-<script src="js/tabelas.js?v=1.11.2"></script>
-<script src="js/tabelas-fundamentos.js?v=1.11.2"></script>
-<script src="js/tabelas-cnae.js?v=1.11.2"></script>
-<script src="js/nfe.js?v=1.11.2"></script>
-<script src="js/materiais.js?v=1.11.2"></script>
-<script src="js/motor.js?v=1.11.2"></script>
-<script src="js/espelho.js?v=1.11.2"></script>
-<script src="js/exportar.js?v=1.11.2"></script>
-<script src="js/app.js?v=1.11.2"></script>
-<script src="js/app-regime.js?v=1.11.2"></script>
-<script src="js/app-materiais.js?v=1.11.2"></script>
-<script src="js/firebase-sync.js?v=1.11.2"></script>
-<script src="js/firebase-certs.js?v=1.11.2"></script>
+<script src="js/versao.js?v=1.12.0"></script>
+<script src="js/tabelas.js?v=1.12.0"></script>
+<script src="js/tabelas-fundamentos.js?v=1.12.0"></script>
+<script src="js/tabelas-cnae.js?v=1.12.0"></script>
+<script src="js/nfe.js?v=1.12.0"></script>
+<script src="js/materiais.js?v=1.12.0"></script>
+<script src="js/motor.js?v=1.12.0"></script>
+<script src="js/espelho.js?v=1.12.0"></script>
+<script src="js/exportar.js?v=1.12.0"></script>
+<script src="js/app.js?v=1.12.0"></script>
+<script src="js/app-regime.js?v=1.12.0"></script>
+<script src="js/app-materiais.js?v=1.12.0"></script>
+<script src="js/firebase-sync.js?v=1.12.0"></script>
+<script src="js/firebase-certs.js?v=1.12.0"></script>
 </body>
 </html>
