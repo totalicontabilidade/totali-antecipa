@@ -136,26 +136,20 @@ function estadoDaCompetencia(empresaId, comp) {
 function renderReguaMeses() {
   const el = $('rguaMeses'); if (!el) return;
   const E = empresaAtual();
-  if (!E) { $('cardMeses').style.display = 'none'; return; }
-  $('cardMeses').style.display = '';
-  const anoAtual = parseInt((ST.comp || '').slice(0, 4), 10) || new Date().getFullYear();
-  if (ANO_REGUA == null) ANO_REGUA = anoAtual;
-  $('anoMeses').textContent = ANO_REGUA;
+  if (!E) { el.innerHTML = ''; return; }
+  ANO_REGUA = parseInt((ST.comp || '').slice(0, 4), 10) || new Date().getFullYear();   // segue o ano da competência aberta
   el.innerHTML = MESES_ABREV.map((m, i) => {
     const comp = ANO_REGUA + '-' + String(i + 1).padStart(2, '0');
     const s = estadoDaCompetencia(E.id, comp);
     const sel = comp === ST.comp ? ' sel' : '';
     const tit = s.estado === 'vazio' ? 'sem apuração'
-      : s.estado === 'aconferir' ? ('apuração salva na nuvem' + (s.linhas ? ' · ' + s.linhas + ' nota(s) no espelho' : '') + ' — clique para abrir e baixar os XMLs')
-        : (s.xmls + ' XML(s)' + (s.semXml ? ' · ' + s.semXml + ' nota(s) sem XML' : ' · completa'));
-    const extra = (s.mod ? ' · versão modificada' : '') + (s.obs ? ' · tem observações' : '');
-    const rodape = s.estado === 'vazio' ? '—' : s.estado === 'aconferir' ? 'abrir' : s.xmls + ' xml';
-    return `<div class="mchip ${s.estado}${sel}${s.mod ? ' mod' : ''}" data-comp="${comp}" title="${esc(MESES_ABREV[i] + '/' + ANO_REGUA + ' — ' + tit + extra)}">${m}<span class="mv">${rodape}</span></div>`;
+      : s.estado === 'aconferir' ? ('apuração salva na nuvem' + (s.linhas ? ', ' + s.linhas + ' nota(s) no espelho' : '') + ' — clique para abrir')
+        : (s.xmls + ' XML(s)' + (s.semXml ? ', ' + s.semXml + ' nota(s) sem XML' : ', completa'));
+    const extra = (s.mod ? ' · versão modificada' : '') + (s.obs ? ' · com observações' : '');
+    return `<div class="mchip ${s.estado}${sel}${s.mod ? ' mod' : ''}" data-comp="${comp}" title="${esc(MESES_ABREV[i] + '/' + ANO_REGUA + ' — ' + tit + extra)}">${m}</div>`;
   }).join('');
   el.querySelectorAll('[data-comp]').forEach(c => c.onclick = () => { ST.comp = c.dataset.comp; $('inpComp').value = ST.comp; salvar(); recalcular(); });
 }
-if ($('btnAnoAnt')) $('btnAnoAnt').onclick = () => { ANO_REGUA = (ANO_REGUA || new Date().getFullYear()) - 1; renderReguaMeses(); };
-if ($('btnAnoProx')) $('btnAnoProx').onclick = () => { ANO_REGUA = (ANO_REGUA || new Date().getFullYear()) + 1; renderReguaMeses(); };
 
 // Observações da competência (texto livre do usuário) — vão para o Excel e para o Mapa impresso
 function renderObs() {
@@ -435,7 +429,7 @@ $('btnSalvarEmpresa').onclick = () => {
   ST.empresaId = e.id; salvar(); closeModal("modal-empresa"); renderEmpresasSelect(); renderEmpresas(); recalcular(); if (typeof checarSefaz === "function") checarSefaz(); showToast('Empresa salva.', 'success');
 };
 $('selEmpresa').onchange = () => { ST.empresaId = $('selEmpresa').value; salvar(); recalcular(); renderReguaMeses(); };
-$('inpComp').onchange = () => { ST.comp = $('inpComp').value; ANO_REGUA = parseInt((ST.comp || '').slice(0, 4), 10) || ANO_REGUA; salvar(); recalcular(); };
+$('inpComp').onchange = () => { ST.comp = $('inpComp').value; salvar(); recalcular(); };
 // Empresa criada a partir do espelho: abre o cadastro já preenchido com o que o espelho trouxe (nome, IE, regime sugerido)
 function abrirEmpresaNova(id) {
   editarEmpresa(id);

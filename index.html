@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="js/firebase-config.js?v=1.10.1"></script>
+<script src="js/firebase-config.js?v=1.10.2"></script>
 <style>
   :root {
     --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
@@ -78,19 +78,18 @@
   .drop { border: 2px dashed #CBD5E1; border-radius: var(--r); padding: 18px; text-align: center; color: var(--muted); background: var(--gelo); cursor: pointer; transition: .15s; }
   .drop:hover, .drop.over { border-color: var(--gold); background: var(--areia); color: var(--navy); }
   .drop b { color: var(--navy); }
-  /* regua de competencias: verde = apuracao feita, ambar = falta XML, cinza = vazio */
-  .meses { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; }
-  @media (max-width: 900px) { .meses { grid-template-columns: repeat(6, 1fr); } }
-  .mchip { border: 1px solid var(--line); border-radius: 9px; padding: 7px 4px; text-align: center; cursor: pointer; background: #fff; font-size: 12px; font-weight: 700; font-family: Manrope, sans-serif; color: var(--muted); transition: .12s; line-height: 1.25; }
-  .mchip:hover { transform: translateY(-1px); box-shadow: var(--sh); }
-  .mchip .mv { display: block; font-size: 10px; font-weight: 600; opacity: .85; }
-  .mchip.vazio { background: var(--gelo); color: #9AA1AC; }
-  .mchip.parcial { background: #FDF3E0; border-color: var(--warn); color: #8A5B12; }
-  .mchip.ok { background: #E7F5EE; border-color: var(--ok); color: #14663F; }
-  .mchip.aconferir { background: #EEF4FA; border-color: var(--info); color: #1F4A6E; }
-
-  .mchip.sel { outline: 2px solid var(--navy); outline-offset: 1px; }
-  .mchip.mod::after { content: " *"; color: var(--bad); }
+  /* regua de competencias na topbar: verde = feita, ambar = falta XML, azul = na nuvem, cinza = vazia */
+  .meses { display: flex; gap: 3px; align-items: center; }
+  .mchip { width: 22px; height: 26px; border-radius: 6px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.07); color: rgba(255,255,255,.55); font-family: Manrope, sans-serif; font-size: 9.5px; font-weight: 700; line-height: 26px; text-align: center; cursor: pointer; transition: .12s; text-transform: uppercase; position: relative; user-select: none; }
+  .mchip:hover { filter: brightness(1.35); }
+  .mchip.vazio { }
+  .mchip.aconferir { background: rgba(93,160,214,.35); border-color: rgba(140,195,235,.6); color: #EAF4FC; }
+  .mchip.parcial { background: rgba(232,169,60,.45); border-color: rgba(255,200,110,.7); color: #FFF6E6; }
+  .mchip.ok { background: rgba(46,160,100,.55); border-color: rgba(110,220,160,.7); color: #EAFBF2; }
+  .mchip.sel { outline: 2px solid var(--gold-2); outline-offset: 1px; color: #fff; }
+  .mchip.mod::after { content: ""; position: absolute; top: 2px; right: 2px; width: 4px; height: 4px; border-radius: 50%; background: #FF6B5A; }
+  .mchip .mv { display: none; }
+  @media (max-width: 1250px) { .meses { display: none; } }
 
   .badge { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
   .b-ok { background: #E3F5EC; color: var(--ok); } .b-warn { background: #FDF1DC; color: var(--warn); } .b-bad { background: #FBE5E1; color: var(--bad); } .b-info { background: #E4EEF7; color: var(--info); } .b-navy { background: var(--navy); color: #fff; } .b-gold { background: var(--areia); color: #8A6620; } .b-muted { background: #EEE; color: var(--muted); }
@@ -158,6 +157,7 @@
   <div class="ctx">
     <select id="selEmpresa" title="Empresa (contribuinte de SE)"></select>
     <input type="month" id="inpComp" title="Competência (mês de referência)">
+    <div class="meses" id="rguaMeses" title="Meses do ano: verde = apuração feita, âmbar = falta XML, azul = salva na nuvem, cinza = sem apuração"></div>
     <button class="btn gold" id="btnExportTop" title="Exportar planilha Excel">⬇ Excel</button>
   </div>
 </header>
@@ -192,33 +192,8 @@
         </div>
       </div>
 
-      <div class="card" id="cardMeses" style="margin-bottom:12px;padding:10px 14px">
-        <div class="row" style="justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">
-          <div class="fi-label" style="margin:0">Competências do ano <span class="small muted">clique para abrir o mês</span></div>
-          <div class="row" style="gap:8px">
-            <button class="btn sm ghost" id="btnAnoAnt" title="ano anterior">‹</button>
-            <b id="anoMeses" style="font-family:Manrope;font-size:15px"></b>
-            <button class="btn sm ghost" id="btnAnoProx" title="próximo ano">›</button>
-          </div>
-        </div>
-        <div class="meses" id="rguaMeses"></div>
-        <div class="small muted" style="margin-top:8px">
-          <span class="mchip ok" style="pointer-events:none">■</span> apuração feita ·
-          <span class="mchip parcial" style="pointer-events:none">■</span> falta XML ·
-          <span class="mchip aconferir" style="pointer-events:none">■</span> salva na nuvem (abra para conferir) ·
-          <span class="mchip vazio" style="pointer-events:none">■</span> sem apuração
-        </div>
-      </div>
-
       <div class="alert baixo" id="avisoCarregando" style="display:none;margin-bottom:12px">⏳ <b>Baixando os XMLs desta competência…</b> os valores abaixo ainda não são os finais.</div>
       <div class="alert alto" id="avisoModificada" style="display:none;margin-bottom:12px"></div>
-      <div class="card" style="margin-bottom:12px">
-        <div class="row" style="justify-content:space-between;align-items:center;gap:10px">
-          <div class="fi-label" style="margin:0">Observações desta apuração <span class="small muted">(aparecem na planilha exportada e no Mapa impresso)</span></div>
-          <span class="small muted" id="obsStatus"></span>
-        </div>
-        <textarea class="fi" id="obsApur" rows="2" placeholder="Ex.: teve nota de devolução da NF 1234; item 3 excluído porque é brinde; imposto da NF 5678 pago em GNRE separada."></textarea>
-      </div>
 
       <div class="grid g3">
         <div class="card step">
@@ -263,6 +238,14 @@
         <div class="tblwrap"><table class="tbl" id="tblNotas"><thead><tr>
           <th>NF</th><th>Emitente</th><th class="num">Valor NF</th><th>Receita (sistema)</th><th class="num">ICMS calc.</th><th class="num">FECOEP</th><th class="num">SEFAZ calc.</th><th class="num">Dif.</th><th>Status</th><th></th>
         </tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <div class="card" id="cardObs" style="margin-top:16px">
+        <div class="row" style="justify-content:space-between;align-items:center;gap:10px">
+          <div class="fi-label" style="margin:0">Observações desta apuração <span class="small muted">(saem na planilha exportada)</span></div>
+          <span class="small muted" id="obsStatus"></span>
+        </div>
+        <textarea class="fi" id="obsApur" rows="2" placeholder="Ex.: teve nota de devolução da NF 1234; item 3 excluído porque é brinde; imposto da NF 5678 pago em GNRE separada."></textarea>
       </div>
 
       <div class="card" id="cardResumo" style="margin-top:16px">
@@ -568,19 +551,19 @@
 
 <div id="toast"></div>
 
-<script src="js/versao.js?v=1.10.1"></script>
-<script src="js/tabelas.js?v=1.10.1"></script>
-<script src="js/tabelas-fundamentos.js?v=1.10.1"></script>
-<script src="js/tabelas-cnae.js?v=1.10.1"></script>
-<script src="js/nfe.js?v=1.10.1"></script>
-<script src="js/materiais.js?v=1.10.1"></script>
-<script src="js/motor.js?v=1.10.1"></script>
-<script src="js/espelho.js?v=1.10.1"></script>
-<script src="js/exportar.js?v=1.10.1"></script>
-<script src="js/app.js?v=1.10.1"></script>
-<script src="js/app-regime.js?v=1.10.1"></script>
-<script src="js/app-materiais.js?v=1.10.1"></script>
-<script src="js/firebase-sync.js?v=1.10.1"></script>
-<script src="js/firebase-certs.js?v=1.10.1"></script>
+<script src="js/versao.js?v=1.10.2"></script>
+<script src="js/tabelas.js?v=1.10.2"></script>
+<script src="js/tabelas-fundamentos.js?v=1.10.2"></script>
+<script src="js/tabelas-cnae.js?v=1.10.2"></script>
+<script src="js/nfe.js?v=1.10.2"></script>
+<script src="js/materiais.js?v=1.10.2"></script>
+<script src="js/motor.js?v=1.10.2"></script>
+<script src="js/espelho.js?v=1.10.2"></script>
+<script src="js/exportar.js?v=1.10.2"></script>
+<script src="js/app.js?v=1.10.2"></script>
+<script src="js/app-regime.js?v=1.10.2"></script>
+<script src="js/app-materiais.js?v=1.10.2"></script>
+<script src="js/firebase-sync.js?v=1.10.2"></script>
+<script src="js/firebase-certs.js?v=1.10.2"></script>
 </body>
 </html>
