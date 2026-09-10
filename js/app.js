@@ -66,7 +66,7 @@ function recalcular() {
     const receitaId = res ? (res.naoAntecipada ? 'nao_antecipa' : Object.keys(res.totais.porReceita).join('+')) : '';
     const receitaNome = res ? (res.naoAntecipada ? 'não antecipada' : Object.values(res.totais.porReceita).map(x => x.nome).join(' + ')) : '';
     let status = res ? 'ok' : erro ? 'erro' : 'pendente';
-    if (res && res.ignorada) status = res.situacao === "difal_recolhido" ? "difal_recolhido" : res.situacao === "adiada" ? "adiada" : "ignorada";
+    if (res && res.ignorada) status = res.situacao === "difal_recolhido" ? "difal_recolhido" : res.situacao === "gnre_recolhido" ? "gnre_recolhido" : res.situacao === "adiada" ? "adiada" : "ignorada";
     const dif = (vCalc != null && vSefaz != null) ? MOTOR.r2(vCalc - vSefaz) : null;
     const linha = {
       chave: ch, nNF: res ? res.nota.nNF : (esp?.nNF || ic.nNF || ''), emitente: res ? res.nota.emit.nome : (esp ? fmtCnpj(esp.emitente) : fmtCnpj(ic.cnpj)),
@@ -102,6 +102,7 @@ function badgeStatus(l) {
   if (l.status === 'erro') return '<span class="badge b-bad" title="' + esc(l.erro) + '">erro no XML</span>';
   if (l.status === "ignorada") return "<span class=\"badge b-muted\">ignorada</span>";
   if (l.status === "difal_recolhido") return "<span class=\"badge b-info\" title=\"fora da apuração: ICMS já recolhido como DIFAL\">já recolhida no DIFAL</span>";
+  if (l.status === "gnre_recolhido") return "<span class=\"badge b-info\" title=\"fora da apuração: ICMS já recolhido anteriormente por GNRE\">já recolhida por GNRE</span>";
   if (l.status === "adiada") return "<span class=\"badge b-gold\" title=\"fora desta apuração: nota adiada para o mês seguinte (espelho do DIA)\">adiada p/ mês seguinte</span>";
   const n = l.res.alertas.filter(a => a.nivel === 'alto').length, m = l.res.alertas.filter(a => a.nivel === 'medio').length;
   let b = l.res.naoAntecipada ? '<span class="badge b-muted">não antecipada</span>' : '<span class="badge b-ok">calculada</span>';
@@ -119,7 +120,7 @@ function renderNotas() {
     if (soDif && !(l.dif != null && Math.abs(l.dif) > 0.05)) continue;
     n++;
     const ovN = apur().overrides[l.chave] || {};
-    const recSel = l.res ? `<select class="fi" style="padding:2px 4px;font-size:11px;max-width:150px" data-ov-nota="${l.chave}"><option value="">${esc(l.receita || "—")} (auto)</option><option value="__difal" ${ovN.situacao === "difal_recolhido" ? "selected" : ""}>Já recolhida no DIFAL (tirar da apuração)</option><option value="__adiada" ${ovN.situacao === "adiada" ? "selected" : ""}>Adiada para o mês seguinte (tirar da apuração)</option>${TABELAS_SE.receitas.map(r => `<option value="${r.id}" ${apur().overrides[l.chave]?.receita === r.id ? 'selected' : ''}>${esc(r.nome)}</option>`).join('')}</select>` : '<span class="muted small">' + esc(l.forma || '') + '</span>';
+    const recSel = l.res ? `<select class="fi" style="padding:2px 4px;font-size:11px;max-width:150px" data-ov-nota="${l.chave}"><option value="">${esc(l.receita || "—")} (auto)</option><option value="__difal" ${ovN.situacao === "difal_recolhido" ? "selected" : ""}>Já recolhida no DIFAL (tirar da apuração)</option><option value="__gnre" ${ovN.situacao === "gnre_recolhido" ? "selected" : ""}>Já recolhida anteriormente por GNRE (tirar da apuração)</option><option value="__adiada" ${ovN.situacao === "adiada" ? "selected" : ""}>Adiada para o mês seguinte (tirar da apuração)</option>${TABELAS_SE.receitas.map(r => `<option value="${r.id}" ${apur().overrides[l.chave]?.receita === r.id ? 'selected' : ''}>${esc(r.nome)}</option>`).join('')}</select>` : '<span class="muted small">' + esc(l.forma || '') + '</span>';
     tb.insertAdjacentHTML('beforeend', `<tr>
       <td title="chave ${l.chave}"><b class="clickable" data-open="${l.chave}">${esc(l.nNF)}</b><div class="small muted">${fmtDate(l.dtEmi)}</div></td>
       <td><span title="${esc(l.emitente)}">${esc(l.emitente.length > 34 ? l.emitente.slice(0, 32) + "…" : l.emitente)}</span> <span class="badge b-muted">${esc(l.uf)}</span>${l.forma ? "<div class=\"small muted\" title=\"forma de recolhimento no espelho da SEFAZ\">SEFAZ: " + esc(l.forma.replace("COMPLEMENTACAO DE ALIQUOTA INTERESTADUAL", "complementação de alíquota").replace("ANTECIPAÇÃO TRIBUTÁRIA COM ENCERRAMENTO DE FASE", "antecip. com encerramento").replace("OPERAÇÃO NÃO ANTECIPADA", "não antecipada")) + "</div>" : ""}</td><td class="num">${fmt(l.vNF)}</td>
@@ -134,7 +135,7 @@ function renderNotas() {
   if (!n) tb.innerHTML = '<tr><td colspan="10" class="empty">Nenhuma nota. Carregue o espelho do DIA e os XMLs.</td></tr>';
   $('cntNotas').textContent = CONF.length;
   tb.querySelectorAll('[data-open]').forEach(el => el.onclick = () => abrirNota(el.dataset.open));
-  tb.querySelectorAll('[data-ov-nota]').forEach(el => el.onchange = () => { const o = apur().overrides; const k = el.dataset.ovNota; o[k] = { ...(o[k] || {}) }; delete o[k].receita; delete o[k].situacao; if (el.value === "__difal") o[k].situacao = "difal_recolhido"; else if (el.value === "__adiada") o[k].situacao = "adiada"; else if (el.value) o[k].receita = el.value; if (!Object.keys(o[k]).length) delete o[k]; salvar(); recalcular(); });
+  tb.querySelectorAll('[data-ov-nota]').forEach(el => el.onchange = () => { const o = apur().overrides; const k = el.dataset.ovNota; o[k] = { ...(o[k] || {}) }; delete o[k].receita; delete o[k].situacao; if (el.value === "__difal") o[k].situacao = "difal_recolhido"; else if (el.value === "__gnre") o[k].situacao = "gnre_recolhido"; else if (el.value === "__adiada") o[k].situacao = "adiada"; else if (el.value) o[k].receita = el.value; if (!Object.keys(o[k]).length) delete o[k]; salvar(); recalcular(); });
   tb.querySelectorAll('[data-ign]').forEach(el => el.onclick = () => { const o = apur().overrides; const k = el.dataset.ign; o[k] = { ...(o[k] || {}), ignorar: !(o[k] && o[k].ignorar) }; salvar(); recalcular(); });
   tb.querySelectorAll('[data-del]').forEach(el => el.onclick = () => { const A = apur(); if (A.espelho) A.espelho.linhas = A.espelho.linhas.filter(x => x.chave !== el.dataset.del); delete A.xmls[el.dataset.del]; salvar(); recalcular(); });
 }
@@ -570,7 +571,7 @@ $('filtroNotas').oninput = renderNotas; $('chkSoDif').onchange = renderNotas;
 function exportar() {
   const E = empresaAtual(); if (!E) return showToast('Selecione a empresa.', 'error');
   if (!RES.length) return showToast('Nada para exportar — carregue os XMLs.', 'error');
-  const ctx = { empresa: E, competencia: ST.comp, resultados: RES, consolidado: CONS, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, linhasConferencia: CONF.map(l => ({ nNF: l.nNF, emitente: l.emitente, uf: l.uf, chave: l.chave, forma: l.forma, vSefaz: l.vSefaz ?? '', receita: l.receita, vCalc: l.vCalc ?? '', fecoep: l.fecoep, dif: l.dif ?? '', status: l.status === "ok" ? (Math.abs(l.dif || 0) > 0.05 ? "diverge da SEFAZ" : "confere") : l.status === "difal_recolhido" ? "já recolhida no DIFAL (fora da apuração)" : l.status === "adiada" ? "adiada para o mês seguinte" : l.status })) };
+  const ctx = { empresa: E, competencia: ST.comp, resultados: RES, consolidado: CONS, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, linhasConferencia: CONF.map(l => ({ nNF: l.nNF, emitente: l.emitente, uf: l.uf, chave: l.chave, forma: l.forma, vSefaz: l.vSefaz ?? '', receita: l.receita, vCalc: l.vCalc ?? '', fecoep: l.fecoep, dif: l.dif ?? '', status: l.status === "ok" ? (Math.abs(l.dif || 0) > 0.05 ? "diverge da SEFAZ" : "confere") : l.status === "difal_recolhido" ? "já recolhida no DIFAL (fora da apuração)" : l.status === "gnre_recolhido" ? "já recolhida anteriormente por GNRE (fora da apuração)" : l.status === "adiada" ? "adiada para o mês seguinte" : l.status })) };
   const nome = EXPORTAR.gerar(ctx); showToast('Planilha gerada: ' + nome, 'success');
 }
 $('btnExport').onclick = exportar; $('btnExport2').onclick = exportar; $('btnExportTop').onclick = exportar;
