@@ -123,10 +123,16 @@ const MOTOR = (() => {
     const agropet = empresaAgropet(empresa);
     const origemReduzidaOuIsenta = ['20', '30', '40', '41', '51', '70'].includes(cstO);
     const ncmInsumo = /^(230[1-9]|310[1-5]|3808)/.test(ncmI);
-    // ração pet: CEST 22.001.00 ou palavras de pet no nome — sabores ("frango e arroz", "peixe", "cordeiro") não a tornam ração de criação
-    const petInd = String(item.cest || '') === '2200100' || /\b(PET|DOG|CAT|CAO|CAES|GATO|GATOS|CANINE|FELINE|PUPPY|KITTEN|FILHOTE|FILHOTES)\b/.test(descI);
-    const descCriacao = !petInd && /SUIN|BOVIN|\bAVES?\b|FRANGO|GADO|EQUIN|POTRO|CAVAL|OVIN|CAPRIN|PEIXE|CAMAR|POEDEIRA|VACA|BEZERR|CORDEIR|PORC|GALINH|NOVILH/.test(descI);
-    if (ncmInsumo && (origemReduzidaOuIsenta || (agropet && (/^(310[1-5]|3808)/.test(ncmI) || descCriacao)))) return { id: 'nao_antecipa', motivo: 'Insumo agropecuário (ração/suplemento para criação, fertilizante, substrato, defensivo — NCM ' + ncmI + (origemReduzidaOuIsenta ? ', CST ' + cstO + ' com base reduzida/isenta na origem' : '') + '): Convênio ICMS 100/97, isento nas operações internas de SE (RICMS/SE Anexo I) — não entra na antecipação (prática do escritório; a SEFAZ marca como não antecipada).' };
+    const ncmFertDefens = /^(310[1-5]|3808)/.test(ncmI);
+    // nome inequívoco de criação (pecuária). "Frango", "peixe" e "cordeiro" são SABORES de ração pet e não entram aqui.
+    const descCriacao = /SUIN|BOVIN|GADO|EQUIN|POTRO|CAVAL|OVIN|CAPRIN|POEDEIR|\bVACA|BEZERR|NOVILH|LEITA[OÕ]|BUBALIN|MUAR|RUMINANT|\bAVES\b|DE CORTE|ENGORDA|POSTURA|TILAPIA|PISCICULT|CAMAR[AÃ]O/.test(descI);
+    // ração pet: CEST 22.001.00 ou palavra de pet no nome — vale inclusive em amostra/bonificação (CST 40), como no mapa da J C de Lira abr/2026
+    const petInd = !descCriacao && (String(item.cest || '') === '2200100' || /\b(PET|DOG|CAT|CAO|CAES|GATO|GATOS|CANINE|FELINE|PUPPY|KITTEN|FILHOTE|FILHOTES|PASSARO)\b/.test(descI));
+    // Adubo/defensivo de JARDINAGEM ORNAMENTAL em embalagem de varejo: o Conv. ICMS 100/97 exige "uso na agricultura e na pecuária,
+    // vedada a aplicação quando dada ao produto destinação diversa" — jardim doméstico é destinação diversa (J C de Lira abr/2026, linha Forth)
+    const jardinagem = ncmFertDefens && (/JARDIM|FLOR|ORQUID|ORQ\.|SAMAMBAIA|ROSA DO DESERTO|ROSA DESERTO|ROSEIRA|BONSAI|SUCULENT|CACTO|GRAMAD|ORNAMENT|VIOLETA|ANTURIO|\bVASO/.test(descI) || /\d+\s*X\s*\d+([.,]\d+)?\s*(G|ML|KG|L)\b/.test(descI));
+    if (ncmInsumo && !petInd && !jardinagem && (origemReduzidaOuIsenta || (agropet && (ncmFertDefens || descCriacao)))) return { id: 'nao_antecipa', motivo: 'Insumo agropecuário (ração/suplemento para criação, fertilizante, substrato, defensivo — NCM ' + ncmI + (origemReduzidaOuIsenta ? ', CST ' + cstO + ' com base reduzida/isenta na origem' : '') + '): Convênio ICMS 100/97, isento nas operações internas de SE (RICMS/SE Anexo I) — não entra na antecipação (prática do escritório; a SEFAZ marca como não antecipada).' };
+    if (jardinagem && ctx.alertas) ctx.alertas.push({ nivel: 'medio', msg: 'Adubo/defensivo de jardinagem ornamental em embalagem de varejo (NCM ' + ncmI + '): o Convênio ICMS 100/97 vale só para uso na agricultura e na pecuária, então este item NÃO foi tratado como insumo isento. Se for insumo agrícola, mude a receita do item.' });
     if (agropet && /^(3002|3003|3004)/.test(ncmI)) return { id: 'nao_antecipa', motivo: 'Medicamento/vacina de uso veterinário (NCM ' + ncmI + ') em empresa do ramo agropet: Convênio ICMS 100/97 (vacinas, soros e medicamentos de uso na pecuária) — sem antecipação (prática do escritório, J C de Lira mar/2026; confirmar se a SEFAZ cobrar).' };
     if (regra && regra.regime === 'nao_antecipa') return { id: 'nao_antecipa', motivo: regra.descricao + '.' };
     if (regra && regra.regime === "cesta") { const pct = regra.cestaPct != null ? regra.cestaPct : 2.1; return empresa.cestaOptante
@@ -223,7 +229,7 @@ const MOTOR = (() => {
         regra = { ...regra, mvaOriginal: stTab.linhas[0].mva, fundamento: (regra.fundamento || '') + ' + planilha ST/SE (' + stTab.linhas[0].dispositivo + ')' };
       }
     }
-    const rec = decidirReceita({ nota, item, empresa: E, tri, regra, ov });
+    const rec = decidirReceita({ nota, item, empresa: E, tri, regra, ov, alertas });
     const R = receita(rec.id);
 
     // ---- Formação do preço (colunas F..K) ----
@@ -272,8 +278,11 @@ const MOTOR = (() => {
     if (ov.mva != null) { O = ov.mva; origemO = 'MVA informada manualmente'; }
     else if (R.mva === 'geral') { O = E.perfil === 'inapto' ? P.mvaInapto : P.mvaApto; origemO = "MVA geral — contribuinte " + (E.perfil === "inapto" ? "suspenso/inapto: 30% (art. 786, II, b)" : "apto: 10% (art. 786, II, a)"); }
     else if (R.mva === 'produto') {
-      const m = mvaDaRegra(regra, L);
-      if (m != null) { O = m; origemO = 'MVA do produto — ' + regra.descricao + ' (origem ' + L + '%)'; }
+      // A MVA-ST varia com a ALÍQUOTA INTERESTADUAL da operação, não com o imposto efetivamente destacado:
+      // em item isento/reduzido na origem (CST 40, amostra, bonificação) L pode ser 0 — usa-se a alíquota da UF de origem.
+      const Lmva = L > 0 ? L : NFE.aliquotaInterestadual(nota.emit.uf, item.icms.orig, T);
+      const m = mvaDaRegra(regra, Lmva);
+      if (m != null) { O = m; origemO = 'MVA do produto — ' + regra.descricao + ' (origem ' + Lmva + '%' + (L !== Lmva ? ', alíquota interestadual da UF — a nota não destaca ICMS' : '') + ')'; }
       else if (regra && regra.mvaOriginal != null) {
         const mo = regra.mvaOriginal;
         if (P.ajustarMva && L > 0 && M < 100 && L < M) {
