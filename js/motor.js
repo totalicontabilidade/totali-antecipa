@@ -406,9 +406,16 @@ const MOTOR = (() => {
       if (ov.fecoep != null) { fecoepPts = ov.fecoep; origemFecoep = 'informado manualmente'; }
       else if (regra && regra.fecoep != null) { fecoepPts = regra.fecoep; origemFecoep = 'regra do NCM (' + regra.descricao + ')'; }
       else if (['cesta_opt36', 'cesta_opt21', 'cesta_nao_opt'].includes(rec.id)) { fecoepPts = 0; origemFecoep = 'cesta básica — excluída do FECOEP'; }
-      // DIFAL: coluna F da Portaria 367/2016 — "informar o adicional de 2% QUANDO a mercadoria
-      // estiver sujeita ao Fundo". Sem regra de FECOEP para o NCM, a coluna fica vazia.
-      else if (R.difal) { fecoepPts = 0; origemFecoep = 'DIFAL: adicional do Fundo só nos produtos sujeitos a ele (coluna F da Portaria 367/2016) — informe no item se for o caso'; }
+      // DIFAL: o adicional incide na aquisição de bem de USO OU CONSUMO (art. 616-B, VII), com
+      // 1 ponto pela regra geral do art. 40-D, e NÃO incide na aquisição para o ATIVO IMOBILIZADO
+      // (art. 616-C-B, II). Confirmado na planilha de FCP do DIFAL da Mais Barato de ago/2026,
+      // que aplica 1% sobre a base do DIFAL das três notas de uso e consumo.
+      else if (R.difal) {
+        const ativo = tri.finalidade === 'ativo';
+        fecoepPts = ativo ? 0 : P.fecoepPadrao;
+        origemFecoep = ativo ? 'DIFAL de bem do ativo imobilizado: sem adicional (RICMS/SE, art. 616-C-B, II)'
+          : 'DIFAL de uso e consumo: ' + P.fecoepPadrao + ' ponto sobre a base do diferencial (art. 616-B, VII, c/c art. 40-D)';
+      }
       else if (P.fecoepBase === 'auto' && E.regime !== 'simples' && !['antecip_encer', 'st_interna', 'importacoes'].includes(rec.id)) { fecoepPts = 0; origemFecoep = 'regime normal: FECOEP na entrada só nas receitas com encerramento — na antecipação parcial a saída própria já recolhe o adicional (prática do escritório)'; }
       else { fecoepPts = P.fecoepPadrao; origemFecoep = 'padrão (' + P.fecoepPadrao + ' ponto) — art. 40-B; Dec. 289/2023' + (P.fecoepBase === 'auto' ? (E.regime === 'simples' ? '; Simples: sobre o valor da nota' : '; com encerramento: sobre a base com MVA') : ''); }
     }

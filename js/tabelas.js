@@ -210,8 +210,12 @@ const TABELAS_SE = {
       id: 'info-' + n, prioridade: 22, ncm: n, match: 'inicia', simplesTambem: true,
       descricao: d + ' — produto de informática do Anexo III: alíquota interna 12%',
       descPadrao: pad || null, descMatch: 'contem',
-      regime: null, encerra: false, mva: null, aliq: 12, fecoep: 0, confirmar: false,
-      fundamento: 'RICMS/SE art. 40, IX (Lei 8.499/2018) c/c Anexo III do Regulamento (Dec. 27.483/2010) — produto ou material de informática, alíquota interna de 12%' })),
+      // FECOEP: informática NÃO está no art. 40-C (2 pontos) nem nas exclusões dos arts. 616-C-A e
+      // 616-C-B, então cai na regra geral do art. 40-D: 1 ponto. Confirmado nas planilhas de FCP da
+      // Central Net de fev, mai, jun e ago/2026, em que a base do fundo é a soma da coluna K do mapa
+      // inteiro, com as linhas de 12% incluídas.
+      regime: null, encerra: false, mva: null, aliq: 12, fecoep: null, confirmar: false,
+      fundamento: 'RICMS/SE art. 40, IX (Lei 8.499/2018) c/c Anexo III do Regulamento (Dec. 27.483/2010) — produto ou material de informática, alíquota interna de 12%; FECOEP de 1 ponto pelo art. 40-D' })),
     // Cosméticos e perfumaria: alíquota interna 25% (Lei 3.796/96, art. 18); FECOEP +2 só nos extratos de perfume 3303.00.10 (Dec. 295/2023)
     { id: "cosm-3303", prioridade: 20, ncm: "3303", match: "inicia", descricao: "Perfumes e águas-de-colônia — alíquota 25%", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: true, fundamento: "Lei 3.796/96 art. 18 (25%); Dec. 295/2023 (+2 pts nos extratos 3303.00.10)" },
     ...["3304", "3305", "3307"].map(n => ({ id: "cosm-" + n, prioridade: 20, ncm: n, match: "inicia", descricao: "Produtos de beleza/maquiagem/capilares — alíquota 25% + FECOEP 2 pontos", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: false, fundamento: "Lei 3.796/96 art. 18 (produtos de beleza 25%); Lei 4.731/2002 (supérfluos +2 pts) — validado no mapa e na planilha de FCP da Faro Tem jul/2026" })),
