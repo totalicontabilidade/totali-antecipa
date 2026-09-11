@@ -439,7 +439,7 @@ const MOTOR = (() => {
       mem.push({ passo: '6. Carga de destino (M)', txt: M + '% — ' + origemM });
       if (R.difal) {
         mem.push({ passo: '7. Percentual do DIFAL (coluna H)', txt: 'alíquota interna − alíquota de origem = ' + M + '% − ' + L + '% = ' + pDifal + '%' });
-        mem.push({ passo: '8. Base do DIFAL (coluna G)', txt: 'valor da operação ÷ (1 − ' + pDifal + '%) = ' + f(K) + ' ÷ ' + (1 - pDifal / 100).toFixed(4) + ' = ' + f(Pb) + ' — o imposto integra a própria base (LC 87/96, art. 13, § 6º; Portaria 367/2016, Anexo II)' });
+        mem.push({ passo: '8. Base do DIFAL (coluna G)', txt: 'valor da operação ÷ (1 − ' + pDifal + '%) = ' + f(K) + ' ÷ ' + (1 - pDifal / 100).toFixed(4) + ' = ' + f(Pb) + ' — o imposto integra a própria base (LC 87/96, art. 13, § 6º; Portaria 367/2016, Anexo II). A coluna B soma mercadorias ' + f(F) + (G > 0 ? ' + IPI ' + f(G) : '') + (H > 0 ? ' + frete ' + f(H) : '') + (I > 0 ? ' + seguro ' + f(I) : '') + (J > 0 ? ' + outras ' + f(J) : '') + ': na entrada para uso, consumo ou ativo não há operação seguinte, então o IPI entra na base do ICMS (CF, art. 155, § 2º, XI, a contrario sensu)' });
         mem.push({ passo: '9. Valor do DIFAL (coluna I)', txt: 'base × ' + pDifal + '% = ' + f(Pb) + ' × ' + pDifal + '% = ' + f(Q) });
         mem.push({ passo: '10. A recolher (coluna K)', txt: f(S) + ' de DIFAL' + (fecoep > 0 ? ' + ' + f(fecoep) + ' do Fundo de Pobreza (coluna J) = ' + f(S + fecoep) : '') + ' — DAE próprio, fora do mapa do DIA' });
       }
