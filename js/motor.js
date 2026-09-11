@@ -402,7 +402,17 @@ const MOTOR = (() => {
 
     // ---- FECOEP ----
     let fecoepPts = 0, origemFecoep = 'desligado';
-    if (P.fecoepAtivo && rec.id !== 'nao_antecipa') {
+    // Entrada de USO OU CONSUMO que ficou fora do DIA, em empresa do SIMPLES: o adicional continua
+    // devido, porque o art. 616-B, VII manda incidir "nas operações de aquisição, por contribuinte
+    // do imposto, de bens destinados ao uso ou consumo do estabelecimento", sem depender da
+    // antecipação, e o optante não tem conta gráfica onde lançá-lo depois. Confirmado na planilha de
+    // FCP da Faro Tem fev/2026, que cobra 1% da nota 4791 (CFOP 6949) mesmo fora do mapa.
+    // No regime NORMAL o escritório não lança no DIA (Mais Barato jul/2026, nota 18201, também CFOP
+    // 6949): ali o diferencial e o seu adicional entram na apuração mensal do ICMS. Para calcular os
+    // dois aqui, marque a nota como "Calcular como DIFAL". Bem do ATIVO fica fora (art. 616-C-B, II).
+    const usoConsumoForaDoDia = rec.id === 'nao_antecipa' && tri.finalidadeExplicita
+      && tri.finalidade === 'usoConsumo' && E.regime === 'simples';
+    if (P.fecoepAtivo && (rec.id !== 'nao_antecipa' || usoConsumoForaDoDia)) {
       if (ov.fecoep != null) { fecoepPts = ov.fecoep; origemFecoep = 'informado manualmente'; }
       else if (regra && regra.fecoep != null) { fecoepPts = regra.fecoep; origemFecoep = 'regra do NCM (' + regra.descricao + ')'; }
       else if (['cesta_opt36', 'cesta_opt21', 'cesta_nao_opt'].includes(rec.id)) { fecoepPts = 0; origemFecoep = 'cesta básica — excluída do FECOEP'; }
@@ -416,12 +426,13 @@ const MOTOR = (() => {
         origemFecoep = ativo ? 'DIFAL de bem do ativo imobilizado: sem adicional (RICMS/SE, art. 616-C-B, II)'
           : 'DIFAL de uso e consumo: ' + P.fecoepPadrao + ' ponto sobre a base do diferencial (art. 616-B, VII, c/c art. 40-D)';
       }
+      else if (usoConsumoForaDoDia) { fecoepPts = P.fecoepPadrao; origemFecoep = 'entrada para uso e consumo (CFOP ' + item.cfop + '): fora do DIA, mas o adicional é devido sobre o valor da operação (art. 616-B, VII, c/c art. 40-D)'; }
       else if (P.fecoepBase === 'auto' && E.regime !== 'simples' && !['antecip_encer', 'st_interna', 'importacoes'].includes(rec.id)) { fecoepPts = 0; origemFecoep = 'regime normal: FECOEP na entrada só nas receitas com encerramento — na antecipação parcial a saída própria já recolhe o adicional (prática do escritório)'; }
       else { fecoepPts = P.fecoepPadrao; origemFecoep = 'padrão (' + P.fecoepPadrao + ' ponto) — art. 40-B; Dec. 289/2023' + (P.fecoepBase === 'auto' ? (E.regime === 'simples' ? '; Simples: sobre o valor da nota' : '; com encerramento: sobre a base com MVA') : ''); }
     }
     // No DIFAL o adicional do fundo de pobreza é a coluna J da Portaria 367/2016: 2 pontos sobre a
     // base do DIFAL (coluna G), qualquer que seja o regime.
-    const fecoepBase = R.difal ? Pb
+    const fecoepBase = R.difal ? Pb : usoConsumoForaDoDia ? K
       : (P.fecoepBase === "P" || (P.fecoepBase === "auto" && (E.regime !== "simples" || ["antecip_encer", "st_interna", "importacoes"].includes(rec.id)))) ? Pb : K;
     const fecoep = fecoepBase * fecoepPts / 100;
 
@@ -491,6 +502,9 @@ const MOTOR = (() => {
       const pr = tot.porReceita[g.receita] || (tot.porReceita[g.receita] = { cod: g.cod, nome: g.receitaNome, base: 0, debito: 0, credito: 0, devido: 0 });
       pr.base = r2(pr.base + g.P); pr.debito = r2(pr.debito + g.Q); pr.credito = r2(pr.credito + g.R); pr.devido = r2(pr.devido + g.S);
     }
+    // Item fora do DIA pode ter FECOEP mesmo assim (entrada de uso e consumo, art. 616-B, VII):
+    // ele não gera linha no mapa, mas o adicional entra no total da nota.
+    for (const r of itens) if (r.receita === 'nao_antecipa' && r.fecoep > 0) tot.fecoep = r2(tot.fecoep + r.fecoep);
     const alertas = []; itens.forEach(i => i.alertas.forEach(a => alertas.push({ ...a, nItem: i.nItem })));
     const naoAntecipada = itens.length > 0 && itens.every(i => i.receita === 'nao_antecipa');
     return { nota, itens, linhasMapa, totais: tot, alertas, naoAntecipada, ignorada: !!ovNota.ignorar || !!ovNota.situacao, situacao: ovNota.situacao || "" };

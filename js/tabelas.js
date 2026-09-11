@@ -216,6 +216,42 @@ const TABELAS_SE = {
       // inteiro, com as linhas de 12% incluídas.
       regime: null, encerra: false, mva: null, aliq: 12, fecoep: null, confirmar: false,
       fundamento: 'RICMS/SE art. 40, IX (Lei 8.499/2018) c/c Anexo III do Regulamento (Dec. 27.483/2010) — produto ou material de informática, alíquota interna de 12%; FECOEP de 1 ponto pelo art. 40-D' })),
+    // ---------------------------------------------------------------------------------------------
+    // MATERIAL ESCOLAR SEM FECOEP — RICMS/SE, art. 616-C-A, IV, "c" (Dec. 289/2023): o adicional de
+    // 1 ponto não incide nos 17 itens listados abaixo. A lista é TAXATIVA e por DESCRIÇÃO, não por
+    // NCM, então cada regra casa o NCM e confere o nome do produto. Só mexe no FECOEP: alíquota,
+    // MVA e receita seguem a regra geral. Calibrado com a planilha de FCP da Faro Tem fev/2026, em
+    // que a base do fundo exclui exatamente caderno, borracha, giz de cera, massa de modelar, cola,
+    // estojo, régua e kit escolar, e mantém bloco de rascunho, bloco adesivo, prancheta e porta-canetas.
+    ...[
+      ['esc-agenda', '4820', 'AGENDA', 'Agenda escolar', false],
+      ['esc-apontador', '8214', 'APONTADOR', 'Apontador de lápis', false],
+      ['esc-borracha', '4016', 'BORRACHA', 'Borracha de apagar, inclusive caneta e lápis borracha', false],
+      ['esc-caderno', '482020', null, 'Caderno', false],
+      ['esc-caneta', '960810', null, 'Caneta esferográfica', false],
+      ['esc-cartolina', '4802', 'CARTOLINA|PAPEL CARTAO|PAPEL CARTÃO', 'Cartolina escolar e papel cartão', false],
+      ['esc-cartolina2', '4805', 'CARTOLINA|PAPEL CARTAO|PAPEL CARTÃO', 'Cartolina escolar e papel cartão', false],
+      ['esc-cartolina3', '4810', 'CARTOLINA|PAPEL CARTAO|PAPEL CARTÃO', 'Cartolina escolar e papel cartão', false],
+      ['esc-classificador', '4820', 'CLASSIFICADOR', 'Classificador', false],
+      ['esc-cola', '350610', null, 'Cola escolar, branca ou colorida, em bastão ou líquida', false],
+      ['esc-corretivo', '3824', 'CORRETIVO', 'Corretivo', false],
+      ['esc-corretivo2', '9612', 'CORRETIVO', 'Corretivo (fita)', true],
+      ['esc-estojo', '3926', 'ESTOJO', 'Estojo escolar / estojo para objetos de escrita', false],
+      ['esc-estojo2', '4202', 'ESTOJO', 'Estojo escolar / estojo para objetos de escrita', false],
+      ['esc-lapis', '9609', 'LAPIS|LÁPIS|GIZ|CRAYON|CERA', 'Lápis, giz de cera e similares', true],
+      ['esc-lapiseira', '960840', null, 'Lapiseira', false],
+      ['esc-modelar', '3407', 'MODELAR|MASSINHA', 'Massa ou pasta para modelar, própria para recreação de crianças', false],
+      ['esc-celofane', '3920', 'CELOFANE', 'Papel celofane', false],
+      ['esc-celofane2', '4823', 'CELOFANE', 'Papel celofane', false],
+      ['esc-pincel', '960330', null, 'Pincel de escrever e desenhar', false],
+      ['esc-regua', '901720', 'REGUA|RÉGUA|KIT ESCOLAR|ESQUADRO|TRANSFERIDOR|COMPASSO', 'Régua (e kit escolar de desenho)', true],
+      ['esc-guache', '3213', 'GUACHE', 'Tinta guache', false],
+    ].map(([id, ncm, pad, d, conf]) => ({
+      id, prioridade: 18, ncm, match: 'inicia', simplesTambem: true,
+      descricao: d + ' — material escolar SEM o adicional do FECOEP',
+      descPadrao: pad, descMatch: 'contem',
+      regime: null, encerra: false, mva: null, aliq: null, fecoep: 0, confirmar: conf,
+      fundamento: 'RICMS/SE, art. 616-C-A, IV, "c" (Dec. 289/2023) — o adicional de 1 ponto do FECOEP não incide sobre este material escolar' + (conf ? '. Item enquadrado pela prática do escritório: confirme se a descrição da lista alcança este produto' : '') })),
     // Cosméticos e perfumaria: alíquota interna 25% (Lei 3.796/96, art. 18); FECOEP +2 só nos extratos de perfume 3303.00.10 (Dec. 295/2023)
     { id: "cosm-3303", prioridade: 20, ncm: "3303", match: "inicia", descricao: "Perfumes e águas-de-colônia — alíquota 25%", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: true, fundamento: "Lei 3.796/96 art. 18 (25%); Dec. 295/2023 (+2 pts nos extratos 3303.00.10)" },
     ...["3304", "3305", "3307"].map(n => ({ id: "cosm-" + n, prioridade: 20, ncm: n, match: "inicia", descricao: "Produtos de beleza/maquiagem/capilares — alíquota 25% + FECOEP 2 pontos", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: false, fundamento: "Lei 3.796/96 art. 18 (produtos de beleza 25%); Lei 4.731/2002 (supérfluos +2 pts) — validado no mapa e na planilha de FCP da Faro Tem jul/2026" })),
