@@ -219,6 +219,24 @@ function renderNotas() {
 
 // ------------------------------------------------------------------ conferir mapa (confronto com o .xls do escritório)
 let CONFRONTO = null;
+// Quando a conferência conclui que quem errou foi o cálculo do sistema, o caminho é a Totali
+// corrigir a regra e publicar uma versão nova — não o usuário ajustar a nota na mão.
+const AVISO_TOTALI = '<div class="totali"><b>Isto é um erro do sistema.</b> Avise a Totali com o nome da empresa, a competência e o número da nota. Nós corrigimos a regra e publicamos a versão atualizada, e aí basta recarregar a página e conferir de novo.</div>';
+// Dá ao navegador a chance de desenhar antes de um trabalho pesado. Em aba de fundo o
+// requestAnimationFrame não dispara, então o timeout garante que a conferência siga assim mesmo.
+const pintar = () => new Promise(r => {
+  let feito = false; const ok = () => { if (!feito) { feito = true; r(); } };
+  try { requestAnimationFrame(() => ok()); } catch (e) { }
+  // O rAF não dispara em aba de fundo e o setTimeout chega a ser suspenso lá; a mensagem
+  // do MessageChannel sempre volta, então a conferência anda mesmo fora da tela.
+  try { const ch = new MessageChannel(); ch.port1.onmessage = ok; ch.port2.postMessage(0); } catch (e) { setTimeout(ok, 80); }
+});
+function carregandoConfronto(txt, feitas, total) {
+  const pct = total ? Math.round(feitas / total * 100) : 0;
+  $('confCab').innerHTML = `<div class="load"><div class="sp"></div><div class="txt">${esc(txt)}
+      <span>${total ? feitas + ' de ' + total + ' nota(s) conferida(s)' : 'só um instante'}</span>
+      ${total ? '<div class="barra"><i style="width:' + pct + '%"></i></div>' : ''}</div></div>`;
+}
 function ctxAuditoria() {
   const E = empresaAtual();
   return { CONF, RES, empresa: E, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, cad: { regras: DB.regras || [] } };
@@ -235,7 +253,7 @@ function renderConfronto() {
       const quem = a.quem === 'mapa' ? '<span class="badge b-warn">mapa</span>' : a.quem === 'sistema' ? '<span class="badge b-info">sistema</span>'
         : a.quem === 'parametro' ? '<span class="badge b-info">parâmetro</span>' : a.quem === 'ok' ? '<span class="badge b-ok">fecha</span>' : '<span class="badge b-muted">verificar</span>';
       const btn = a.acao ? ` <button class="btn sm soft" data-aplicar="${l.chave}|${a.acao.item}|${a.acao.campo}|${a.acao.valor}">aplicar</button>` : '';
-      return `<div style="margin-bottom:6px">${quem} ${esc(a.texto)}${btn}<div class="small muted">${esc(a.base)}</div></div>`;
+      return `<div style="margin-bottom:6px">${quem} ${esc(a.texto)}${btn}<div class="small muted">${esc(a.base)}</div>${a.quem === 'sistema' ? AVISO_TOTALI : ''}</div>`;
     }).join('') : (Math.abs(l.dif) <= 0.05 ? '<span class="small muted">confere</span>' : '');
     return `<tr><td><b class="clickable" data-abrirconf="${l.chave}">${esc(l.nNF)}</b>${l.soNoMapa ? ' <span class="badge b-muted">só no mapa</span>' : ''}</td>
       <td class="small">${esc((l.emitente || '').slice(0, 24))}${l.uf ? ' <span class="badge b-muted">' + esc(l.uf) + '</span>' : ''}</td>
@@ -244,13 +262,16 @@ function renderConfronto() {
       <td style="max-width:520px">${diag}</td></tr>`;
   }).join('') : '<tr><td colspan="6" class="empty">Nenhuma nota nesta seleção — tudo confere.</td></tr>';
   tb.querySelectorAll('[data-abrirconf]').forEach(el => el.onclick = () => el.dataset.abrirconf && abrirNota(el.dataset.abrirconf));
-  tb.querySelectorAll('[data-aplicar]').forEach(el => el.onclick = () => {
+  tb.querySelectorAll('[data-aplicar]').forEach(el => el.onclick = async () => {
     const [chave, item, campo, valor] = el.dataset.aplicar.split('|');
     const o = apur().overrides, k = chave + '#' + item;
     o[k] = { ...(o[k] || {}), [campo]: parseFloat(valor) };
     salvar(); recalcular();
     const mapa = CONFRONTO.mapa;
-    CONFRONTO = AUDITORIA.confrontar(mapa, ctxAuditoria()); CONFRONTO.mapa = mapa;
+    $('confResultado').style.display = 'none';
+    carregandoConfronto('Refazendo a conferência…', 0, CONF.length); await pintar();
+    CONFRONTO = await AUDITORIA.confrontar(mapa, ctxAuditoria(), (i, total, nNF) => carregandoConfronto('Conferindo a NF ' + nNF + '…', i, total));
+    CONFRONTO.mapa = mapa;
     showToast('Ajuste aplicado no item ' + item + '.', 'success'); renderCabConfronto(mapa); renderConfronto();
   });
 }
@@ -259,6 +280,7 @@ function renderCabConfronto(mapa) {
   const ieOk = !mapa.ie || !E || !E.ie || mapa.ie === String(E.ie).replace(/\D/g, '');
   const cnpjOk = !mapa.cnpj || !E || !E.cnpj || mapa.cnpj === String(E.cnpj).replace(/\D/g, '');
   const c = CONFRONTO;
+  const doSistema = c.linhas.filter(l => l.achados.some(a => a.quem === 'sistema'));
   $('confCab').innerHTML = `<div class="grid g4">
       <div class="kpi light"><div class="k">Mapa (escritório)</div><div class="v">${fmtR(c.totalMapa)}</div><div class="s">${mapa.linhas.length} linha(s) · ${esc(mapa.comp || '')}</div></div>
       <div class="kpi light"><div class="k">Sistema</div><div class="v">${fmtR(c.totalSistema)}</div><div class="s">${CONF.length} nota(s)</div></div>
@@ -266,6 +288,7 @@ function renderCabConfronto(mapa) {
       <div class="kpi light"><div class="k">Total do mapa (declarado)</div><div class="v" style="font-size:16px">${fmtR(mapa.totais.recolher || mapa.totais.devido || 0)}</div><div class="s">soma das linhas: ${fmt(c.totalMapa)}</div></div>
     </div>
     ${!ieOk ? '<div class="alert alto" style="margin-top:10px"><b>Atenção:</b> a inscrição estadual do mapa (' + esc(mapa.ie) + ') é diferente da empresa aberta (' + esc(E.ie) + '). Confira se é o mapa certo.</div>' : ''}
+    ${doSistema.length ? '<div class="alert baixo" style="margin-top:10px"><b>' + doSistema.length + ' nota(s) com erro do SISTEMA:</b> ' + esc(doSistema.map(l => 'NF ' + l.nNF).join(', ')) + '. Nessas o mapa está certo e o cálculo daqui está errado. Avise a Totali para corrigirmos a regra e publicarmos a versão atualizada.</div>' : ''}
     <div class="small muted" style="margin-top:8px">Contribuinte no mapa: <b>${esc(mapa.contribuinte || '—')}</b> · competência <b>${esc(mapa.comp || '—')}</b> · IE ${esc(mapa.ie || '—')} · CNPJ ${esc(fmtCnpj(mapa.cnpj) || '—')}
       ${cnpjOk ? '' : ' <span class="badge b-warn">CNPJ diferente do cadastro (' + esc(fmtCnpj(E.cnpj)) + ')</span>'}</div>`;
 }
@@ -274,12 +297,19 @@ bindDrop('dropMapa', 'fileMapa', async files => {
   const E = empresaAtual(); if (!E) return showToast('Selecione a empresa antes de conferir o mapa.', 'error');
   if (!RES.length) return showToast('Carregue os XMLs desta competência antes de conferir o mapa.', 'error');
   try {
+    $('confResultado').style.display = 'none';
+    carregandoConfronto('Lendo o arquivo do mapa…', 0, 0);
+    await pintar();
     const mapa = AUDITORIA.lerMapa(await f.arrayBuffer());
-    if (mapa.erro) return showToast(mapa.erro, 'error');
-    CONFRONTO = AUDITORIA.confrontar(mapa, ctxAuditoria()); CONFRONTO.mapa = mapa;
+    if (mapa.erro) { $('confCab').innerHTML = ''; return showToast(mapa.erro, 'error'); }
+    carregandoConfronto('Conferindo nota a nota…', 0, CONF.length);
+    await pintar();
+    const t0 = Date.now();
+    CONFRONTO = await AUDITORIA.confrontar(mapa, ctxAuditoria(), (i, total, nNF) => carregandoConfronto('Conferindo a NF ' + nNF + '…', i, total));
+    CONFRONTO.mapa = mapa;
     renderCabConfronto(mapa); renderConfronto();
-    showToast(`Mapa lido: ${mapa.linhas.length} linha(s). ${CONFRONTO.divergem} nota(s) divergem.`, CONFRONTO.divergem ? '' : 'success');
-  } catch (e) { console.error(e); showToast('Não consegui ler o mapa: ' + e.message, 'error'); }
+    showToast(`Mapa lido em ${((Date.now() - t0) / 1000).toFixed(1)}s: ${mapa.linhas.length} linha(s). ${CONFRONTO.divergem} nota(s) divergem.`, CONFRONTO.divergem ? '' : 'success');
+  } catch (e) { console.error(e); $('confCab').innerHTML = ''; showToast('Não consegui ler o mapa: ' + e.message, 'error'); }
 });
 $('chkConfSoDif').onchange = renderConfronto;
 $('btnConfLimpar').onclick = () => { CONFRONTO = null; $('confCab').innerHTML = ''; renderConfronto(); };
@@ -287,10 +317,13 @@ $('btnConfExport').onclick = () => {
   if (!CONFRONTO) return showToast('Traga o mapa primeiro.', 'error');
   const E = empresaAtual();
   const linhas = CONFRONTO.linhas.map(l => ({ NF: l.nNF, EMITENTE: l.emitente, UF: l.uf, MAPA: l.doMapa, SISTEMA: l.doSistema, DIFERENCA: l.dif,
-    DIAGNOSTICO: l.achados.map(a => '[' + a.quem + '] ' + a.texto).join(' | '), BASE_LEGAL: l.achados.map(a => a.base).join(' | ') }));
+    DIAGNOSTICO: l.achados.map(a => '[' + a.quem + '] ' + a.texto).join(' | '), BASE_LEGAL: l.achados.map(a => a.base).join(' | '),
+    O_QUE_FAZER: l.achados.some(a => a.quem === 'sistema') ? 'ERRO DO SISTEMA — avisar a Totali para corrigir a regra e publicar a versão atualizada'
+      : l.achados.some(a => a.quem === 'mapa') ? 'Diferença de critério do mapa — conferir com o responsável pelo mapa'
+      : l.achados.some(a => a.quem === 'verificar') ? 'Verificar a nota' : '' }));
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.json_to_sheet(linhas);
-  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 5 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 70 }, { wch: 90 }];
+  ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 5 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 70 }, { wch: 90 }, { wch: 46 }];
   XLSX.utils.book_append_sheet(wb, ws, 'Conferência');
   const nome = `Antecipa_CONFERENCIA_${(E.ie || E.cnpj || '').replace(/\D/g, '')}_${(ST.comp || '').replace('-', '')}.xlsx`;
   XLSX.writeFile(wb, nome); showToast('Conferência exportada: ' + nome, 'success');

@@ -361,14 +361,24 @@ const AUDITORIA = (() => {
   }
 
   // ---------------------------------------------------------------- confronto completo
-  function confrontar(mapa, ctx) {
+  // Assíncrona de propósito: o diagnóstico recalcula a nota dezenas de vezes, e a pausa entre
+  // as notas deixa a tela pintar o "conferindo" e a barra de progresso.
+  // MessageChannel volta na próxima tarefa sem o atraso que o navegador impõe ao setTimeout
+  // quando a aba está em segundo plano, então a conferência não fica lenta se o usuário sair da tela.
+  const respira = () => new Promise(r => {
+    try { const ch = new MessageChannel(); ch.port1.onmessage = () => r(); ch.port2.postMessage(0); }
+    catch (e) { setTimeout(r, 0); }
+  });
+  async function confrontar(mapa, ctx, onProgresso) {
     const { CONF, RES, empresa, params, cad } = ctx;
     const porNF = {};
     for (const l of mapa.linhas) (porNF[l.nNF] = porNF[l.nNF] || []).push(l);
 
     const linhas = [];
     const vistas = new Set();
+    let feitas = 0;
     for (const c of CONF) {
+      if (onProgresso) { onProgresso(++feitas, CONF.length, c.nNF); await respira(); }
       const nf = String(parseInt(String(c.nNF).replace(/\D/g, ''), 10) || c.nNF);
       const lm = porNF[nf] || []; vistas.add(nf);
       const doMapa = r2(lm.reduce((s, x) => s + x.S, 0));
