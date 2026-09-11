@@ -81,7 +81,9 @@ function recalcular() {
   renderKpis(); renderNotas(); renderResumo(); if (ST.view === 'mapa') renderMapa(); if (ST.view === 'itens') renderItens();
   $('infoEspelho').textContent = A.espelho ? `${A.espelho.linhas.length} nota(s) no espelho` + (A.espelho.nDia ? ` · DIA ${A.espelho.nDia}` : '') : 'nenhum espelho carregado';
   const pend = CONF.filter(l => l.semXml).length;
-  $('infoXml').textContent = `${Object.keys(A.xmls).length} XML(s) carregado(s)` + (pend ? ` · ${pend} pendente(s)` : '');
+  $('infoXml').innerHTML = `${Object.keys(A.xmls).length} XML(s) carregado(s)` +
+    (pend ? ` · <b class="clickable" id="lnkPendentes" title="ver só as notas que ainda estão sem XML">${pend} pendente(s)</b>` : '');
+  if (pend) $('lnkPendentes').onclick = () => { showView('apuracao'); $('filtroNotasRec').value = '__semxml'; renderNotas(); $('tblNotas').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
   $('btnBuscarOnline').disabled = !pend;
 }
 
@@ -203,9 +205,11 @@ function renderNotas() {
   // opções do filtro: só as receitas que aparecem nesta competência, com a contagem de notas
   const conta = {};
   for (const l of CONF) { if (!l.res) { conta.__semxml = (conta.__semxml || 0) + 1; continue; } for (const id of receitasDaNota(l)) conta[id] = (conta[id] || 0) + 1; }
-  const nomeFiltro = id => id === '__semxml' ? 'sem XML (pendentes)' : MOTOR.receita(id).nome;
+  const nomeFiltro = id => id === '__semxml' ? '⏳ ainda sem XML' : MOTOR.receita(id).nome;
+  // "ainda sem XML" vem sempre em primeiro, porque é o filtro de quem está fechando a competência
+  const ids = Object.keys(conta).sort((a, b) => (b === '__semxml') - (a === '__semxml') || conta[b] - conta[a]);
   $('filtroNotasRec').innerHTML = '<option value="">todas as receitas</option>' +
-    Object.keys(conta).sort((a, b) => conta[b] - conta[a]).map(id => `<option value="${id}" ${id === recF ? 'selected' : ''}>${esc(nomeFiltro(id))} (${conta[id]})</option>`).join('');
+    ids.map(id => `<option value="${id}" ${id === recF ? 'selected' : ''}>${esc(nomeFiltro(id))} (${conta[id]})</option>`).join('');
   let n = 0, somaCalc = 0;
   for (const l of CONF) {
     if (f && !(String(l.nNF).includes(f) || l.emitente.toLowerCase().includes(f) || l.chave.includes(f))) continue;
@@ -353,9 +357,22 @@ $('btnConfExport').onclick = () => {
 };
 
 // ------------------------------------------------------------------ itens da competência (ver, ajustar e exportar)
+// Ordem em que as notas aparecem no espelho do DIA. É a ordem que o escritório segue no mapa,
+// então as planilhas exportadas saem na mesma sequência; nota fora do espelho vai para o fim.
+function ordemDoEspelho() {
+  const pos = {}; ((apur().espelho || {}).linhas || []).forEach((l, i) => pos[l.chave] = i);
+  return pos;
+}
+function resultadosNaOrdemDoEspelho() {
+  const pos = ordemDoEspelho(), n = Object.keys(pos).length;
+  return [...RES].map((r, i) => ({ r, i })).sort((a, b) => {
+    const pa = pos[a.r.nota.chave] ?? (n + a.i), pb = pos[b.r.nota.chave] ?? (n + b.i);
+    return pa - pb;
+  }).map(x => x.r);
+}
 function itensDaCompetencia() {
   const out = [];
-  for (const r of RES) {
+  for (const r of resultadosNaOrdemDoEspelho()) {
     if (!r || !r.nota) continue;
     for (const it of (r.itens || [])) out.push({ res: r, it, chave: r.nota.chave, nNF: r.nota.nNF, emitente: r.nota.emit.nome, uf: r.nota.emit.uf, k: r.nota.chave + '#' + it.item.nItem, ignorada: !!r.ignorada });
   }
@@ -434,7 +451,7 @@ $('btnItensLimpar').onclick = () => {
 $('btnExportItens').onclick = () => {
   const E = empresaAtual(); if (!E) return showToast('Selecione a empresa.', 'error');
   if (!RES.length) return showToast('Nada para exportar — carregue os XMLs.', 'error');
-  const nome = EXPORTAR.gerarItens({ empresa: E, competencia: ST.comp, resultados: RES, consolidado: CONS, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, obs: (apur().obs || ""), versaoModificada: textoVersaoModificada() });
+  const nome = EXPORTAR.gerarItens({ empresa: E, competencia: ST.comp, resultados: resultadosNaOrdemDoEspelho(), consolidado: CONS, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, obs: (apur().obs || ""), versaoModificada: textoVersaoModificada() });
   showToast('Planilha de itens gerada: ' + nome, 'success');
 };
 
@@ -917,7 +934,7 @@ $('filtroNotas').oninput = renderNotas; $('chkSoDif').onchange = renderNotas; $(
 function exportar() {
   const E = empresaAtual(); if (!E) return showToast('Selecione a empresa.', 'error');
   if (!RES.length) return showToast('Nada para exportar — carregue os XMLs.', 'error');
-  const ctx = { empresa: E, competencia: ST.comp, resultados: RES, obs: (apur().obs || ""), versaoModificada: textoVersaoModificada(), consolidado: CONS, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, linhasConferencia: CONF.map(l => ({ nNF: l.nNF, emitente: l.emitente, uf: l.uf, chave: l.chave, forma: l.forma, vSefaz: l.vSefaz ?? '', receita: l.receita, vCalc: l.vCalc ?? '', fecoep: l.fecoep, dif: l.dif ?? '', status: l.status === "ok" ? (Math.abs(l.dif || 0) > 0.05 ? "diverge da SEFAZ" : "confere") : l.status === "difal_recolhido" ? "já recolhida no DIFAL (fora da apuração)" : l.status === "gnre_recolhido" ? "já recolhida anteriormente por GNRE (fora da apuração)" : l.status === "adiada" ? "adiada para o mês seguinte" : l.status === "cancelada" ? "NF-e cancelada (fora da apuração)" : l.status })) };
+  const ctx = { empresa: E, competencia: ST.comp, resultados: resultadosNaOrdemDoEspelho(), obs: (apur().obs || ""), versaoModificada: textoVersaoModificada(), consolidado: CONS, params: { ...MOTOR.PARAMS_PADRAO, ...DB.params }, linhasConferencia: CONF.map(l => ({ nNF: l.nNF, emitente: l.emitente, uf: l.uf, chave: l.chave, forma: l.forma, vSefaz: l.vSefaz ?? '', receita: l.receita, vCalc: l.vCalc ?? '', fecoep: l.fecoep, dif: l.dif ?? '', status: l.status === "ok" ? (Math.abs(l.dif || 0) > 0.05 ? "diverge da SEFAZ" : "confere") : l.status === "difal_recolhido" ? "já recolhida no DIFAL (fora da apuração)" : l.status === "gnre_recolhido" ? "já recolhida anteriormente por GNRE (fora da apuração)" : l.status === "adiada" ? "adiada para o mês seguinte" : l.status === "cancelada" ? "NF-e cancelada (fora da apuração)" : l.status })) };
   const nome = EXPORTAR.gerar(ctx); showToast('Planilha gerada: ' + nome, 'success');
 }
 $('btnExport').onclick = exportar; $('btnExport2').onclick = exportar; $('btnExportTop').onclick = exportar;
