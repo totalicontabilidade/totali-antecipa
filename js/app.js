@@ -194,14 +194,28 @@ function badgeStatus(l) {
   return b;
 }
 
+// Receitas que a nota gerou: uma nota pode ter mais de uma (o motor junta com "+")
+const receitasDaNota = l => String(l.receitaId || '').split('+').filter(Boolean);
 function renderNotas() {
   const f = ($('filtroNotas').value || '').toLowerCase(), soDif = $('chkSoDif').checked;
+  const recF = $('filtroNotasRec').value;
   const tb = $('tblNotas').querySelector('tbody'); tb.innerHTML = '';
-  let n = 0;
+  // opções do filtro: só as receitas que aparecem nesta competência, com a contagem de notas
+  const conta = {};
+  for (const l of CONF) { if (!l.res) { conta.__semxml = (conta.__semxml || 0) + 1; continue; } for (const id of receitasDaNota(l)) conta[id] = (conta[id] || 0) + 1; }
+  const nomeFiltro = id => id === '__semxml' ? 'sem XML (pendentes)' : MOTOR.receita(id).nome;
+  $('filtroNotasRec').innerHTML = '<option value="">todas as receitas</option>' +
+    Object.keys(conta).sort((a, b) => conta[b] - conta[a]).map(id => `<option value="${id}" ${id === recF ? 'selected' : ''}>${esc(nomeFiltro(id))} (${conta[id]})</option>`).join('');
+  let n = 0, somaCalc = 0;
   for (const l of CONF) {
     if (f && !(String(l.nNF).includes(f) || l.emitente.toLowerCase().includes(f) || l.chave.includes(f))) continue;
     if (soDif && !(l.dif != null && Math.abs(l.dif) > 0.05)) continue;
+    if (recF && !(recF === '__semxml' ? !l.res : receitasDaNota(l).includes(recF))) continue;
     n++;
+    // Com filtro de receita, soma só a parte daquela receita: a nota pode ter mais de uma,
+    // e assim o valor bate com o Resumo por receita.
+    const parte = recF && recF !== '__semxml' && l.res && !l.res.ignorada ? (l.res.totais.porReceita[recF] || {}).devido : l.vCalc;
+    somaCalc += (parte || 0);
     const ovN = apur().overrides[l.chave] || {};
     const recSel = l.res ? `<select class="fi" style="padding:2px 4px;font-size:11px;max-width:150px" data-ov-nota="${l.chave}"><option value="">${esc(l.receita || "—")} (auto)</option><option value="__difal" ${ovN.situacao === "difal_recolhido" ? "selected" : ""}>Já recolhida no DIFAL (tirar da apuração)</option><option value="__gnre" ${ovN.situacao === "gnre_recolhido" ? "selected" : ""}>Já recolhida anteriormente por GNRE (tirar da apuração)</option><option value="__adiada" ${ovN.situacao === "adiada" ? "selected" : ""}>Adiada para o mês seguinte (tirar da apuração)</option><option value="__cancelada" ${ovN.situacao === "cancelada" ? "selected" : ""}>NF-e CANCELADA (tirar da apuração)</option>${E_NORMAL() ? `<option value="difal" ${apur().overrides[l.chave]?.receita === "difal" ? "selected" : ""}>Calcular como DIFAL (Port. 367/2016)</option>` : ""}${TABELAS_SE.receitas.filter(r => !r.manual).map(r => `<option value="${r.id}" ${apur().overrides[l.chave]?.receita === r.id ? 'selected' : ''}>${esc(r.nome)}</option>`).join('')}</select>` : '<span class="muted small">' + esc(l.forma || '') + '</span>';
     tb.insertAdjacentHTML('beforeend', `<tr>
@@ -215,8 +229,11 @@ function renderNotas() {
       <td style="white-space:nowrap">${l.res ? `<button class="btn sm soft" data-open="${l.chave}">Detalhes</button> <button class="btn sm ghost" data-ign="${l.chave}" title="${l.res.ignorada ? 'voltar a considerar' : 'ignorar esta nota'}">${l.res.ignorada ? '↩' : '✕'}</button>` : `<button class="btn sm ghost" data-del="${l.chave}" title="remover do espelho">✕</button>`}</td>
     </tr>`);
   }
-  if (!n) tb.innerHTML = '<tr><td colspan="10" class="empty">Nenhuma nota. Carregue o espelho do DIA e os XMLs.</td></tr>';
-  $('cntNotas').textContent = CONF.length;
+  const filtrando = !!(f || soDif || recF);
+  if (!n) tb.innerHTML = `<tr><td colspan="10" class="empty">${filtrando ? 'Nenhuma nota nesta seleção.' : 'Nenhuma nota. Carregue o espelho do DIA e os XMLs.'}</td></tr>`;
+  $('cntNotas').textContent = filtrando ? `${n} de ${CONF.length}` : CONF.length;
+  $('cntNotas').title = filtrando ? `${n} nota(s) nesta seleção somando ${fmtR(somaCalc)} de ICMS calculado` : '';
+  $('somaNotas').innerHTML = filtrando && n ? `soma da seleção: <b>${fmtR(somaCalc)}</b>` : '';
   tb.querySelectorAll('[data-open]').forEach(el => el.onclick = () => abrirNota(el.dataset.open));
   tb.querySelectorAll('[data-ov-nota]').forEach(el => el.onchange = () => { const o = apur().overrides; const k = el.dataset.ovNota; o[k] = { ...(o[k] || {}) }; delete o[k].receita; delete o[k].situacao; if (el.value === "__difal") o[k].situacao = "difal_recolhido"; else if (el.value === "__gnre") o[k].situacao = "gnre_recolhido"; else if (el.value === "__adiada") o[k].situacao = "adiada"; else if (el.value === "__cancelada") o[k].situacao = "cancelada"; else if (el.value) o[k].receita = el.value; if (!Object.keys(o[k]).length) delete o[k]; salvar(); recalcular(); });
   tb.querySelectorAll('[data-ign]').forEach(el => el.onclick = () => { const o = apur().overrides; const k = el.dataset.ign; o[k] = { ...(o[k] || {}), ignorar: !(o[k] && o[k].ignorar) }; salvar(); recalcular(); });
@@ -894,7 +911,7 @@ $('btnDistribuicao').onclick = async () => {
 $('selEmpresa').addEventListener('change', checarSefaz);
 setTimeout(checarSefaz, 300);
 $('btnLimparApur').onclick = () => { if (confirm('Limpar espelho, XMLs e ajustes desta empresa/competência?')) { delete DB.apuracoes[apurKey()]; salvar(); recalcular(); } };
-$('filtroNotas').oninput = renderNotas; $('chkSoDif').onchange = renderNotas;
+$('filtroNotas').oninput = renderNotas; $('chkSoDif').onchange = renderNotas; $('filtroNotasRec').onchange = renderNotas;
 
 // ------------------------------------------------------------------ exportação
 function exportar() {
