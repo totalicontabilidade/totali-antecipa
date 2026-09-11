@@ -153,6 +153,13 @@ const MOTOR = (() => {
       ? { id: pct >= 3.6 ? "cesta_opt36" : "cesta_opt21", motivo: "Produto da cesta básica (art. 40, § 3º) e adquirente optante do Regime Simplificado: " + String(pct).replace(".", ",") + "% direto sobre o valor, sem crédito (art. 787, I)." }
       : { id: "cesta_nao_opt", motivo: "Produto da cesta básica — adquirente não optante do Regime Simplificado: alíquota interna sobre a base com MVA 30%, menos o crédito (art. 786, I, b; art. 787, II)." }; }
     if (empresa.regime === "simples" && regra && regra.regime === "antecip_encer" && regra.simplesTambem) return { id: "antecip_encer", motivo: regra.descricao + " — produto de ST: antecipação COM encerramento mesmo no Simples (art. 784, II)." };
+    // Entrada para uso/consumo ou ativo dita pelo CFOP (6551 a 6553, 6556, 6557 e 6949) ou marcada à mão: não há operação
+    // seguinte a antecipar, e o devido é o diferencial de alíquota, apurado fora do DIA. Vale também no Simples, pela
+    // LC 123/2006, art. 13, § 1º, XIII, "h" (diferencial) contra a alínea "g" (antecipação). Confirmado nos espelhos do
+    // DIA, que marcam essas entradas como "OPERAÇÃO NÃO ANTECIPADA", e nos mapas de Mais Barato, J C de Lira e Faro Tem,
+    // onde nenhuma nota de CFOP 6949 foi lançada.
+    if (tri.finalidadeExplicita && (tri.finalidade === 'ativo' || tri.finalidade === 'usoConsumo'))
+      return { id: 'nao_antecipa', motivo: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso/consumo') + ' (CFOP ' + item.cfop + '): não entra no DIA — o diferencial de alíquota é apurado à parte (a SEFAZ marca como operação não antecipada; LC 123/2006, art. 13, § 1º, XIII, "h", para o optante do Simples). Se quiser lançar no mapa, escolha a receita "Difer. de Alíquota".' };
     if (empresa.regime === "simples") return { id: "simples", motivo: 'Adquirente optante do Simples Nacional: complementação de alíquota interestadual sem MVA (Lei 3.796/96, art. 42-A).' };
     if (tri.finalidade === 'ativo' || tri.finalidade === 'usoConsumo') return { id: 'nao_antecipa', motivo: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso/consumo') + ' (CFOP ' + item.cfop + '): não entra no DIA — o DIFAL é apurado à parte (a SEFAZ marca como operação não antecipada). Se quiser lançar no mapa, escolha a receita "Difer. de Alíquota".' };
     if (regra && regra.regime === 'antecip_encer') return { id: 'antecip_encer', motivo: regra.descricao + ' — antecipação COM encerramento, MVA própria.' };
@@ -198,6 +205,8 @@ const MOTOR = (() => {
     const tri = {
       interestadual: nota.emit.uf !== 'SE' && nota.dest.uf === 'SE',
       cfopTipo, stRetida, stAnteriorOutraUF: stAnterior && !reteveAgora, finalidade,
+      // finalidade dita pelo CFOP da nota ou marcada à mão — sinal firme, diferente da suposta pelo CNAE
+      finalidadeExplicita: !!ov.finalidade || cfopTipo === 'ativo' || cfopTipo === 'usoConsumo',
       emitenteSimples: nota.emit.crt === '1',
       destContribuinte: !!nota.dest.ie && !/^(ISENTO|0+)$/i.test(nota.dest.ie),
     };

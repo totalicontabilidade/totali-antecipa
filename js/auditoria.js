@@ -333,11 +333,18 @@ const AUDITORIA = (() => {
       }
     }
 
-    // 6) nota que o mapa não tem
+    // 6) nota que o mapa não tem. O espelho do DIA costuma dizer por quê: a própria SEFAZ
+    // classifica a operação, e o escritório monta o mapa seguindo essa classificação.
     if (!linhasMapa.length && doSistema > 0) {
-      achados.push({ tipo: 'fora-do-mapa', quem: 'verificar',
-        texto: 'Esta nota não consta do mapa e o sistema calculou ' + doSistema.toFixed(2) + '.',
-        base: 'Confira se foi paga por GNRE, se é DIFAL de bem do ativo ou uso e consumo, ou se ficou de fora por engano. Saindo da apuração, marque na coluna Receita.' });
+      const forma = String(ctx.forma || '').toUpperCase();
+      const naoAntecipada = /N[ÃA]O ANTECIPADA/.test(forma);
+      achados.push({ tipo: 'fora-do-mapa', quem: naoAntecipada ? 'sistema' : 'verificar',
+        texto: 'Esta nota não consta do mapa e o sistema calculou ' + fn(doSistema) + '.' +
+          (forma ? ' No espelho do DIA a SEFAZ classificou a operação como "' + ctx.forma + '"' + (ctx.vSefaz != null ? ', com ' + fn(ctx.vSefaz) + ' a recolher' : '') + '.' : '') +
+          (naoAntecipada ? ' O mapa seguiu o espelho e não lançou a nota; quem está cobrando a mais é o sistema.' : ''),
+        base: naoAntecipada
+          ? 'A SEFAZ marca "operação não antecipada" quando a entrada não é de mercadoria destinada a comercialização: uso e consumo ou ativo imobilizado (aí o devido é o diferencial de alíquota, à parte do DIA — LC 123/2006, art. 13, § 1º, XIII, "h" para o optante do Simples), ST já retida para Sergipe, devolução, remessa ou industrialização. Confira o CFOP e a finalidade do item na memória de cálculo e, confirmando, tire a nota da apuração pela coluna Receita.'
+          : 'Confira se foi paga por GNRE, se é DIFAL de bem do ativo ou de uso e consumo, ou se ficou de fora por engano. Saindo da apuração, marque na coluna Receita.' });
     }
     if (linhasMapa.length && doSistema === 0 && doMapa > 0) {
       achados.push({ tipo: 'zerada-no-sistema', quem: 'verificar',
@@ -371,7 +378,7 @@ const AUDITORIA = (() => {
       if (Math.abs(dif) > 0.05) {
         const res = RES.find(r => r.nota && r.nota.chave === c.chave);
         if (res && res.nota) {
-          const d = diagnosticar({ nota: res.nota, res, empresa, params, cad, doSistema, doMapa, linhasMapa: lm });
+          const d = diagnosticar({ nota: res.nota, res, empresa, params, cad, doSistema, doMapa, linhasMapa: lm, forma: c.forma, vSefaz: c.vSefaz });
           item.achados = d.achados;
         } else if (!res) {
           item.achados = [{ tipo: 'sem-xml', quem: 'verificar', texto: 'O XML desta nota não está na apuração, então não dá para diagnosticar.', base: 'Traga o XML no Passo 2 ou pelo Portal Nacional.' }];
@@ -385,6 +392,23 @@ const AUDITORIA = (() => {
       const lm = porNF[nf];
       linhas.push({ nNF: nf, emitente: (lm[0] || {}).fornecedor || '', uf: '', chave: '', doMapa: r2(lm.reduce((s, x) => s + x.S, 0)), doSistema: 0, dif: r2(-lm.reduce((s, x) => s + x.S, 0)), temNoMapa: true, soNoMapa: true, linhasMapa: lm,
         achados: [{ tipo: 'so-no-mapa', quem: 'verificar', texto: 'Esta nota está no mapa mas não na apuração do sistema.', base: 'Provavelmente falta trazer o XML ou a nota não está no espelho do DIA desta competência.' }] });
+    }
+    // Nota que só existe no mapa e cujo valor completa outra nota: número digitado errado no mapa.
+    // Acontece quando a nota ocupa várias linhas e uma delas sai com um dígito a mais ou a menos.
+    const parecidos = (a, b) => {
+      a = String(a); b = String(b);
+      if (a === b) return true;
+      if (Math.abs(a.length - b.length) === 1) { const [g, p] = a.length > b.length ? [a, b] : [b, a]; for (let i = 0; i < g.length; i++) if (g.slice(0, i) + g.slice(i + 1) === p) return true; }
+      if (a.length === b.length) { let d = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++; return d === 1; }
+      return false;
+    };
+    for (const orfa of linhas.filter(l => l.soNoMapa)) {
+      const alvo = linhas.find(l => !l.soNoMapa && l.doSistema > 0 && Math.abs(r2(l.doSistema - l.doMapa) - orfa.doMapa) <= 0.05 && parecidos(l.nNF, orfa.nNF));
+      if (!alvo) continue;
+      const texto = `O número não existe na apuração, mas o valor de ${r2(orfa.doMapa).toFixed(2).replace('.', ',')} é exatamente o que falta na NF ${alvo.nNF}: no mapa ela foi lançada em mais de uma linha e uma delas saiu com o número digitado errado (${orfa.nNF} em vez de ${alvo.nNF}). Somando as duas linhas, o mapa fecha com o sistema.`;
+      const base = 'Confira as linhas da NF no mapa: o erro é só de digitação na coluna A, e o imposto do mês não muda. Vale corrigir para a nota ser localizável numa fiscalização.';
+      orfa.achados = [{ tipo: 'nf-digitada-errada', quem: 'mapa', texto, base }];
+      alvo.achados = [{ tipo: 'nf-digitada-errada', quem: 'mapa', texto: `A NF ${alvo.nNF} confere: o mapa a lançou em linhas separadas e uma delas ficou com o número ${orfa.nNF}. Somadas, dão ${r2(alvo.doMapa + orfa.doMapa).toFixed(2).replace('.', ',')}, igual ao sistema.`, base }];
     }
     linhas.sort((a, b) => Math.abs(b.dif) - Math.abs(a.dif) || String(a.nNF).localeCompare(String(b.nNF), undefined, { numeric: true }));
 
