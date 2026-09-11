@@ -161,6 +161,11 @@ if ($('obsApur')) {
   let tObs;
   $('obsApur').oninput = () => { clearTimeout(tObs); tObs = setTimeout(() => { const A = apur(); A.obs = $('obsApur').value; salvar(); $('obsStatus').textContent = (A.obs || '').trim() ? 'salva nesta apuração' : ''; }, 500); };
 }
+const DIFAL = () => (CONS && CONS.difal) || { valor: 0, base: 0, fecoep: 0, notas: 0, linhas: [] };
+// O DIFAL só é oferecido no regime normal: no Simples a entrada para uso/consumo ou ativo
+// também tem diferencial (LC 123/2006, art. 13, § 1º, XIII, "h"), mas o recolhimento segue
+// outro caminho e o escritório apura à parte. Nunca é aplicado sozinho pelo sistema.
+const E_NORMAL = () => { const E = empresaAtual(); return !!E && E.regime !== 'simples'; };
 function renderKpis() {
   renderAvisoModificada(); renderObs(); renderReguaMeses();
   const E = empresaAtual();
@@ -170,7 +175,8 @@ function renderKpis() {
     <div class="kpi"><div class="k">ICMS antecipado</div><div class="v">${fmtR(CONS.devido)}</div><div class="s">${RES.filter(r => !r.ignorada && !r.naoAntecipada).length} nota(s) com imposto</div></div>
     <div class="kpi light"><div class="k">FECOEP</div><div class="v">${fmtR(CONS.fecoep)}</div><div class="s">DAE à parte</div></div>
     <div class="kpi gold"><div class="k">Total DAE</div><div class="v">${fmtR(CONS.totalDae)}</div><div class="s">${E ? (E.regime === "simples" ? "Simples Nacional" : "Regime normal · " + E.perfil) + (E.regimeConfirmado ? "" : " (a confirmar)") + (E.regime !== "simples" ? (E.cestaOptante ? " · cesta básica: OPTANTE 3,6%/2,1%" : " · cesta básica: não optante (MVA 30%)") : "") : "selecione a empresa"}</div></div>
-    <div class="kpi light"><div class="k">vs. SEFAZ (espelho)</div><div class="v ${Math.abs(difTot) > 0.05 ? (difTot > 0 ? 'neg' : 'pos') : ''}">${sefazTot ? (difTot >= 0 ? '+' : '') + fmtR(difTot) : '—'}</div><div class="s">${sefazTot ? 'SEFAZ calculou ' + fmtR(sefazTot) : 'sem espelho'}</div></div>`;
+    <div class="kpi light"><div class="k">vs. SEFAZ (espelho)</div><div class="v ${Math.abs(difTot) > 0.05 ? (difTot > 0 ? 'neg' : 'pos') : ''}">${sefazTot ? (difTot >= 0 ? '+' : '') + fmtR(difTot) : '—'}</div><div class="s">${sefazTot ? 'SEFAZ calculou ' + fmtR(sefazTot) : 'sem espelho'}</div></div>
+    ${DIFAL().valor > 0 ? `<div class="kpi light"><div class="k">DIFAL (Port. 367/2016)</div><div class="v">${fmtR(DIFAL().valor + DIFAL().fecoep)}</div><div class="s">${DIFAL().notas} nota(s) · DAE próprio, fora do DIA${DIFAL().fecoep > 0 ? ' · inclui ' + fmtR(DIFAL().fecoep) + ' do Fundo' : ''}</div></div>` : ''}`;
 }
 
 function badgeStatus(l) {
@@ -197,7 +203,7 @@ function renderNotas() {
     if (soDif && !(l.dif != null && Math.abs(l.dif) > 0.05)) continue;
     n++;
     const ovN = apur().overrides[l.chave] || {};
-    const recSel = l.res ? `<select class="fi" style="padding:2px 4px;font-size:11px;max-width:150px" data-ov-nota="${l.chave}"><option value="">${esc(l.receita || "—")} (auto)</option><option value="__difal" ${ovN.situacao === "difal_recolhido" ? "selected" : ""}>Já recolhida no DIFAL (tirar da apuração)</option><option value="__gnre" ${ovN.situacao === "gnre_recolhido" ? "selected" : ""}>Já recolhida anteriormente por GNRE (tirar da apuração)</option><option value="__adiada" ${ovN.situacao === "adiada" ? "selected" : ""}>Adiada para o mês seguinte (tirar da apuração)</option><option value="__cancelada" ${ovN.situacao === "cancelada" ? "selected" : ""}>NF-e CANCELADA (tirar da apuração)</option>${TABELAS_SE.receitas.map(r => `<option value="${r.id}" ${apur().overrides[l.chave]?.receita === r.id ? 'selected' : ''}>${esc(r.nome)}</option>`).join('')}</select>` : '<span class="muted small">' + esc(l.forma || '') + '</span>';
+    const recSel = l.res ? `<select class="fi" style="padding:2px 4px;font-size:11px;max-width:150px" data-ov-nota="${l.chave}"><option value="">${esc(l.receita || "—")} (auto)</option><option value="__difal" ${ovN.situacao === "difal_recolhido" ? "selected" : ""}>Já recolhida no DIFAL (tirar da apuração)</option><option value="__gnre" ${ovN.situacao === "gnre_recolhido" ? "selected" : ""}>Já recolhida anteriormente por GNRE (tirar da apuração)</option><option value="__adiada" ${ovN.situacao === "adiada" ? "selected" : ""}>Adiada para o mês seguinte (tirar da apuração)</option><option value="__cancelada" ${ovN.situacao === "cancelada" ? "selected" : ""}>NF-e CANCELADA (tirar da apuração)</option>${E_NORMAL() ? `<option value="difal" ${apur().overrides[l.chave]?.receita === "difal" ? "selected" : ""}>Calcular como DIFAL (Port. 367/2016)</option>` : ""}${TABELAS_SE.receitas.filter(r => !r.manual).map(r => `<option value="${r.id}" ${apur().overrides[l.chave]?.receita === r.id ? 'selected' : ''}>${esc(r.nome)}</option>`).join('')}</select>` : '<span class="muted small">' + esc(l.forma || '') + '</span>';
     tb.insertAdjacentHTML('beforeend', `<tr>
       <td title="chave ${l.chave}"><b class="clickable" data-open="${l.chave}">${esc(l.nNF)}</b><div class="small muted">${fmtDate(l.dtEmi)}</div></td>
       <td><span title="${esc(l.emitente)}">${esc(l.emitente.length > 34 ? l.emitente.slice(0, 32) + "…" : l.emitente)}</span> <span class="badge b-muted">${esc(l.uf)}</span>${l.forma ? "<div class=\"small muted\" title=\"forma de recolhimento no espelho da SEFAZ\">SEFAZ: " + esc(l.forma.replace("COMPLEMENTACAO DE ALIQUOTA INTERESTADUAL", "complementação de alíquota").replace("ANTECIPAÇÃO TRIBUTÁRIA COM ENCERRAMENTO DE FASE", "antecip. com encerramento").replace("OPERAÇÃO NÃO ANTECIPADA", "não antecipada")) + "</div>" : ""}</td><td class="num">${fmt(l.vNF)}</td>
@@ -346,7 +352,7 @@ function renderItens() {
   // opções de receita do filtro (mantendo a escolha)
   const recs = [...new Set(todos.map(x => x.it.receita))];
   $('filtroItensRec').innerHTML = '<option value="">todas as receitas</option>' + recs.map(id => `<option value="${id}" ${id === recF ? 'selected' : ''}>${esc(MOTOR.receita(id).nome)}</option>`).join('');
-  const recOpts = id => TABELAS_SE.receitas.map(x => `<option value="${x.id}" ${x.id === id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
+  const recOpts = id => TABELAS_SE.receitas.filter(x => !x.difal || E_NORMAL()).map(x => `<option value="${x.id}" ${x.id === id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
   const linhas = todos.filter(x => {
     const i = x.it.item, ov = A.overrides[x.k] || {};
     if (recF && x.it.receita !== recF) return false;
@@ -433,7 +439,7 @@ function abrirNota(chave) {
   $('mnTitulo').textContent = `NF-e ${n.nNF} · ${n.emit.nome}`;
   $('mnSub').textContent = `${n.emit.uf} → ${n.dest.uf} · ${fmtCnpj(n.emit.cnpj)} · emitida ${fmtDate(n.dataEmissao)} · chave ${n.chave}` + (n.emit.crt === '1' ? ' · emitente do SIMPLES' : '');
   const alertasNota = r.alertas.filter(a => a.nivel !== 'baixo');
-  const recOpts = id => TABELAS_SE.receitas.map(x => `<option value="${x.id}" ${x.id === id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
+  const recOpts = id => TABELAS_SE.receitas.filter(x => !x.difal || E_NORMAL()).map(x => `<option value="${x.id}" ${x.id === id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
   let html = `<div class="row" style="justify-content:space-between;margin-bottom:12px">
     <div class="stat"><span>Valor NF <b>${fmtR(n.tot.vNF)}</b></span><span>Produtos <b>${fmtR(n.tot.vProd)}</b></span><span>Desconto <b>${fmtR(n.tot.vDesc)}</b></span><span>IPI <b>${fmtR(n.tot.vIPI)}</b></span><span>Frete <b>${fmtR(n.tot.vFrete)}</b></span><span>ICMS destacado <b>${fmtR(n.tot.vICMS)}</b></span><span>ST <b>${fmtR(n.tot.vST)}</b></span>${l.esp ? `<span>SEFAZ: <b>${esc(l.esp.forma)}</b> = <b>${fmtR(l.esp.vlIcmsCalc)}</b></span>` : ''}</div>
     <div class="kpi" style="padding:10px 16px"><div class="k">Antecipado + FECOEP</div><div class="v" style="font-size:20px">${fmtR(r.totais.devido)} <span style="font-size:13px;opacity:.7">+ ${fmtR(r.totais.fecoep)}</span></div></div></div>`;

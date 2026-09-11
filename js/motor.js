@@ -158,8 +158,10 @@ const MOTOR = (() => {
     // LC 123/2006, art. 13, § 1º, XIII, "h" (diferencial) contra a alínea "g" (antecipação). Confirmado nos espelhos do
     // DIA, que marcam essas entradas como "OPERAÇÃO NÃO ANTECIPADA", e nos mapas de Mais Barato, J C de Lira e Faro Tem,
     // onde nenhuma nota de CFOP 6949 foi lançada.
-    if (tri.finalidadeExplicita && (tri.finalidade === 'ativo' || tri.finalidade === 'usoConsumo'))
-      return { id: 'nao_antecipa', motivo: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso/consumo') + ' (CFOP ' + item.cfop + '): não entra no DIA — o diferencial de alíquota é apurado à parte (a SEFAZ marca como operação não antecipada; LC 123/2006, art. 13, § 1º, XIII, "h", para o optante do Simples). Se quiser lançar no mapa, escolha a receita "Difer. de Alíquota".' };
+    if (tri.finalidadeExplicita && (tri.finalidade === 'ativo' || tri.finalidade === 'usoConsumo')) {
+      if (ctx.alertas && empresa.regime !== 'simples') ctx.alertas.push({ nivel: 'baixo', msg: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso e consumo') + ' pelo CFOP ' + item.cfop + ': essa nota não seria no DIFAL? Para apurar o diferencial aqui, marque "Calcular como DIFAL (Port. 367/2016)" na coluna Receita da nota.' });
+      return { id: 'nao_antecipa', motivo: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso/consumo') + ' (CFOP ' + item.cfop + '): não entra no DIA — o diferencial de alíquota é apurado à parte (a SEFAZ marca como operação não antecipada; LC 123/2006, art. 13, § 1º, XIII, "h", para o optante do Simples). Para calcular o DIFAL, marque a nota como "Calcular como DIFAL" na coluna Receita.' };
+    }
     if (empresa.regime === "simples") return { id: "simples", motivo: 'Adquirente optante do Simples Nacional: complementação de alíquota interestadual sem MVA (Lei 3.796/96, art. 42-A).' };
     if (tri.finalidade === 'ativo' || tri.finalidade === 'usoConsumo') return { id: 'nao_antecipa', motivo: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso/consumo') + ' (CFOP ' + item.cfop + '): não entra no DIA — o DIFAL é apurado à parte (a SEFAZ marca como operação não antecipada). Se quiser lançar no mapa, escolha a receita "Difer. de Alíquota".' };
     if (regra && regra.regime === 'antecip_encer') return { id: 'antecip_encer', motivo: regra.descricao + ' — antecipação COM encerramento, MVA própria.' };
@@ -198,8 +200,8 @@ const MOTOR = (() => {
         // Aplica quando o parâmetro manda ("aplicar") OU quando a própria nota confirma (indFinal=1: o remetente vendeu como consumidor final,
         // sinal independente de que não é revenda) — validado na Mais Barato fev/2026 (Fast Ariam, móveis de checkout)
         const notaConsumidorFinal = nota.indFinal === '1';
-        if ((P.finalidadeCnae === 'aplicar' || notaConsumidorFinal) && sugFin.confianca === 'alta') { finalidade = sugFin.finalidade; sugFin.aplicada = true; alertas.push({ nivel: 'medio', msg: 'Finalidade ' + (finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' aplicada' + (notaConsumidorFinal && P.finalidadeCnae !== 'aplicar' ? ' (nota de consumidor final + CNAE: ' : ' pelo CNAE (') + sugFin.motivo + ') — fora do DIA; DIFAL à parte. Ajuste a finalidade no item se não for o caso.' }); }
-        else alertas.push({ nivel: sugFin.confianca === 'alta' ? 'medio' : 'baixo', msg: 'Pelo CNAE da empresa este item parece ' + (sugFin.finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' (' + sugFin.motivo + '). Se for isso, ajuste a finalidade no item.' });
+        if ((P.finalidadeCnae === 'aplicar' || notaConsumidorFinal) && sugFin.confianca === 'alta') { finalidade = sugFin.finalidade; sugFin.aplicada = true; alertas.push({ nivel: 'medio', msg: 'Finalidade ' + (finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' aplicada' + (notaConsumidorFinal && P.finalidadeCnae !== 'aplicar' ? ' (nota de consumidor final + CNAE: ' : ' pelo CNAE (') + sugFin.motivo + ') — fora do DIA. Essa nota não seria no DIFAL? No regime normal, dá para marcar "Calcular como DIFAL (Port. 367/2016)" na coluna Receita da nota. Ajuste a finalidade no item se não for o caso.' }); }
+        else alertas.push({ nivel: sugFin.confianca === 'alta' ? 'medio' : 'baixo', msg: 'Pelo CNAE da empresa este item parece ' + (sugFin.finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' (' + sugFin.motivo + '). Se for isso, ajuste a finalidade no item — e, no regime normal, essa nota não seria no DIFAL? Dá para marcar "Calcular como DIFAL (Port. 367/2016)" na coluna Receita.' });
       }
     }
     const tri = {
@@ -383,8 +385,18 @@ const MOTOR = (() => {
     let Pb = baseMva;
     if (N > Pb) { Pb = N; usouPauta = true; }
     if (R.grossup && M < 100) Pb = Pb / (1 - M / 100);
-    let Q, S;
-    if (R.direto) { Q = K * R.direto / 100; S = Q; }
+    let Q, S, pDifal = 0;
+    if (R.difal) {
+      // Portaria SEFAZ 367/2016, Anexo II: o percentual do DIFAL é a diferença entre a alíquota
+      // interna e a interestadual, e a base é o valor da operação dividido por (1 − esse percentual),
+      // porque o imposto integra a própria base (LC 87/96, art. 13, § 6º). Sem crédito a deduzir:
+      // a dedução da alíquota de origem já está dentro do percentual.
+      pDifal = r2(Math.max(0, M - L));
+      Pb = pDifal < 100 ? K / (1 - pDifal / 100) : K;
+      Q = Pb * pDifal / 100; credito = 0; S = Q;
+      origemCredito = 'sem crédito destacado: no DIFAL a alíquota de origem já entra no percentual (' + M + '% − ' + L + '% = ' + pDifal + '%)';
+    }
+    else if (R.direto) { Q = K * R.direto / 100; S = Q; }
     else { Q = Pb * M / 100; S = Q - credito; }
     if (rec.id === 'nao_antecipa') { Q = 0; S = 0; Pb = 0; }
 
@@ -394,10 +406,16 @@ const MOTOR = (() => {
       if (ov.fecoep != null) { fecoepPts = ov.fecoep; origemFecoep = 'informado manualmente'; }
       else if (regra && regra.fecoep != null) { fecoepPts = regra.fecoep; origemFecoep = 'regra do NCM (' + regra.descricao + ')'; }
       else if (['cesta_opt36', 'cesta_opt21', 'cesta_nao_opt'].includes(rec.id)) { fecoepPts = 0; origemFecoep = 'cesta básica — excluída do FECOEP'; }
+      // DIFAL: coluna F da Portaria 367/2016 — "informar o adicional de 2% QUANDO a mercadoria
+      // estiver sujeita ao Fundo". Sem regra de FECOEP para o NCM, a coluna fica vazia.
+      else if (R.difal) { fecoepPts = 0; origemFecoep = 'DIFAL: adicional do Fundo só nos produtos sujeitos a ele (coluna F da Portaria 367/2016) — informe no item se for o caso'; }
       else if (P.fecoepBase === 'auto' && E.regime !== 'simples' && !['antecip_encer', 'st_interna', 'importacoes'].includes(rec.id)) { fecoepPts = 0; origemFecoep = 'regime normal: FECOEP na entrada só nas receitas com encerramento — na antecipação parcial a saída própria já recolhe o adicional (prática do escritório)'; }
       else { fecoepPts = P.fecoepPadrao; origemFecoep = 'padrão (' + P.fecoepPadrao + ' ponto) — art. 40-B; Dec. 289/2023' + (P.fecoepBase === 'auto' ? (E.regime === 'simples' ? '; Simples: sobre o valor da nota' : '; com encerramento: sobre a base com MVA') : ''); }
     }
-    const fecoepBase = (P.fecoepBase === "P" || (P.fecoepBase === "auto" && (E.regime !== "simples" || ["antecip_encer", "st_interna", "importacoes"].includes(rec.id)))) ? Pb : K;
+    // No DIFAL o adicional do fundo de pobreza é a coluna J da Portaria 367/2016: 2 pontos sobre a
+    // base do DIFAL (coluna G), qualquer que seja o regime.
+    const fecoepBase = R.difal ? Pb
+      : (P.fecoepBase === "P" || (P.fecoepBase === "auto" && (E.regime !== "simples" || ["antecip_encer", "st_interna", "importacoes"].includes(rec.id)))) ? Pb : K;
     const fecoep = fecoepBase * fecoepPts / 100;
 
     // ---- Alertas de regra ----
@@ -419,7 +437,13 @@ const MOTOR = (() => {
       mem.push({ passo: '4. Formação do preço', txt: 'F valor = ' + f(F) + (usaAcr ? ' · G IPI = ' + f(G) + ' · H frete = ' + f(H) + ' · I seguro = ' + f(I) + ' · J outras = ' + f(J) + ' → K = ' + f(K) : ' → K = F = ' + f(K) + ' (sem encerramento: IPI/frete/seguro não entram na base — manual da SEFAZ, itens 7 a 10)') });
       mem.push({ passo: '5. Alíquota de origem (L)', txt: L + '% — ' + origemCredito });
       mem.push({ passo: '6. Carga de destino (M)', txt: M + '% — ' + origemM });
-      if (R.direto) mem.push({ passo: '7. Imposto direto', txt: 'K × ' + R.direto + '% = ' + f(K) + ' × ' + R.direto + '% = ' + f(Q) + ' (sem crédito)' });
+      if (R.difal) {
+        mem.push({ passo: '7. Percentual do DIFAL (coluna H)', txt: 'alíquota interna − alíquota de origem = ' + M + '% − ' + L + '% = ' + pDifal + '%' });
+        mem.push({ passo: '8. Base do DIFAL (coluna G)', txt: 'valor da operação ÷ (1 − ' + pDifal + '%) = ' + f(K) + ' ÷ ' + (1 - pDifal / 100).toFixed(4) + ' = ' + f(Pb) + ' — o imposto integra a própria base (LC 87/96, art. 13, § 6º; Portaria 367/2016, Anexo II)' });
+        mem.push({ passo: '9. Valor do DIFAL (coluna I)', txt: 'base × ' + pDifal + '% = ' + f(Pb) + ' × ' + pDifal + '% = ' + f(Q) });
+        mem.push({ passo: '10. A recolher (coluna K)', txt: f(S) + ' de DIFAL' + (fecoep > 0 ? ' + ' + f(fecoep) + ' do Fundo de Pobreza (coluna J) = ' + f(S + fecoep) : '') + ' — DAE próprio, fora do mapa do DIA' });
+      }
+      else if (R.direto) mem.push({ passo: '7. Imposto direto', txt: 'K × ' + R.direto + '% = ' + f(K) + ' × ' + R.direto + '% = ' + f(Q) + ' (sem crédito)' });
       else {
         mem.push({ passo: '7. Margem de agregação (O)', txt: O + '% — ' + origemO });
         mem.push({ passo: '8. Base de cálculo (P)', txt: (usouPauta ? 'Pauta N = ' + f(N) + ' maior que ' : '') + 'K × (1 + ' + O + '%) = ' + f(K) + ' × ' + (1 + O / 100).toFixed(4) + ' = ' + f(baseMva) + (R.grossup ? ' ÷ (1 − ' + M + '%) = ' + f(Pb) : '') });
@@ -477,9 +501,28 @@ const MOTOR = (() => {
         p.base = r2(p.base + v.base); p.debito = r2(p.debito + v.debito); p.credito = r2(p.credito + v.credito); p.devido = r2(p.devido + v.devido); p.notas++;
       }
     }
-    // Valor a recolher por receita não fica negativo (saldo credor maior que devedor → zero)
-    for (const p of Object.values(porReceita)) { p.recolher = p.devido > 0 ? p.devido : 0; devido = r2(devido + p.recolher); }
-    return { porReceita, base, debito, credito, devido, fecoep, totalDae: r2(devido + fecoep) };
+    // Valor a recolher por receita não fica negativo (saldo credor maior que devedor → zero).
+    // O DIFAL fica fora do total do DIA: tem mapa próprio (Portaria 367/2016) e DAE próprio.
+    const difal = { valor: 0, base: 0, fecoep: 0, notas: 0, linhas: [] };
+    for (const [id, p] of Object.entries(porReceita)) {
+      p.recolher = p.devido > 0 ? p.devido : 0;
+      if (receita(id).difal) { difal.valor = r2(difal.valor + p.recolher); difal.base = r2(difal.base + p.base); difal.notas = p.notas; p.difal = true; }
+      else devido = r2(devido + p.recolher);
+    }
+    if (difal.valor > 0) {
+      for (const r of resultados) {
+        if (r.ignorada) continue;
+        const itens = r.itens.filter(i => receita(i.receita).difal);
+        if (!itens.length) continue;
+        const soma = c => r2(itens.reduce((s, i) => s + (i[c] || 0), 0));
+        difal.fecoep = r2(difal.fecoep + soma('fecoep'));
+        difal.linhas.push({ nNF: r.nota.nNF, chave: r.nota.chave, emitente: r.nota.emit.nome, uf: r.nota.emit.uf,
+          B: soma('K'), C: itens[0].L, E: itens[0].M, F: itens[0].fecoepPts, G: soma('P'), H: r2(itens[0].M - itens[0].L),
+          I: soma('Q'), J: soma('fecoep'), K: r2(soma('Q') + soma('fecoep')) });
+      }
+      fecoep = r2(fecoep - difal.fecoep);                 // o Fundo do DIFAL sai no DAE do DIFAL
+    }
+    return { porReceita, base, debito, credito, devido, fecoep, difal, totalDae: r2(devido + fecoep) };
   }
 
   return { PARAMS_PADRAO, EMPRESA_PADRAO, receita, classificarCfop, buscarRegra, mvaDaRegra, sugerirFinalidade, calcularItem, calcularNota, consolidar, r2 };

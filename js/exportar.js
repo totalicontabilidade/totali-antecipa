@@ -51,7 +51,7 @@ const EXPORTAR = (() => {
     const ordem = ['cesta_opt36', 'cesta_opt21', 'difal', 'antecip_encer', 'importacoes', 'antecip_interest', 'simfaz', 'cesta_nao_opt', 'st_interna', 'antecip_interna', 'simples'];
     let r = 14;
     for (const id of ordem) {
-      const R = MOTOR.receita(id); const v = consolidado.porReceita[id];
+      const R = MOTOR.receita(id); const v = R.difal ? null : consolidado.porReceita[id];   // o DIFAL tem mapa proprio (Port. 367/2016)
       cell(ws, A(7, r), R.cod); cell(ws, A(8, r), R.nome);
       cell(ws, A(11, r), v ? v.devido : 0, { z: money }); cell(ws, A(13, r), 0, { z: money }); cell(ws, A(15, r), v ? v.recolher : 0, { z: money, s: v && v.recolher > 0 ? goldStyle : undefined });
       r++;
@@ -77,6 +77,7 @@ const EXPORTAR = (() => {
     for (const res of resultados) {
       if (res.ignorada) continue;
       for (const g of res.linhasMapa) {
+        if (MOTOR.receita(g.receita).difal) continue;            // sai na aba DIFAL, não no mapa do DIA
         const usaAcr = MOTOR.receita(g.receita).acrescimos;
         const direto = MOTOR.receita(g.receita).direto;
         cell(ws, A(0, rr), g.nNF); cell(ws, A(2, rr), g.receitaNome); cell(ws, A(3, rr), g.fornecedor); cell(ws, A(4, rr), 1);
@@ -234,12 +235,44 @@ const EXPORTAR = (() => {
     return ws;
   }
 
+  // Mapa de Apuração do Diferencial de Alíquota — Anexo I da Portaria SEFAZ 367/2016, colunas A a K
+  function abaDifal(ctx) {
+    const { empresa, competencia, consolidado } = ctx;
+    const d = consolidado.difal || { linhas: [] };
+    const ws = {};
+    cell(ws, 'A1', 'APURAÇÃO DO DIFERENCIAL DE ALÍQUOTA — Portaria SEFAZ 367/2016, Anexo I', bold);
+    cell(ws, 'A2', 'Contribuinte:', bold); cell(ws, 'B2', empresa.nome);
+    cell(ws, 'A3', 'CPF / CNPJ:', bold); cell(ws, 'B3', empresa.cnpj || '');
+    cell(ws, 'A4', 'Inscrição estadual:', bold); cell(ws, 'B4', empresa.ie || '');
+    cell(ws, 'A5', 'Mês/Ano de referência:', bold); cell(ws, 'B5', fmtComp(competencia));
+    const cab = ['Nº DO DOCUMENTO FISCAL', 'VALOR DA OPERAÇÃO (R$)', 'ALÍQUOTA DE ORIGEM %', 'BASE DE CÁLCULO REDUZIDA', 'ALÍQUOTA INTERNA', 'ADICIONAL DO FUNDO DE POBREZA', 'BASE DE CÁLCULO DO ICMS DO DIFAL', 'PERCENTUAL DO DIFAL', 'VALOR DO DIFAL (R$)', 'VALOR DO ADICIONAL DO FUNDO (R$)', 'VALOR TOTAL A RECOLHER (R$)'];
+    cab.forEach((t, i) => cell(ws, A(i, 6), t, { s: hdrStyle }));
+    ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'].forEach((t, i) => cell(ws, A(i, 7), t, bold));
+    let r = 8;
+    for (const l of d.linhas) {
+      cell(ws, A(0, r), l.nNF); cell(ws, A(1, r), l.B, { z: money }); cell(ws, A(2, r), l.C / 100, { z: '0.00%' });
+      cell(ws, A(3, r), ''); cell(ws, A(4, r), l.E / 100, { z: '0.00%' }); cell(ws, A(5, r), l.F ? l.F / 100 : '', { z: '0.00%' });
+      cell(ws, A(6, r), l.G, { z: money }); cell(ws, A(7, r), l.H / 100, { z: '0.00%' });
+      cell(ws, A(8, r), l.I, { z: money }); cell(ws, A(9, r), l.J, { z: money }); cell(ws, A(10, r), l.K, { z: money });
+      r++;
+    }
+    cell(ws, A(7, r + 1), 'TOTAL', bold);
+    cell(ws, A(8, r + 1), d.valor, { z: money, s: goldStyle });
+    cell(ws, A(9, r + 1), d.fecoep, { z: money, s: goldStyle });
+    cell(ws, A(10, r + 1), MOTOR.r2(d.valor + d.fecoep), { z: money, s: goldStyle });
+    cell(ws, A(0, r + 3), 'Base: EC 87/2015; LC 87/96, art. 13, § 6º (o imposto integra a própria base); Portaria SEFAZ 367/2016, Anexos I e II. Recolhimento em DAE próprio, fora do mapa do DIA.');
+    range(ws, 0, 0, r + 3, 10);
+    ws['!cols'] = [22, 18, 15, 16, 14, 16, 18, 14, 16, 18, 18].map(w => ({ wch: w }));
+    return ws;
+  }
+
   function gerar(ctx) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, abaMapa(ctx), 'Mapa SEFAZ');
     XLSX.utils.book_append_sheet(wb, abaItens(ctx), 'Itens');
     XLSX.utils.book_append_sheet(wb, abaFecoep(ctx), 'FECOEP');
     XLSX.utils.book_append_sheet(wb, abaResumo(ctx), 'Resumo DAE');
+    if ((ctx.consolidado.difal || {}).linhas && ctx.consolidado.difal.linhas.length) XLSX.utils.book_append_sheet(wb, abaDifal(ctx), 'DIFAL');
     if (ctx.linhasConferencia && ctx.linhasConferencia.length) XLSX.utils.book_append_sheet(wb, abaEspelho(ctx), 'Espelho x Cálculo');
     const nome = `Antecipa_SE_${(ctx.empresa.ie || ctx.empresa.cnpj || 'empresa').replace(/\D/g, '')}_${(ctx.competencia || '').replace('-', '')}.xlsx`;
     XLSX.writeFile(wb, nome);
