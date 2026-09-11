@@ -253,8 +253,7 @@ const TABELAS_SE = {
       regime: null, encerra: false, mva: null, aliq: null, fecoep: 0, confirmar: conf,
       fundamento: 'RICMS/SE, art. 616-C-A, IV, "c" (Dec. 289/2023) — o adicional de 1 ponto do FECOEP não incide sobre este material escolar' + (conf ? '. Item enquadrado pela prática do escritório: confirme se a descrição da lista alcança este produto' : '') })),
     // Cosméticos e perfumaria: alíquota interna 25% (Lei 3.796/96, art. 18); FECOEP +2 só nos extratos de perfume 3303.00.10 (Dec. 295/2023)
-    { id: "cosm-3303", prioridade: 20, ncm: "3303", match: "inicia", descricao: "Perfumes e águas-de-colônia — alíquota 25%", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: true, fundamento: "Lei 3.796/96 art. 18 (25%); Dec. 295/2023 (+2 pts nos extratos 3303.00.10)" },
-    ...["3304", "3305", "3307"].map(n => ({ id: "cosm-" + n, prioridade: 20, ncm: n, match: "inicia", descricao: "Produtos de beleza/maquiagem/capilares — alíquota 25% + FECOEP 2 pontos", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: false, fundamento: "Lei 3.796/96 art. 18 (produtos de beleza 25%); Lei 4.731/2002 (supérfluos +2 pts) — validado no mapa e na planilha de FCP da Faro Tem jul/2026" })),
+    ...["3304", "3305", "3307"].map(n => ({ id: "cosm-" + n, prioridade: 20, ncm: n, match: "inicia", descricao: "Produtos de beleza/maquiagem/capilares — alíquota 25% + FECOEP 2 pontos", regime: null, mva: null, aliq: 25, fecoep: 2, confirmar: false, fundamento: "RICMS/SE, art. 40, VII-A, alineas e, f e g (25% desde 01/01/2024, Lei 9.176/2023). FECOEP: o art. 40-C so lista o perfume-extrato 3303.00.10 entre os de 2 pontos, mas o escritorio aplica 2 pontos tambem nos cosmeticos — confirmado no mapa e na planilha de FCP da Faro Tem de jul/2026, nota 699 (NCM 3304.10.00, 25% e 2% de FCP). Pela letra do art. 40-D seria 1 ponto" })),
     // Escova dental (HPPC, CEST 20.058.00): antecipação com encerramento — MVA aplicada no mapa da Faro Tem (69,66% na origem 4%)
     { id: "hppc-escova", prioridade: 15, ncm: "96032100", match: "igual", simplesTambem: true, descricao: "Escova de dentes (HPPC, CEST 20.058.00) — ST com encerramento", regime: "antecip_encer", encerra: true, mva: { 4: 69.66, 7: 64.25, 12: 55.44, interna: 43.15 }, aliq: 19, fecoep: null, confirmar: true, fundamento: "RICMS/SE Anexo IX (HPPC) c/c art. 784, II — MVA conforme mapa do escritório (Faro Tem jul/2026); confirmar MVA original" },
     // Ração tipo pet (2309, CEST 22.001.00): ST com encerramento — MVA e FECOEP (2 pontos) da planilha oficial de ST de SE, conferidos no mapa da
@@ -272,17 +271,63 @@ const TABELAS_SE = {
     { id: "salg-trigo", prioridade: 15, ncm: "19059090", match: "igual", simplesTambem: true, descPadrao: "SALG", descMatch: "inicia", descricao: "Salgadinho de trigo (CEST 17.031.01) — ST com encerramento, MVA 35%",
       regime: "antecip_encer", encerra: true, mva: 35, aliq: 19, fecoep: null, confirmar: true, fundamento: "RICMS/SE Anexo IX (Alimenticios) — MVA 35% conforme mapa da Mais Barato jul/2026; confirmar" },
 
-    // ---- Supérfluos (25% + 2 pontos FECOEP) ----
+    // ---- Supérfluos: três faixas distintas desde 01/01/2024 (Lei 9.176/2023) ----
+    // 25% = art. 40, VII-A · 28% = art. 40, VII-B · demais = alíquota modal de 19% (inciso I).
+    // O FECOEP é outra conta: 2 pontos só nos produtos do art. 40-C; o resto leva 1 ponto (art. 40-D).
+    // Há produto de 28% sem os 2 pontos (cachimbo, aeronave) e produto de 19% com 2 pontos (cigarro,
+    // refrigerante, energético), por isso alíquota e adicional vêm separados em cada regra.
     ...[
-      ['2203', 'Cerveja e chope'], ['2204', 'Vinho'], ['2205', 'Vermute'], ['2206', 'Sidra/bebidas fermentadas'],
-      ['2207', 'Álcool etílico (bebida)'], ['2208', 'Destilados (cachaça, vodka, uísque)'],
-      ['2402', 'Cigarros/charutos'], ['2403', 'Fumo'], ['9301', 'Armas'], ['9302', 'Revólveres e pistolas'],
-      ['9303', 'Armas de fogo'], ['9304', 'Outras armas'], ['9306', 'Munições'], ['7113', 'Joias'], ['7114', 'Ourivesaria'],
-      ['7116', 'Obras de pérolas/pedras'], ['3303', 'Perfumes'], ['8903', 'Embarcações de esporte/recreio'],
-    ].map(([n, d]) => ({
-      id: 'sup-' + n, prioridade: 20, ncm: n, match: 'inicia', descricao: d + ' — supérfluo (alíquota 25% + FECOEP 2 pts)',
-      regime: null, encerra: false, mva: null, aliq: 25, fecoep: 2, confirmar: true,
-      fundamento: 'Lei 3.796/96 arts. 40 e 40-A; Decreto 295/2023' })),
+      // [id, ncm, descrição, alíquota, pontos de FECOEP, padrão de descrição, confirmar]
+      ['2203', 'Cerveja e chope', 25, 2, null, false],
+      ['2204', 'Vinho', 25, 2, null, false],
+      ['2205', 'Vermute', 25, 2, null, false],
+      ['2206', 'Sidra e demais fermentados', 25, 2, null, false],
+      ['2207', 'Álcool etílico não desnaturado', 25, 2, null, true],
+      ['2208', 'Destilados (cachaça, vodca, uísque)', 25, 2, null, false],
+      ['33030010', 'Perfume (extrato)', 25, 2, null, false],
+      ['33030020', 'Água de colônia', 25, 1, null, true],
+      ['950621', 'Prancha a vela', 25, 2, null, false],
+      ['95042', 'Jogo eletrônico de vídeo, partes e acessórios', 25, 2, null, false],
+      ['950440', 'Cartas para jogar', 25, 2, null, false],
+      ['950651', 'Raquete de tênis', 25, 2, null, false],
+      ['950661', 'Bola de tênis', 25, 2, null, false],
+      ['8801', 'Ultraleve (asa-delta, balão, dirigível) e suas partes', 28, 2, null, false],
+      ['8903', 'Embarcação de esporte e recreio', 28, 2, null, false],
+      ['9301', 'Armamento militar', 28, 2, null, false],
+      ['9302', 'Revólver e pistola', 28, 2, null, false],
+      ['9303', 'Arma de fogo por deflagração de pólvora', 28, 2, null, false],
+      ['9304', 'Outras armas (ar comprimido, mola, gás)', 28, 2, null, false],
+      ['9306', 'Munição', 28, 2, null, false],
+      ['7113', 'Artefato de joalharia', 28, 2, null, false],
+      ['7114', 'Artefato de ourivesaria', 28, 2, null, false],
+      ['7115', 'Outras obras de metal precioso', 28, 1, null, true],
+      ['7116', 'Obra de pérola ou pedra preciosa', 28, 2, null, false],
+      ['7117', 'Bijuteria e semijoia', 28, 2, null, false],
+      ['9614', 'Cachimbo e piteira', 28, 1, null, true],
+      ['3601', 'Pólvora propulsiva', 28, 2, null, false],
+      ['3602', 'Explosivo preparado', 28, 2, null, false],
+      ['3603', 'Estopim, cordel detonante, espoleta, detonador', 28, 2, null, false],
+      ['360410', 'Fogos de artifício', 28, 2, null, false],
+      ['36049090', 'Bomba, busca-pé, estalo, foguete e semelhantes', 28, 2, null, false],
+      ['8802', 'Avião, helicóptero e demais aeronaves de uso não comercial', 28, 1, null, true],
+      // 19% com 2 pontos de FECOEP: o produto está no art. 40-C mas fora das faixas de 25% e 28%
+      ['2402', 'Cigarro, cigarrilha e charuto', null, 2, null, true],
+      ['2403', 'Fumo industrializado', null, 2, null, true],
+      ['220210', 'Refrigerante e água gaseificada com açúcar ou aromatizada', null, 2, null, false],
+      ['2202', 'Isotônico e energético', null, 2, 'ISOTONIC|ISOTÔNIC|ENERGETIC|ENERGÉTIC|ENERGY', false],
+    ].map(([n, d, aliq, fec, pad, conf]) => ({
+      id: 'sup-' + n, prioridade: 20, ncm: n, match: 'inicia', descPadrao: pad, descMatch: 'contem',
+      descricao: d + ' — ' + (aliq ? 'alíquota interna ' + aliq + '%' : 'alíquota modal') + (fec ? ' + FECOEP ' + fec + (fec > 1 ? ' pontos' : ' ponto') : ''),
+      regime: null, encerra: false, mva: null, aliq, fecoep: fec, confirmar: conf,
+      fundamento: 'RICMS/SE, art. 40, ' + (aliq === 25 ? 'VII-A (25% desde 01/01/2024)' : aliq === 28 ? 'VII-B (28% desde 01/01/2024)' : 'I (19%)') + '; FECOEP de ' + fec + (fec > 1 ? ' pontos pelo art. 40-C' : ' ponto pelo art. 40-D') + ' (Lei 9.176/2023)' })),
+    // Jet ski e esqui aquático dividem a NCM 9506.29.00 com a prancha de surfe, mas ficam em faixas
+    // diferentes: a prancha é 25% (art. 40, VII-A, "b") e o jet ski é 28% (VII-B, "b", item 6).
+    { id: 'sup-jetski', prioridade: 19, ncm: '950629', match: 'inicia', descPadrao: 'JET SKI|JETSKI|JET-SKI|ESQUI AQUAT|ESQUI AQUÁT', descMatch: 'contem',
+      descricao: 'Jet ski e esqui aquático — alíquota interna 28% + FECOEP 2 pontos', regime: null, encerra: false, mva: null, aliq: 28, fecoep: 2, confirmar: false,
+      fundamento: 'RICMS/SE, art. 40, VII-B, "b", item 6 (28%); art. 40-C, VI (2 pontos)' },
+    { id: 'sup-surfe', prioridade: 20, ncm: '950629', match: 'inicia',
+      descricao: 'Prancha de surfe — alíquota interna 25% + FECOEP 2 pontos', regime: null, encerra: false, mva: null, aliq: 25, fecoep: 2, confirmar: false,
+      fundamento: 'RICMS/SE, art. 40, VII-A, "b" (25%); art. 40-C, XIV (2 pontos)' },
 
     // ---- Medicamentos: FECOEP excluído ----
     { id: 'medic-3003', prioridade: 20, ncm: '3003', match: 'inicia', descricao: 'Medicamentos — FECOEP excluído', regime: null, mva: null, aliq: 19, fecoep: 0, confirmar: true, fundamento: 'Dec. 289/2023 (exclusões do FECOEP)' },
