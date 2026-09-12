@@ -235,6 +235,54 @@ const EXPORTAR = (() => {
     return ws;
   }
 
+  // ------------------------------------------------------------------
+  // NCMs — cada NCM presente nas notas uma única vez, com o tratamento que recebeu
+  // ------------------------------------------------------------------
+  function abaNcms(ctx) {
+    const { empresa, competencia, resultados } = ctx;
+    const ws = {};
+    const cols = ['NCM', 'DESCRICAO_NCM', 'EXEMPLO_DE_PRODUTO', 'NOTAS', 'ITENS', 'VL_PRODUTOS', 'BC_ANTECIPACAO (K)', 'BC_ICMS_ST (P)',
+      'ICMS_ANTECIPADO (S)', 'FECOEP', 'RECEITA', 'ALIQ_ORIGEM (L)', 'ALIQ_INTERNA (M)', 'MVA (O)', 'PTS_FECOEP', 'REGRA_APLICADA', 'FUNDAMENTO', 'ALERTAS'];
+    const g = {};
+    for (const res of resultados) {
+      if (res.ignorada) continue;
+      for (const it of res.itens) {
+        const ncm = String(it.item.ncm || '(sem NCM)');
+        const x = g[ncm] || (g[ncm] = { ncm, notas: new Set(), itens: 0, vProd: 0, K: 0, P: 0, S: 0, fecoep: 0,
+          receitas: new Set(), L: new Set(), M: new Set(), O: new Set(), pts: new Set(), regras: new Set(), fundamentos: new Set(), alertas: new Set(), exemplo: it.item.xProd || '' });
+        x.notas.add(res.nota.nNF); x.itens++;
+        x.vProd += it.item.vProd; x.K += it.K; x.P += it.P; x.S += it.S; x.fecoep += it.fecoep;
+        x.receitas.add(it.receitaNome); x.L.add(it.L); x.M.add(it.M); x.O.add(it.O); x.pts.add(it.fecoepPts);
+        x.regras.add(it.regra ? it.regra.descricao : 'regra geral (sem regra específica de NCM)');
+        if (it.regra && it.regra.fundamento) x.fundamentos.add(it.regra.fundamento);
+        it.alertas.forEach(a => x.alertas.add(a.msg));
+      }
+    }
+    const linhas = Object.values(g).sort((a, b) => String(a.ncm).localeCompare(String(b.ncm)));
+    const lista = s => [...s].filter(v => v !== '' && v != null).join(' / ');
+    const temNcm = typeof MATERIAIS !== 'undefined' && MATERIAIS.carregada && MATERIAIS.carregada('ncm');
+
+    cell(ws, 'A1', 'NCMs das notas — ' + empresa.nome + ' — competência ' + fmtComp(competencia), { s: { font: { bold: true, sz: 13, color: { rgb: NAVY } } } });
+    cell(ws, 'A2', 'Cada NCM aparece uma única vez, com o total do que entrou por ele e o tratamento aplicado. Quando a coluna traz mais de um valor separado por barra, itens do mesmo NCM foram tratados de formas diferentes — vale conferir na aba Itens.', { s: { font: { italic: true, color: { rgb: '666666' } } } });
+    cols.forEach((c, i) => cell(ws, A(i, 3), c, { s: hdrStyle }));
+    let r = 4;
+    for (const x of linhas) {
+      const info = temNcm ? MATERIAIS.ncmInfo(x.ncm) : null;
+      const vals = [x.ncm, info && info.descricao ? info.descricao : '', String(x.exemplo).slice(0, 60), x.notas.size, x.itens,
+        MOTOR.r2(x.vProd), MOTOR.r2(x.K), MOTOR.r2(x.P), MOTOR.r2(x.S), MOTOR.r2(x.fecoep),
+        lista(x.receitas), lista(x.L), lista(x.M), lista(x.O), lista(x.pts), lista(x.regras), lista(x.fundamentos), lista(x.alertas)];
+      vals.forEach((v, c) => cell(ws, A(c, r), v === '' ? undefined : v, { z: typeof v === 'number' && c >= 5 ? money : undefined, s: { border: brd() } }));
+      // NCM que não consta da tabela oficial vigente fica em amarelo
+      if (info && !info.existe) cell(ws, A(0, r), x.ncm, { s: amarelo });
+      r++;
+    }
+    cell(ws, A(2, r), 'TOTAL — ' + linhas.length + ' NCM(s)', bold);
+    [5, 6, 7, 8, 9].forEach(c => { const L = XLSX.utils.encode_col(c); cell(ws, A(c, r), MOTOR.r2(linhas.reduce((s, x) => s + (c === 5 ? x.vProd : c === 6 ? x.K : c === 7 ? x.P : c === 8 ? x.S : x.fecoep), 0)), { z: money, f: `SUM(${L}5:${L}${r})`, s: goldStyle }); });
+    range(ws, 0, 0, r, cols.length - 1);
+    ws['!cols'] = cols.map(c => ({ wch: c === 'DESCRICAO_NCM' ? 48 : c === 'EXEMPLO_DE_PRODUTO' ? 38 : c === 'REGRA_APLICADA' ? 46 : c === 'FUNDAMENTO' ? 60 : c === 'ALERTAS' ? 60 : c === 'RECEITA' ? 26 : 13 }));
+    return ws;
+  }
+
   // Mapa de Apuração do Diferencial de Alíquota — Anexo I da Portaria SEFAZ 367/2016, colunas A a K
   function abaDifal(ctx) {
     const { empresa, competencia, consolidado } = ctx;
@@ -270,6 +318,7 @@ const EXPORTAR = (() => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, abaMapa(ctx), 'Mapa SEFAZ');
     XLSX.utils.book_append_sheet(wb, abaItens(ctx), 'Itens');
+    XLSX.utils.book_append_sheet(wb, abaNcms(ctx), 'NCMs');
     XLSX.utils.book_append_sheet(wb, abaFecoep(ctx), 'FECOEP');
     XLSX.utils.book_append_sheet(wb, abaResumo(ctx), 'Resumo DAE');
     if ((ctx.consolidado.difal || {}).linhas && ctx.consolidado.difal.linhas.length) XLSX.utils.book_append_sheet(wb, abaDifal(ctx), 'DIFAL');
@@ -279,10 +328,11 @@ const EXPORTAR = (() => {
     return nome;
   }
 
-  // Só a planilha de itens (tela Itens): mesma aba do arquivo completo, em arquivo próprio
+  // Só a planilha de itens (tela Itens): mesmas abas do arquivo completo, em arquivo próprio
   function gerarItens(ctx) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, abaItens(ctx), 'Itens');
+    XLSX.utils.book_append_sheet(wb, abaNcms(ctx), 'NCMs');
     const nome = `Antecipa_SE_ITENS_${(ctx.empresa.ie || ctx.empresa.cnpj || 'empresa').replace(/\D/g, '')}_${(ctx.competencia || '').replace('-', '')}.xlsx`;
     XLSX.writeFile(wb, nome);
     return nome;

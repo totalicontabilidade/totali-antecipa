@@ -226,14 +226,17 @@ const TABELAS_SE = {
     ...[
       ['esc-agenda', '4820', 'AGENDA', 'Agenda escolar', false],
       ['esc-apontador', '8214', 'APONTADOR', 'Apontador de lápis', false],
-      ['esc-borracha', '4016', 'BORRACHA', 'Borracha de apagar, inclusive caneta e lápis borracha', false],
+      ['esc-borracha', '4016', 'BORRACHA', 'Borracha de apagar, inclusive caneta e lápis borracha', false, 'TAPETE|MANGUEIRA|VEDA|CORREIA|\\bLUVA|PNEU|CAMARA DE AR|BORRACHA DE VEDA|PERFIL|BUCHA|COXIM'],
       ['esc-caderno', '482020', null, 'Caderno', false],
       ['esc-caneta', '960810', null, 'Caneta esferográfica', false],
       ['esc-cartolina', '4802', 'CARTOLINA|PAPEL CARTAO|PAPEL CARTÃO', 'Cartolina escolar e papel cartão', false],
       ['esc-cartolina2', '4805', 'CARTOLINA|PAPEL CARTAO|PAPEL CARTÃO', 'Cartolina escolar e papel cartão', false],
       ['esc-cartolina3', '4810', 'CARTOLINA|PAPEL CARTAO|PAPEL CARTÃO', 'Cartolina escolar e papel cartão', false],
       ['esc-classificador', '4820', 'CLASSIFICADOR', 'Classificador', false],
-      ['esc-cola', '350610', null, 'Cola escolar, branca ou colorida, em bastão ou líquida', false],
+      // A lei fala em "cola escolar, branca e colorida, em bastão ou líquida": cola instantânea,
+      // epóxi, de contato, para madeira ou cano não é cola escolar e continua com o adicional.
+      ['esc-cola', '350610', 'COLA', 'Cola escolar, branca ou colorida, em bastão ou líquida', false,
+        'INSTANTAN|INSTANTÂN|CIANOACRIL|SUPER ?BONDER|EPOXI|EPÓXI|CONTATO|SAPATEIR|MADEIRA|\\bPVC\\b|CANO|SILICONE|TENIS|TÊNIS|EXTRA FORTE|ADESIVO ESTRUTURAL'],
       ['esc-corretivo', '3824', 'CORRETIVO', 'Corretivo', false],
       ['esc-corretivo2', '9612', 'CORRETIVO', 'Corretivo (fita)', true],
       ['esc-estojo', '3926', 'ESTOJO', 'Estojo escolar / estojo para objetos de escrita', false],
@@ -246,10 +249,10 @@ const TABELAS_SE = {
       ['esc-pincel', '960330', null, 'Pincel de escrever e desenhar', false],
       ['esc-regua', '901720', 'REGUA|RÉGUA|KIT ESCOLAR|ESQUADRO|TRANSFERIDOR|COMPASSO', 'Régua (e kit escolar de desenho)', true],
       ['esc-guache', '3213', 'GUACHE', 'Tinta guache', false],
-    ].map(([id, ncm, pad, d, conf]) => ({
+    ].map(([id, ncm, pad, d, conf, excl]) => ({
       id, prioridade: 18, ncm, match: 'inicia', simplesTambem: true,
       descricao: d + ' — material escolar SEM o adicional do FECOEP',
-      descPadrao: pad, descMatch: 'contem',
+      descPadrao: pad, descMatch: 'contem', descExcluir: excl || null,
       regime: null, encerra: false, mva: null, aliq: null, fecoep: 0, confirmar: conf,
       fundamento: 'RICMS/SE, art. 616-C-A, IV, "c" (Dec. 289/2023) — o adicional de 1 ponto do FECOEP não incide sobre este material escolar' + (conf ? '. Item enquadrado pela prática do escritório: confirme se a descrição da lista alcança este produto' : '') })),
     // Cosméticos e perfumaria: alíquota interna 25% (Lei 3.796/96, art. 18); FECOEP +2 só nos extratos de perfume 3303.00.10 (Dec. 295/2023)
