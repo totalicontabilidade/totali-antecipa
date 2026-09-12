@@ -169,8 +169,8 @@ const AUDITORIA = (() => {
     const kf = (L, M) => fp(L) + ' / ' + fp(M);
     const fx = {};
     const põe = (k, lado, o, it) => {
-      fx[k] = fx[k] || { sis: { F: 0, P: 0, Q: 0, R: 0 }, map: { F: 0, P: 0, Q: 0, R: 0 }, itens: [] };
-      ['F', 'P', 'Q', 'R'].forEach(c => fx[k][lado][c] += (o[c] || 0));
+      fx[k] = fx[k] || { sis: { F: 0, H: 0, P: 0, Q: 0, R: 0 }, map: { F: 0, H: 0, P: 0, Q: 0, R: 0 }, itens: [] };
+      ['F', 'H', 'P', 'Q', 'R'].forEach(c => fx[k][lado][c] += (o[c] || 0));
       if (it) fx[k].itens.push(it);
     };
     itens.forEach(i => põe(kf(i.L, i.M), 'sis', i, i));
@@ -246,17 +246,17 @@ const AUDITORIA = (() => {
 
       const dR = r2(f.sis.R - f.map.R);                                  // crédito a menos no mapa vira imposto a mais
       if (Math.abs(dR) > 0.01) {
-        const soProdutos = r2(f.sis.F * L / 100);
-        const semDespesas = Math.abs(f.map.R - soProdutos) <= 0.02 && Math.abs(f.sis.R - soProdutos) > 0.02;
-        const quem = !destaque ? 'verificar' : Math.abs(destaque - f.sis.R) <= 0.05 ? 'mapa' : Math.abs(destaque - f.map.R) <= 0.05 ? 'sistema' : 'verificar';
+        // A coluna R da planilha da SEFAZ é calculada por ela mesma, com (F + H) × L: valor das
+        // mercadorias mais frete, sem IPI, seguro ou outras despesas. Quem seguir essa fórmula está
+        // no critério oficial, mesmo que o resultado fique diferente do ICMS destacado na nota.
+        const oficial = r2((f.sis.F + f.sis.H) * L / 100);
+        const mapaOficial = Math.abs(f.map.R - oficial) <= 0.02, sisOficial = Math.abs(f.sis.R - oficial) <= 0.02;
+        const quem = mapaOficial && !sisOficial ? 'sistema' : sisOficial && !mapaOficial ? 'mapa' : 'verificar';
         ach.push({ tipo: 'credito-faixa', quem,
-          texto: `Na faixa ${k} o valor dos produtos bate, mas o crédito não: o mapa deduziu ${fn(f.map.R)} e o sistema ${fn(f.sis.R)}` +
+          texto: `Na faixa ${k} o valor dos produtos bate, mas o crédito não: o mapa deduziu ${fn(f.map.R)} e o sistema ${fn(f.sis.R)}. Pela fórmula da planilha da SEFAZ o crédito é ${fn(oficial)}` +
             (destaque ? `, e o ICMS destacado na nota nesses itens é ${fn(destaque)}` : '') +
-            (semDespesas ? `. O mapa aplicou ${fp(L)} só sobre o valor dos produtos (${fn(f.sis.F)}) e deixou de fora as demais despesas` : '') +
-            `. Isso ${sentido(dR)}` + (Math.abs(dR) < 0.05 && !semDespesas ? ', ou seja, é arredondamento de centavos.' : '.'),
-          base: destaque
-            ? 'Lei 3.796/96, art. 42-A, § 1º, e RICMS/SE, art. 788: deduz-se o ICMS DESTACADO na nota de origem. Como as despesas acessórias integram a base do imposto na saída interestadual (LC 87/96, art. 13, § 1º, II, "b"), o destaque do emitente já as inclui, e o crédito tem de ser o valor destacado, não a alíquota aplicada apenas sobre as mercadorias.'
-            : 'Lei 3.796/96, art. 42-A, § 1º: na falta de destaque, deduz-se "o correspondente à aplicação da alíquota legalmente prevista para operação interestadual" sobre a base da operação, que inclui frete, seguro e demais despesas debitadas ao destinatário.' });
+            `. Isso ${sentido(dR)}` + (Math.abs(dR) < 0.05 ? ', ou seja, é arredondamento de centavos.' : '.'),
+          base: 'A coluna R do Mapa é calculada pela própria planilha da SEFAZ como (F + H) × L, o valor das mercadorias mais o frete pela alíquota de origem: IPI, seguro e outras despesas entram no débito (coluna K) mas ficam fora do crédito. O Manual (Anexo II da Portaria 103/2006, item 11) diz que as colunas K, P, Q, R, S e T "serão automaticamente calculados pelo Programa". Se o ICMS destacado na nota for diferente disso, a diferença é do próprio modelo oficial.' });
         extras.push(dR);
       }
       usados.add(k);

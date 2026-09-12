@@ -319,11 +319,17 @@ const MOTOR = (() => {
       // A coluna F do Mapa da SEFAZ é "Valor da Nota Fiscal / Base de cálculo": quando a receita soma os acréscimos no débito,
       // seguro e outras despesas (que integram a base do ICMS na origem) também entram no crédito. O IPI fica de fora, porque
       // não compõe a base do ICMS na venda para revenda. Conferido na Central Net mar/2026 (NF 276045, com 5,00 de despesas).
-      const credMapa = (F + H + (usaAcr ? I + J : 0)) * L / 100;
+      // Fórmula OFICIAL da coluna R, lida nas células ocultas da planilha da SEFAZ (todas as receitas
+      // usam a mesma): crédito = (E × F + E × H) × L, ou seja, valor das mercadorias mais frete, pela
+      // alíquota de origem. IPI (G), seguro (I) e outras despesas (J) entram no débito mas NÃO no
+      // crédito. O Manual (Anexo II, item 11) confirma que K, P, Q, R, S e T são calculados pelo
+      // próprio programa, e não informados pelo contribuinte.
+      const credMapa = (F + H) * L / 100;
       if (P.creditoModo !== 'destacado') {
         if (Math.abs(credMapa - credito) > 0.05) alertas.push({ nivel: 'baixo', msg: 'Crédito pela fórmula do mapa (F+H)×L = ' + credMapa.toFixed(2) + ' difere do ICMS destacado ' + credito.toFixed(2) + ' (base de origem inclui IPI/seguro/outras ou é reduzida). Usado o valor do mapa, como faz o DIA.' });
-        const baseCred = F + H + (usaAcr ? I + J : 0);
-        credito = credMapa; origemCredito = (usaAcr && (I + J) > 0 ? '(F+H+seguro+outras) × L = (' + F.toFixed(2) + ' + ' + H.toFixed(2) + ' + ' + I.toFixed(2) + ' + ' + J.toFixed(2) + ')' : '(F+H) × L = (' + F.toFixed(2) + ' + ' + H.toFixed(2) + ')') + ' × ' + L + '% = ' + baseCred.toFixed(2) + ' × ' + L + '% — fórmula do Mapa da SEFAZ (coluna R)';
+        const baseCred = F + H;
+        credito = credMapa; origemCredito = '(F+H) × L = (' + F.toFixed(2) + ' + ' + H.toFixed(2) + ') × ' + L + '% = ' + baseCred.toFixed(2) + ' × ' + L + '%' +
+          ((I + J) > 0 ? ' — seguro e outras despesas entram no débito mas ficam fora do crédito' : '') + ' — fórmula da coluna R na planilha da SEFAZ';
       }
       // Base reduzida na origem?
       if (item.icms.pRedBC > 0 || (item.icms.vBC > 0 && item.icms.vBC < F - 0.01)) {
@@ -343,7 +349,7 @@ const MOTOR = (() => {
     // Ou seja, o crédito nunca supera o imposto que seria devido aqui — evita saldo credor na antecipação.
     if (ov.aliqOrigem == null && L > M && M > 0 && rec.id !== 'nao_antecipa') {
       const Lantes = L;
-      L = M; credito = (F + H + (usaAcr ? I + J : 0)) * L / 100;
+      L = M; credito = (F + H) * L / 100;
       origemCredito = 'alíquota de origem limitada à carga interna: ' + Lantes + '% → ' + M + '% (Manual do Mapa, item 12.2, Portaria 705/2014)';
       alertas.push({ nivel: 'baixo', msg: 'Carga de destino (' + M + '%) menor que a alíquota da operação interestadual (' + Lantes + '%): pelo item 12.2 do Manual de Preenchimento do Mapa, a coluna L passa a ser a carga interna, limitando o crédito.' });
     }
