@@ -134,9 +134,10 @@ const EXPORTAR = (() => {
     const { empresa, competencia, resultados } = ctx;
     const ws = {};
     // Emitente, destinatário, nº da NF e chave ficam só na linha de cabeçalho da nota; as linhas começam no nº do item
-    const cols = ['nItem', 'COD_ITEM', 'DESC_ITEM', 'NCM', 'CEST', 'CFOP', 'CST_ICMS',
+    const cols = ['nItem', 'UF_ORIGEM', 'COD_ITEM', 'DESC_ITEM', 'NCM', 'CEST', 'CFOP', 'CST_ICMS',
       'VL_PROD', 'VL_DESC', 'VL_BC_ICMS', 'ALIQ_ICMS', 'VL_ICMS', 'VL_FCP', 'VL_FRETE', 'VL_SEG', 'VL_OUTROS', 'VL_IPI_NF', 'MVA_NF', 'VL_BC_ST_NF', 'ALIQ_ST_NF', 'VL_ICMS_ST_NF',
       'RECEITA', 'COD_RECEITA', 'BC_ANTECIPACAO (K)', 'ALIQ_ORIGEM (L)', 'ALIQ_INTERNA (M)', 'MVA_DB (O)', 'BC_ICMS_ST (P)', 'DEBITO (Q)', 'ICMS_ORIGEM (R)', 'ICMS_ANTECIPADO (S)', 'ALIQ_FECOEP', 'FECOEP', 'CUSTO_TOTAL', 'AJUSTE_MANUAL', 'OBSERVACAO', 'ALERTAS'];
+    const ix = nome => cols.indexOf(nome);   // posição pelo nome: inserir coluna não quebra os totais
     cell(ws, 'A1', 'Antecipação ICMS — SERGIPE — ' + empresa.nome + ' — competência ' + fmtComp(competencia), { s: { font: { bold: true, sz: 13, color: { rgb: NAVY } } } });
     cell(ws, 'A2', 'MVA em amarelo = não encontrada na base (informar manualmente) · Alíquota interna em amarelo = valor padrão aplicado (verificar) · Gerado por Totali Antecipa', { s: { font: { italic: true, color: { rgb: '666666' } } } });
     let r = 3;
@@ -146,7 +147,7 @@ const EXPORTAR = (() => {
     for (const res of resultados) {
       if (res.ignorada) continue;
       const n = res.nota;
-      cell(ws, A(0, r), `NOTA FISCAL: ${n.nNF} - CHAVE: ${n.chave} - EMITENTE: ${n.emit.nome} (${n.emit.cnpj}) - DESTINATÁRIO: ${n.dest.nome}` + (res.naoAntecipada ? ' — OPERAÇÃO NÃO ANTECIPADA' : ''), { s: notaHdr });
+      cell(ws, A(0, r), `NOTA FISCAL: ${n.nNF} - CHAVE: ${n.chave} - EMITENTE: ${n.emit.nome} (${n.emit.cnpj}) - UF DE ORIGEM: ${n.emit.uf} - DESTINATÁRIO: ${n.dest.nome}` + (res.naoAntecipada ? ' — OPERAÇÃO NÃO ANTECIPADA' : ''), { s: notaHdr });
       merge(ws, r, 0, r, cols.length - 1); r++;
       cols.forEach((c, i) => cell(ws, A(i, r), c, { s: colHdr })); r++;
       const r0 = r;
@@ -154,19 +155,22 @@ const EXPORTAR = (() => {
         const i = it.item;
         const semMva = it.alertas.some(a => /MVA do produto não encontrada/.test(a.msg));
         const aliqPadrao = !it.override.aliq && !(it.regra && it.regra.aliq != null) && MOTOR.receita(it.receita).aliq == null && it.receita !== 'nao_antecipa';
-        const vals = [i.nItem, i.cProd, i.xProd, i.ncm, i.cest, i.cfop, i.icms.cst || i.icms.csosn,
+        const vals = [i.nItem, n.emit.uf, i.cProd, i.xProd, i.ncm, i.cest, i.cfop, i.icms.cst || i.icms.csosn,
           i.vProd, i.vDesc, i.icms.vBC, i.icms.pICMS, i.icms.vICMS, i.icms.vFCP, i.vFrete, i.vSeg, i.vOutro, i.vIPI, i.icms.pMVAST, i.icms.vBCST, i.icms.pICMSST, i.icms.vICMSST,
           it.receitaNome, it.cod, it.K, it.L, it.M, it.O, it.P, it.Q, it.R, it.S, it.fecoepPts, it.fecoep, MOTOR.r2(it.K + it.S + it.fecoep),
           descreverAjuste(it.override), (it.override || {}).obs || '', it.alertas.map(a => a.msg).join(' | ')];
         vals.forEach((v, c) => {
           const isNum = typeof v === 'number';
-          const s = (c === 26 && semMva) || (c === 25 && aliqPadrao) ? amarelo : { border: brd() };
-          cell(ws, A(c, r), v === '' ? undefined : v, { z: isNum && c >= 7 ? money : undefined, s });
+          const s = (c === ix('MVA_DB (O)') && semMva) || (c === ix('ALIQ_INTERNA (M)') && aliqPadrao) ? amarelo : { border: brd() };
+          cell(ws, A(c, r), v === '' ? undefined : v, { z: isNum && c >= ix('VL_PROD') ? money : undefined, s });
         });
         r++;
       }
-      cell(ws, A(2, r), 'TOTAIS DA NOTA:', bold);
-      [7, 11, 16, 23, 27, 28, 29, 30, 32, 33].forEach(c => { const L = XLSX.utils.encode_col(c); cell(ws, A(c, r), res.itens.reduce((s, it) => s + (c === 7 ? it.item.vProd : c === 11 ? it.item.icms.vICMS : c === 16 ? it.item.vIPI : c === 23 ? it.K : c === 27 ? it.P : c === 28 ? it.Q : c === 29 ? it.R : c === 30 ? it.S : c === 32 ? it.fecoep : it.K + it.S + it.fecoep), 0), { z: money, f: `SUM(${L}${r0 + 1}:${L}${r})`, s: bold }); });
+      cell(ws, A(3, r), 'TOTAIS DA NOTA:', bold);
+      const somas = [['VL_PROD', it => it.item.vProd], ['VL_ICMS', it => it.item.icms.vICMS], ['VL_IPI_NF', it => it.item.vIPI],
+        ['BC_ANTECIPACAO (K)', it => it.K], ['BC_ICMS_ST (P)', it => it.P], ['DEBITO (Q)', it => it.Q], ['ICMS_ORIGEM (R)', it => it.R],
+        ['ICMS_ANTECIPADO (S)', it => it.S], ['FECOEP', it => it.fecoep], ['CUSTO_TOTAL', it => it.K + it.S + it.fecoep]];
+      somas.forEach(([nome, f]) => { const c = ix(nome), L = XLSX.utils.encode_col(c); cell(ws, A(c, r), res.itens.reduce((s, it) => s + f(it), 0), { z: money, f: `SUM(${L}${r0 + 1}:${L}${r})`, s: bold }); });
       r += 2;
     }
     range(ws, 0, 0, r, cols.length - 1);
@@ -241,7 +245,7 @@ const EXPORTAR = (() => {
   function abaNcms(ctx) {
     const { empresa, competencia, resultados } = ctx;
     const ws = {};
-    const cols = ['NCM', 'DESCRICAO_NCM', 'EXEMPLO_DE_PRODUTO', 'NOTAS', 'ITENS', 'VL_PRODUTOS', 'BC_ANTECIPACAO (K)', 'BC_ICMS_ST (P)',
+    const cols = ['NCM', 'DESCRICAO_NCM', 'EXEMPLO_DE_PRODUTO', 'UF_ORIGEM', 'NOTAS', 'ITENS', 'VL_PRODUTOS', 'BC_ANTECIPACAO (K)', 'BC_ICMS_ST (P)',
       'ICMS_ANTECIPADO (S)', 'FECOEP', 'RECEITA', 'ALIQ_ORIGEM (L)', 'ALIQ_INTERNA (M)', 'MVA (O)', 'PTS_FECOEP', 'REGRA_APLICADA', 'FUNDAMENTO', 'ALERTAS'];
     const g = {};
     for (const res of resultados) {
@@ -249,8 +253,8 @@ const EXPORTAR = (() => {
       for (const it of res.itens) {
         const ncm = String(it.item.ncm || '(sem NCM)');
         const x = g[ncm] || (g[ncm] = { ncm, notas: new Set(), itens: 0, vProd: 0, K: 0, P: 0, S: 0, fecoep: 0,
-          receitas: new Set(), L: new Set(), M: new Set(), O: new Set(), pts: new Set(), regras: new Set(), fundamentos: new Set(), alertas: new Set(), exemplo: it.item.xProd || '' });
-        x.notas.add(res.nota.nNF); x.itens++;
+          ufs: new Set(), receitas: new Set(), L: new Set(), M: new Set(), O: new Set(), pts: new Set(), regras: new Set(), fundamentos: new Set(), alertas: new Set(), exemplo: it.item.xProd || '' });
+        x.notas.add(res.nota.nNF); x.itens++; x.ufs.add(res.nota.emit.uf);
         x.vProd += it.item.vProd; x.K += it.K; x.P += it.P; x.S += it.S; x.fecoep += it.fecoep;
         x.receitas.add(it.receitaNome); x.L.add(it.L); x.M.add(it.M); x.O.add(it.O); x.pts.add(it.fecoepPts);
         x.regras.add(it.regra ? it.regra.descricao : 'regra geral (sem regra específica de NCM)');
@@ -268,16 +272,17 @@ const EXPORTAR = (() => {
     let r = 4;
     for (const x of linhas) {
       const info = temNcm ? MATERIAIS.ncmInfo(x.ncm) : null;
-      const vals = [x.ncm, info && info.descricao ? info.descricao : '', String(x.exemplo).slice(0, 60), x.notas.size, x.itens,
+      const vals = [x.ncm, info && info.descricao ? info.descricao : '', String(x.exemplo).slice(0, 60), lista(x.ufs), x.notas.size, x.itens,
         MOTOR.r2(x.vProd), MOTOR.r2(x.K), MOTOR.r2(x.P), MOTOR.r2(x.S), MOTOR.r2(x.fecoep),
         lista(x.receitas), lista(x.L), lista(x.M), lista(x.O), lista(x.pts), lista(x.regras), lista(x.fundamentos), lista(x.alertas)];
-      vals.forEach((v, c) => cell(ws, A(c, r), v === '' ? undefined : v, { z: typeof v === 'number' && c >= 5 ? money : undefined, s: { border: brd() } }));
+      vals.forEach((v, c) => cell(ws, A(c, r), v === '' ? undefined : v, { z: typeof v === 'number' && c >= cols.indexOf('VL_PRODUTOS') ? money : undefined, s: { border: brd() } }));
       // NCM que não consta da tabela oficial vigente fica em amarelo
       if (info && !info.existe) cell(ws, A(0, r), x.ncm, { s: amarelo });
       r++;
     }
     cell(ws, A(2, r), 'TOTAL — ' + linhas.length + ' NCM(s)', bold);
-    [5, 6, 7, 8, 9].forEach(c => { const L = XLSX.utils.encode_col(c); cell(ws, A(c, r), MOTOR.r2(linhas.reduce((s, x) => s + (c === 5 ? x.vProd : c === 6 ? x.K : c === 7 ? x.P : c === 8 ? x.S : x.fecoep), 0)), { z: money, f: `SUM(${L}5:${L}${r})`, s: goldStyle }); });
+    [['VL_PRODUTOS', x => x.vProd], ['BC_ANTECIPACAO (K)', x => x.K], ['BC_ICMS_ST (P)', x => x.P], ['ICMS_ANTECIPADO (S)', x => x.S], ['FECOEP', x => x.fecoep]]
+      .forEach(([nome, f]) => { const c = cols.indexOf(nome), L = XLSX.utils.encode_col(c); cell(ws, A(c, r), MOTOR.r2(linhas.reduce((s, x) => s + f(x), 0)), { z: money, f: `SUM(${L}5:${L}${r})`, s: goldStyle }); });
     range(ws, 0, 0, r, cols.length - 1);
     ws['!cols'] = cols.map(c => ({ wch: c === 'DESCRICAO_NCM' ? 48 : c === 'EXEMPLO_DE_PRODUTO' ? 38 : c === 'REGRA_APLICADA' ? 46 : c === 'FUNDAMENTO' ? 60 : c === 'ALERTAS' ? 60 : c === 'RECEITA' ? 26 : 13 }));
     return ws;
