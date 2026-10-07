@@ -265,23 +265,78 @@ const FB = (() => {
     ouvirCadastros();
     status('ok', 'sincronizado');
   }
-  async function garantirXmls(key) {
-    if (!ATIVO || !pronto || xmlsCarregados.has(key)) return false;
+  // Baixa os XMLs de uma apuração e FICA OUVINDO a coleção: XML que outro usuário arrastar (ou apagar)
+  // nesta competência aparece aqui na hora. Antes era um get() único, então quem já estava com o mês
+  // aberto só via os XMLs novos depois de sair e entrar de novo.
+  function garantirXmls(key) {
+    if (!ATIVO || !pronto || xmlsCarregados.has(key)) return Promise.resolve(false);
     xmlsCarregados.add(key);
-    const A = DB.apuracoes[key]; if (!A) return false;
-    if (!snap.apur[key]) { snap.xmls[key] = {}; return false; }         // apuração nova (ainda não existe na nuvem)
+    const A0 = DB.apuracoes[key]; if (!A0) return Promise.resolve(false);
+    if (!snap.apur[key]) { snap.xmls[key] = {}; return Promise.resolve(false); }         // apuração nova (ainda não existe na nuvem)
     status('busy', 'baixando XMLs…');
-    try {
-      const q = await colXmls(key).get();
-      const xm = {}; q.docs.forEach(d => { xm[d.id] = d.data().xml; });
-      A.xmls = { ...xm, ...(A.xmls || {}) };
-      snap.xmls[key] = {}; Object.keys(xm).forEach(ch => snap.xmls[key][ch] = true);
-      status('ok', 'sincronizado'); return true;
-    } catch (e) { xmlsCarregados.delete(key); status('err', erroTxt(e)); console.error(e); return false; }
+    return new Promise(resolve => {
+      let primeira = true;
+      const u = colXmls(key).onSnapshot(q => {
+        const A = DB.apuracoes[key];
+        const sx = snap.xmls[key] || (snap.xmls[key] = {});
+        if (primeira) {
+          primeira = false;
+          const xm = {}; q.docs.forEach(d => { xm[d.id] = d.data().xml; });
+          if (A) A.xmls = { ...xm, ...(A.xmls || {}) };
+          Object.keys(xm).forEach(ch => sx[ch] = true);
+          status('ok', 'sincronizado'); resolve(true); return;
+        }
+        if (!A) return;
+        let mudou = false;
+        q.docChanges().forEach(ch => {
+          if (ch.doc.metadata.hasPendingWrites) return;          // gravação deste mesmo usuário
+          const id = ch.doc.id;
+          if (ch.type === 'removed') { if (sx[id]) delete sx[id]; if (A.xmls && A.xmls[id]) { delete A.xmls[id]; mudou = true; } return; }
+          const xml = ch.doc.data().xml; sx[id] = true;
+          if (!A.xmls) A.xmls = {};
+          if (A.xmls[id] !== xml) { A.xmls[id] = xml; mudou = true; }
+        });
+        if (!mudou) return;
+        if (key === apurKey()) { salvar(); recalcular(); showToast('XMLs desta competência atualizados por outro usuário.', ''); }
+        else if (typeof renderReguaMeses === 'function') renderReguaMeses();
+      }, e => {
+        if (primeira) { primeira = false; xmlsCarregados.delete(key); status('err', erroTxt(e)); console.error(e); resolve(false); }
+        else console.warn('snapshot xmls ' + key, e);
+      });
+      unsub.push(u);
+    });
   }
   let unsub = [];
+  // Apurações (espelho + ajustes por nota) em tempo real. Antes só vinham da nuvem no login: quem já estava
+  // com o sistema aberto não via o ajuste que outro usuário acabava de fazer — e, ao mexer na mesma
+  // competência, gravava a sua versão (velha) por cima da dele. Com o ouvinte, a mudança chega na hora.
+  function ouvirApuracoes() {
+    unsub.push(colApur().onSnapshot(q => {
+      const kAtual = apurKey(); let mexeuAtual = false, mexeuOutra = false;
+      q.docChanges().forEach(ch => {
+        const d = ch.doc, k = d.id;
+        if (d.metadata.hasPendingWrites) return;
+        if (ch.type === 'removed') {
+          if (!snap.apur[k]) return;                             // apagada por este mesmo usuário (já limpa) ou nunca vista
+          delete snap.apur[k]; delete snap.xmls[k]; xmlsCarregados.delete(k);
+          if (DB.apuracoes[k]) { delete DB.apuracoes[k]; if (k === kAtual) mexeuAtual = true; else mexeuOutra = true; }
+          return;
+        }
+        const x = d.data();
+        const j = paraJson({ espelho: x.espelho || null, overrides: x.overrides || {} });
+        if (j === snap.apur[k]) return;
+        snap.apur[k] = j;
+        const A = DB.apuracoes[k] || (DB.apuracoes[k] = { espelho: null, xmls: {}, overrides: {} });
+        A.espelho = x.espelho || null; A.overrides = x.overrides || {};
+        if (k === kAtual) mexeuAtual = true; else mexeuOutra = true;
+      });
+      if (mexeuAtual) { salvar(); recalcular(); showToast('Apuração desta competência atualizada por outro usuário.', ''); }
+      else if (mexeuOutra) { salvar(); if (typeof renderReguaMeses === 'function') renderReguaMeses(); }
+    }, e => console.warn('snapshot apuracoes', e)));
+  }
   function ouvirCadastros() {
     unsub.forEach(f => f()); unsub = [];
+    ouvirApuracoes();
     const liga = (nome, aplicar) => unsub.push(docEsc(nome).onSnapshot(d => {
       if (!d.exists || d.metadata.hasPendingWrites) return;
       const j = paraJson(aplicar.ler(d.data())); if (j === snap[nome]) return;
@@ -372,6 +427,7 @@ const FB = (() => {
       const btnU = $('btnViewUsuarios'); if (btnU) btnU.style.display = perfil.admin ? '' : 'none';
       gate(false);
       renderEmpresasSelect(); if ($('inpComp')) $('inpComp').value = ST.comp;
+      if (typeof limparAutofill === 'function') limparAutofill();   // o navegador preenche o filtro de notas com o e-mail do login
       salvar(); recalcular(); if (ST.view !== 'apuracao') showView(ST.view);
       atualizarPendentes();
       const qs = new URLSearchParams(location.search); const aut = qs.get('autorizar'), acao = qs.get('acao');

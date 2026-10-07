@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="js/firebase-config.js?v=1.25.0"></script>
+<script src="js/firebase-config.js?v=1.27.0"></script>
 <style>
   :root {
     --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
@@ -70,6 +70,7 @@
   .btn.gold { background: var(--gold); color: var(--navy); } .btn.ghost { background: #fff; color: var(--navy); border-color: var(--navy); } .btn.soft { background: var(--areia); color: var(--navy); }
   .btn.sm { padding: 5px 10px; font-size: 12px; border-radius: 7px; } .btn.danger { background: #fff; color: var(--bad); border-color: var(--bad); }
   .fi { width: 100%; border: 1px solid #D1D5DB; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13.5px; background: #fff; color: var(--ink); }
+  .fi[type=search] { -webkit-appearance: none; appearance: none; }
   .fi:focus { outline: 2px solid var(--gold-2); border-color: var(--gold); }
   .fi-label { display: block; font-size: 11.5px; font-weight: 700; color: var(--ink-2); margin: 0 0 4px; text-transform: uppercase; letter-spacing: .06em; }
   .field { margin-bottom: 12px; }
@@ -244,7 +245,7 @@
           <div class="row">
             <select class="fi" id="filtroNotasRec" style="max-width:260px"><option value="">todas as receitas</option></select>
             <label class="small"><input type="checkbox" id="chkSoDif"> só com diferença vs SEFAZ</label>
-            <input class="fi" id="filtroNotas" placeholder="filtrar por nº, emitente, chave…" style="width:240px">
+            <input class="fi" type="search" autocomplete="off" name="busca-notas" id="filtroNotas" placeholder="filtrar por nº, emitente, chave…" style="width:240px">
           </div>
         </div>
         <div class="tblwrap"><table class="tbl" id="tblNotas"><thead><tr>
@@ -305,7 +306,7 @@
       </div>
       <div class="card">
         <div class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:10px">
-          <input class="fi" id="filtroItens" placeholder="filtrar por produto, NCM, CFOP, CST, NF ou emitente" style="max-width:340px">
+          <input class="fi" type="search" autocomplete="off" name="busca-itens" id="filtroItens" placeholder="filtrar por produto, NCM, CFOP, CST, NF ou emitente" style="max-width:340px">
           <select class="fi" id="filtroItensRec" style="max-width:230px"><option value="">todas as receitas</option></select>
           <label class="small"><input type="checkbox" id="chkItensAlerta"> só com alerta</label>
           <label class="small"><input type="checkbox" id="chkItensAjust"> só ajustados</label>
@@ -332,9 +333,9 @@
       <div class="pagehdr"><div><h1>NCM · MVA · Alíquotas</h1><p>Regras por NCM (prefixo ou igual) e descrição do produto. As suas regras têm prioridade sobre as embutidas; menor prioridade vence.</p></div>
         <div class="row"><button class="btn ghost sm" id="btnImportRegras">Importar Excel/JSON</button><button class="btn ghost sm" id="btnExportRegras">Exportar</button><button class="btn" id="btnNovaRegra">+ Nova regra</button></div></div>
       <div class="card">
-        <div class="row" style="margin-bottom:10px"><input class="fi" id="filtroRegras" placeholder="buscar NCM, descrição, regime…" style="width:300px">
+        <div class="row" style="margin-bottom:10px"><input class="fi" type="search" autocomplete="off" name="busca-regras" id="filtroRegras" placeholder="buscar NCM, descrição, regime…" style="width:300px">
           <label class="small"><input type="checkbox" id="chkEmbutidas" checked> mostrar regras embutidas (RICMS/SE)</label>
-          <span class="small muted">Teste um NCM: <input class="fi" id="testeNcm" placeholder="ex. 02071400" style="width:120px;display:inline-block"> <span id="testeNcmRes"></span></span></div>
+          <span class="small muted">Teste um NCM: <input class="fi" type="search" autocomplete="off" name="teste-ncm" id="testeNcm" placeholder="ex. 02071400" style="width:120px;display:inline-block"> <span id="testeNcmRes"></span></span></div>
         <div class="tblwrap"><table class="tbl compact" id="tblRegras"><thead><tr><th>Prior.</th><th>NCM</th><th>Match</th><th>Descrição / padrão</th><th>Regime</th><th>MVA (4% · 7% · 12% · int.)</th><th>Alíq.</th><th>FECOEP</th><th>Origem</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
     </section>
@@ -374,7 +375,7 @@
       <div class="grid g2">
         <div class="card">
           <h3>Consultar NCM</h3>
-          <div class="row"><input class="fi" id="matNcm" placeholder="NCM (ex. 22030000) ou início" style="width:220px"><input class="fi" id="matProd" placeholder="descrição do produto (opcional)" style="flex:1"><button class="btn sm" id="btnMatConsultar">Consultar</button></div>
+          <div class="row"><input class="fi" type="search" autocomplete="off" name="mat-ncm" id="matNcm" placeholder="NCM (ex. 22030000) ou início" style="width:220px"><input class="fi" type="search" autocomplete="off" name="mat-prod" id="matProd" placeholder="descrição do produto (opcional)" style="flex:1"><button class="btn sm" id="btnMatConsultar">Consultar</button></div>
           <div id="matFicha" style="margin-top:12px"><div class="empty">Digite um NCM para ver descrição oficial, ST/MVA em Sergipe, CEST, benefícios do RICMS/SE, TIPI, PIS/COFINS, IBS/CBS e IN 2.121.</div></div>
         </div>
         <div class="card">
@@ -408,7 +409,8 @@
             <li><b>É entrada interestadual para contribuinte de SE?</b> Emitente ≠ SE, destinatário SE com IE. Senão, não é antecipação.</li>
             <li><b>CFOP/CST:</b> devolução (62xx), remessa/retorno (69xx), industrialização (6124/6125) e ST já retida (CST 10/30/60/70, CSOSN 201/202/203/500, CFOP 64xx) → <i>operação não antecipada</i>.</li>
             <li><b>Regra do NCM:</b> cesta básica → 12% sem FECOEP (optante: 2,1% direto; não optante: MVA 30%). Anexo X (carnes, cerâmicos, calçados) → MVA própria com encerramento. Supérfluos → 25% + 2 pts.</li>
-            <li><b>Regime da empresa:</b> Simples Nacional → receita 2607 (complementação de alíquota, sem MVA — art. 42-A). Regime normal → uso/consumo/ativo = DIFAL 2445; revenda = antecipação sem encerramento 2631 com MVA 10%/20%.</li>
+            <li><b>Regime da empresa:</b> Simples Nacional → receita 2607 (complementação de alíquota, sem MVA — art. 42-A). Regime normal → uso/consumo/ativo = DIFAL 2445, marcado na coluna Receita da nota como "Calcular como DIFAL — uso e consumo" (com o Fundo de Pobreza, DAE 0111 + 0150) ou "— ativo imobilizado" (sem o Fundo, DAE 0110); revenda = antecipação sem encerramento 2631 com MVA 10%/20%.</li>
+            <li><b>Biscoitos (NCM 1905):</b> industrializado (biscoito, bolacha, wafer, cookie) é substituído — antecipação com encerramento pelos arts. 720-C e 720-D (MVA 45%, ou 30% vindo de AL, BA, CE, PB, PE, PI e RN); caseiro (polvilho, sequilho, goma, avoador) é tributado pela regra geral.</li>
             <li><b>Cálculo:</b> K (preço composto) → P = K × (1+MVA) → Q = P × alíquota interna → R = crédito da origem → S = Q − R. FECOEP à parte.</li>
           </ol>
         </div>
@@ -464,6 +466,7 @@
         <div class="field"><label class="fi-label">Perfil na SEFAZ</label><select class="fi" id="ePerfil"><option value="apto">Apto (MVA 10%)</option><option value="inapto">Suspenso / inapto (MVA 30%)</option></select></div>
       </div>
       <div class="field"><label class="small"><input type="checkbox" id="eCesta"> Optante do regime simplificado da cesta básica (2,1%)</label></div>
+      <div class="field"><label class="small"><input type="checkbox" id="eVarejo40"> Açougueiro, ambulante, barraqueiro, bodegueiro, cantina, clube social, feirante, microempresa estadual ou bloco carnavalesco — antecipação COM encerramento em qualquer mercadoria, MVA 40% (RICMS/SE art. 784, § 3º e Anexo X, itens 03 e 04)</label></div>
       <div class="field"><label class="fi-label">Observações</label><input class="fi" id="eObs"></div>
     </div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal('modal-empresa')">Cancelar</button><button class="btn" id="btnSalvarEmpresa">Salvar</button></div>
@@ -585,20 +588,20 @@
 
 <div id="toast"></div>
 
-<script src="js/versao.js?v=1.25.0"></script>
-<script src="js/tabelas.js?v=1.25.0"></script>
-<script src="js/tabelas-fundamentos.js?v=1.25.0"></script>
-<script src="js/tabelas-cnae.js?v=1.25.0"></script>
-<script src="js/nfe.js?v=1.25.0"></script>
-<script src="js/materiais.js?v=1.25.0"></script>
-<script src="js/motor.js?v=1.25.0"></script>
-<script src="js/espelho.js?v=1.25.0"></script>
-<script src="js/exportar.js?v=1.25.0"></script>
-<script src="js/auditoria.js?v=1.25.0"></script>
-<script src="js/app.js?v=1.25.0"></script>
-<script src="js/app-regime.js?v=1.25.0"></script>
-<script src="js/app-materiais.js?v=1.25.0"></script>
-<script src="js/firebase-sync.js?v=1.25.0"></script>
-<script src="js/firebase-certs.js?v=1.25.0"></script>
+<script src="js/versao.js?v=1.27.0"></script>
+<script src="js/tabelas.js?v=1.27.0"></script>
+<script src="js/tabelas-fundamentos.js?v=1.27.0"></script>
+<script src="js/tabelas-cnae.js?v=1.27.0"></script>
+<script src="js/nfe.js?v=1.27.0"></script>
+<script src="js/materiais.js?v=1.27.0"></script>
+<script src="js/motor.js?v=1.27.0"></script>
+<script src="js/espelho.js?v=1.27.0"></script>
+<script src="js/exportar.js?v=1.27.0"></script>
+<script src="js/auditoria.js?v=1.27.0"></script>
+<script src="js/app.js?v=1.27.0"></script>
+<script src="js/app-regime.js?v=1.27.0"></script>
+<script src="js/app-materiais.js?v=1.27.0"></script>
+<script src="js/firebase-sync.js?v=1.27.0"></script>
+<script src="js/firebase-certs.js?v=1.27.0"></script>
 </body>
 </html>

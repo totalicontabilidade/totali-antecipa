@@ -114,31 +114,86 @@ const TABELAS_SE = {
   //   encerra: true se encerra a fase (ST/antecipação com encerramento)
   // ---------------------------------------------------------------
   regrasNcm: [
-    // ---- Anexo X — carnes (Decreto 717/2024) ----
+    // ---------------------------------------------------------------------------------------------
+    // ANEXO X — CARNES E AVES (antecipação COM encerramento: art. 784, VI e VIII)
+    //
+    // ALÍQUOTA: 19%, a modal do art. 40, I. Carne NÃO é cesta básica desde 01/11/2008 (o item 2 da
+    // alínea "b" do inciso VIII foi revogado pelo Decreto 25.631/08) e a lista vigente do art. 40,
+    // § 3º só traz CHARQUE (inciso XII). Para ave o Regulamento é expresso: art. 40, XIV — "19% aves
+    // abatidas e produtos de sua matança, em estado natural, congelados, ou simplesmente temperados,
+    // a partir de 01/01/2024" (Lei 9.176/2023). Até 2026-09 estas regras usavam 12%, herdado da
+    // redação revogada em 2008 — por isso vão marcadas confirmar:true até baterem num mapa da SEFAZ.
+    //
+    // FECOEP: 1 ponto (art. 40-D). Carne não está no art. 40-C (os de 2 pontos) e não está entre as
+    // exclusões do art. 616-C-A — cujo inciso V afasta o adicional só na antecipação SEM encerramento.
+    // Como estas receitas são COM encerramento, o adicional incide. Antes vinha fecoep:0.
+    //
+    // NCM de cada item do Anexo X (Decretos 717/2024 e 756/2024):
+    //   item  5 (bovino/ovino/bufalino salgado/seco)  0210.20.00 · 0210.99.00 · 1502
+    //   item  6 (bovino/ovino/bufalino fresco)        0201 · 0202 · 0204 · 0206
+    //   item  7 (caprina fresca)                      0204
+    //   item  8 (caprinos)                            0210.99.00 · 1502.10.19 · 1502.90.00
+    //   item  9 (suínos)                              0203 · 0206 · 0209 · 0210.1 · 0210.99.00 · 1501
+    //   item 10 (AVES)                                0207 · 0209 · 0210.99.00 · 1501
+    // 0209, 0210.99 e 1501 aparecem nos dois grupos: o desempate é pelo produto, então as regras de
+    // ave vêm com NCM mais longo (o motor faz o NCM mais específico vencer) ou com padrão de descrição.
+    // ---------------------------------------------------------------------------------------------
     { id: 'ax-carne-bov', prioridade: 10, ncm: '0201', match: 'inicia', descricao: 'Carne bovina fresca/refrigerada — Anexo X item 6',
-      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 12, fecoep: 0, confirmar: false,
-      fundamento: 'RICMS/SE Anexo X, item 6 (Dec. 717/2024); cesta básica art. 40' },
+      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: 'RICMS/SE Anexo X, item 6 (Dec. 717/2024); art. 784, VI; alíquota 19% do art. 40, I (carne saiu da cesta básica com o Dec. 25.631/08); FECOEP de 1 ponto pelo art. 40-D' },
     { id: 'ax-carne-bov2', prioridade: 10, ncm: '0202', match: 'inicia', descricao: 'Carne bovina congelada — Anexo X item 6',
-      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 12, fecoep: 0, confirmar: false,
-      fundamento: 'RICMS/SE Anexo X, item 6' },
+      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: 'RICMS/SE Anexo X, item 6; art. 784, VI; alíquota 19% do art. 40, I; FECOEP de 1 ponto pelo art. 40-D' },
     { id: "ax-suino", prioridade: 10, ncm: "0203", match: "inicia", descricao: "Carne suína — Anexo X item 9 (Dec. 756/2024)",
-      regime: "antecip_encer", encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 12, fecoep: 0, confirmar: false,
-      fundamento: "RICMS/SE Anexo X, item 9 (CEST 17.087.01; Decreto 756/2024)" },
+      regime: "antecip_encer", encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: "RICMS/SE Anexo X, item 9 (CEST 17.087.01; Decreto 756/2024); art. 784, VI; alíquota 19% do art. 40, I; FECOEP de 1 ponto pelo art. 40-D" },
     { id: 'ax-ovina', prioridade: 10, ncm: '0204', match: 'inicia', descricao: 'Carne ovina/caprina — Anexo X itens 6-8',
-      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 12, fecoep: 0, confirmar: false,
-      fundamento: 'RICMS/SE Anexo X, itens 6 a 8' },
+      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: 'RICMS/SE Anexo X, itens 6 a 8; art. 784, VI; alíquota 19% do art. 40, I; FECOEP de 1 ponto pelo art. 40-D' },
     { id: 'ax-miudos', prioridade: 10, ncm: '0206', match: 'inicia', descricao: 'Miudezas comestíveis — Anexo X',
-      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 12, fecoep: 0, confirmar: false,
-      fundamento: 'RICMS/SE Anexo X, itens 6 a 9' },
-    { id: 'ax-aves', prioridade: 10, ncm: '0207', match: 'inicia', descricao: 'Carne de aves (frango) — Anexo X item 10',
-      regime: 'antecip_encer', encerra: true, mva: { 4: 43.57, 7: 39.09, 12: 31.61, interna: 21.14 }, aliq: 12, fecoep: 0, confirmar: false,
-      fundamento: 'RICMS/SE Anexo X, item 10' },
+      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: 'RICMS/SE Anexo X, itens 6 a 9; art. 784, VI; alíquota 19% do art. 40, I; FECOEP de 1 ponto pelo art. 40-D' },
+    { id: 'ax-aves', prioridade: 10, simplesTambem: true, ncm: '0207', match: 'inicia', descricao: 'Carne de aves (frango, galinha, peru) — Anexo X item 10',
+      regime: 'antecip_encer', encerra: true, mva: { 4: 43.57, 7: 39.09, 12: 31.61, interna: 21.14 }, aliq: 19, fecoep: null, confirmar: false,
+      fundamento: 'RICMS/SE art. 784, VIII e art. 786, VIII c/c Anexo X, item 10 (Dec. 717/2024); alíquota 19% do art. 40, XIV (Lei 9.176/2023, desde 01/01/2024); FECOEP de 1 ponto pelo art. 40-D; conferido no texto vigente do RICMS/SE (atualizado até o Dec. 1.536/2026) em 07/10/2026: o art. 784 alcança todo atacadista ou varejista, inclusive optante do Simples' },
+    // Gordura DE AVES (0209.90) — item 10, MVA de ave. Vence a regra de 0209 (suíno) por ter NCM mais longo.
+    { id: 'ax-aves-gord', prioridade: 10, simplesTambem: true, ncm: '02099', match: 'inicia', descricao: 'Gordura de aves — Anexo X item 10',
+      regime: 'antecip_encer', encerra: true, mva: { 4: 43.57, 7: 39.09, 12: 31.61, interna: 21.14 }, aliq: 19, fecoep: null, confirmar: false,
+      fundamento: 'RICMS/SE art. 784, VIII c/c Anexo X, item 10 (NCM 0209 consta dos itens 9 e 10; a gordura de aves é 0209.90); alíquota 19% do art. 40, XIV; conferido no texto vigente do RICMS/SE (atualizado até o Dec. 1.536/2026) em 07/10/2026: o art. 784 alcança todo atacadista ou varejista, inclusive optante do Simples' },
     { id: "ax-toucinho", prioridade: 10, ncm: "0209", match: "inicia", descricao: "Toucinho/gordura suína — Anexo X item 9 (Dec. 756/2024)",
-      regime: "antecip_encer", encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 12, fecoep: 0, confirmar: false,
-      fundamento: 'RICMS/SE Anexo X, item 9' },
-    { id: 'ax-charque', prioridade: 30, ncm: '0210', match: 'inicia', descricao: 'Carne salgada/seca (charque) — Anexo X item 5',
-      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 12, fecoep: 0, confirmar: false,
-      fundamento: 'RICMS/SE Anexo X, item 5' },
+      regime: "antecip_encer", encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: 'RICMS/SE Anexo X, item 9; art. 784, VI; alíquota 19% do art. 40, I; FECOEP de 1 ponto pelo art. 40-D' },
+    // 0210.99.00 está nos itens 5, 8, 9 E 10 — o que decide é o animal, então esta regra só pega o
+    // que a descrição disser que é ave (frango defumado, peito de peru, galinha salgada...).
+    { id: 'ax-aves-021099', prioridade: 10, simplesTambem: true, ncm: '021099', match: 'inicia',
+      descricao: 'Carne de ave salgada, seca, defumada ou temperada (0210.99) — Anexo X item 10',
+      descPadrao: 'FRANGO|GALINHA|GALO|AVE|AVES|PERU|CHESTER|CODORNA|PATO|GANSO|MARRECO|FILE DE PEITO|PEITO DE PERU|TENDER',
+      descMatch: 'contem',
+      regime: 'antecip_encer', encerra: true, mva: { 4: 43.57, 7: 39.09, 12: 31.61, interna: 21.14 }, aliq: 19, fecoep: null, confirmar: false,
+      fundamento: 'RICMS/SE art. 784, VIII c/c Anexo X, item 10 (0210.99.00 consta dos itens 5, 8, 9 e 10 — aqui pela descrição de ave); alíquota 19% do art. 40, XIV; conferido no texto vigente do RICMS/SE (atualizado até o Dec. 1.536/2026) em 07/10/2026: o art. 784 alcança todo atacadista ou varejista, inclusive optante do Simples' },
+    { id: 'ax-charque', prioridade: 30, ncm: '0210', match: 'inicia', descricao: 'Carne salgada/seca (charque, bacon, defumados) — Anexo X itens 5 e 9',
+      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: 'RICMS/SE Anexo X, itens 5 e 9; art. 784, VI. O charque 0210.20 é cesta básica (art. 40, § 3º, XII) e tem regra própria, com prioridade maior. Alíquota 19% do art. 40, I; FECOEP de 1 ponto pelo art. 40-D' },
+    // Gorduras: 1501 = de porco e DE AVES (itens 9 e 10) · 1502 = bovina/ovina/caprina (itens 5 e 8).
+    { id: 'ax-aves-1501', prioridade: 10, simplesTambem: true, ncm: '150190', match: 'inicia', descricao: 'Gordura de aves (1501.90) — Anexo X item 10',
+      regime: 'antecip_encer', encerra: true, mva: { 4: 43.57, 7: 39.09, 12: 31.61, interna: 21.14 }, aliq: 19, fecoep: null, confirmar: false,
+      fundamento: 'RICMS/SE art. 784, VIII c/c Anexo X, item 10 (NCM 1501); alíquota 19% do art. 40, XIV; FECOEP de 1 ponto pelo art. 40-D; conferido no texto vigente do RICMS/SE (atualizado até o Dec. 1.536/2026) em 07/10/2026: o art. 784 alcança todo atacadista ou varejista, inclusive optante do Simples' },
+    { id: 'ax-banha', prioridade: 10, ncm: '1501', match: 'inicia', descricao: 'Banha e demais gorduras de porco (1501) — Anexo X item 9',
+      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: 'RICMS/SE art. 784, VI c/c Anexo X, item 9 (NCM 1501); alíquota 19% do art. 40, I; FECOEP de 1 ponto pelo art. 40-D' },
+    { id: 'ax-sebo', prioridade: 10, ncm: '1502', match: 'inicia', descricao: 'Gorduras bovina, ovina e caprina (sebo, 1502) — Anexo X itens 5 e 8',
+      regime: 'antecip_encer', encerra: true, mva: { 4: 30.37, 7: 26.30, 12: 19.51, interna: 10 }, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: 'RICMS/SE art. 784, VI c/c Anexo X, itens 5 (NCM 1502) e 8 (1502.10.19 e 1502.90.00); alíquota 19% do art. 40, I; FECOEP de 1 ponto pelo art. 40-D' },
+    // ---------------------------------------------------------------------------------------------
+    // FRANGO VIVO (NCM 0105) — art. 784, III: "frangos vivos, mesmo que destinados a produtor".
+    // É antecipação COM ENCERRAMENTO, e a base NÃO é o valor da nota: o art. 786, III manda usar o
+    // VALOR DE PAUTA fixado pelo Secretário da Fazenda, acrescido de 20% de MVA. Como a pauta muda por
+    // ato da SEFAZ, ela não fica gravada aqui — o motor avisa e você informa a pauta (coluna N) no item.
+    // ---------------------------------------------------------------------------------------------
+    { id: 'ax-frango-vivo', prioridade: 10, ncm: '0105', match: 'inicia', simplesTambem: true, exigePauta: true,
+      descricao: 'Frango vivo / galinha viva (0105) — antecipação com encerramento sobre a PAUTA + MVA 20%',
+      regime: 'antecip_encer', encerra: true, mva: 20, aliq: 19, fecoep: null, confirmar: true,
+      fundamento: 'RICMS/SE art. 784, III (frangos vivos, mesmo que destinados a produtor) e art. 786, III (base = valor de pauta + 20% de MVA); apuração pelo art. 788, com dedução do ICMS destacado. Alíquota 19% do art. 40, I; FECOEP de 1 ponto pelo art. 40-D' },
 
     // ---- Anexo X — material cerâmico de construção (item 11) ----
     ...['2505', '2507', '2517', '6901', '6904', '6905', '6907', '6908'].map(n => ({
@@ -273,6 +328,37 @@ const TABELAS_SE = {
     // Salgadinhos de trigo (1905.90.90, CEST 17.031.01): pratica do escritorio — antecipacao com encerramento, MVA 35%
     { id: "salg-trigo", prioridade: 15, ncm: "19059090", match: "igual", simplesTambem: true, descPadrao: "SALG", descMatch: "inicia", descricao: "Salgadinho de trigo (CEST 17.031.01) — ST com encerramento, MVA 35%",
       regime: "antecip_encer", encerra: true, mva: 35, aliq: 19, fecoep: null, confirmar: true, fundamento: "RICMS/SE Anexo IX (Alimenticios) — MVA 35% conforme mapa da Mais Barato jul/2026; confirmar" },
+
+    // ---------------------------------------------------------------------------------------------
+    // BISCOITOS E BOLACHAS (1905) — prática do escritório (out/2026) + RICMS/SE arts. 720-A a 720-G
+    // (Prot. ICMS 53/2017, derivados de farinha de trigo, CEST 17.047.01 a 17.064.00).
+    //   • INDUSTRIALIZADO (biscoito, bolacha, cookie, wafer, rosquinha, cracker) é SUBSTITUÍDO: entrada
+    //     interestadual de UF NÃO signatária → antecipação COM encerramento (art. 720-C), base = preço +
+    //     frete/IPI/encargos + MVA do art. 720-D, II, "b": 45%. Se vier de UF signatária (AL, BA, CE,
+    //     PB, PE, PI, RN) o remetente já deve ter retido (art. 720-A, CST 10/60 → não antecipada); se não
+    //     reteve, a MVA é a do inciso I, "b": 30%. Alíquota interna 19% (art. 720-F), crédito do destacado
+    //     (art. 720-G). Vale também no Simples (art. 784, II). Pão e massa (20%/35%) não entram aqui.
+    //   • CASEIRO (polvilho, sequilho, goma, avoador, beiju, "caseiro") é TRIBUTADO pela regra geral:
+    //     não é produto industrializado de farinha de trigo, então fica fora da ST. A regra vem antes
+    //     (prioridade 14) e com semSt:true, para o aviso da planilha do Portal da ST não aparecer.
+    // ---------------------------------------------------------------------------------------------
+    { id: "bisc-caseiro", prioridade: 14, ncm: "1905", match: "inicia", simplesTambem: false, semSt: true,
+      descPadrao: "POLVILHO|SEQUILHO|CASEIRO|CASEIRA|AVOADOR|GOMA|BEIJU|TAPIOCA|ARTESANAL", descMatch: "contem",
+      descricao: "Biscoito caseiro — polvilho, sequilho, goma, avoador, beiju (1905): TRIBUTADO pela regra geral, não é substituído",
+      regime: null, mva: null, aliq: null, fecoep: null, confirmar: false,
+      fundamento: "Prática do escritório (out/2026): biscoito caseiro não é derivado industrializado de farinha de trigo, então fica fora da ST dos arts. 720-A a 720-G do RICMS/SE (Prot. ICMS 53/2017) e segue a receita normal da empresa (antecipação sem encerramento no regime normal; complementação no Simples)" },
+    ...[
+      // [ncm, match, descrição, CEST, padrão na descrição (null = qualquer produto do NCM)]
+      ["190531", "inicia", "Biscoitos e bolachas com edulcorante (1905.31)", "17.053.00 a 17.053.02", null],
+      ["190532", "inicia", "Waffles e wafers (1905.32)", "17.057.00 e 17.058.00", null],
+      ["19059020", "igual", "Bolachas (1905.90.20)", "17.056.00 e 17.056.02", null],
+      ["19059090", "igual", "Biscoito/bolacha classificado em 1905.90.90 (pelo nome do produto)", "17.056.02", "BISCOITO|BISC.|BISC |BOLACHA|COOKIE|ROSQUINHA|CRACKER|WAFER|RECHEAD|MARIA|MAISENA|MAIZENA"],
+    ].map(([n, mt, d, cest, pad]) => ({
+      id: "bisc-ind-" + n, prioridade: 15, ncm: n, match: mt, simplesTambem: true, descPadrao: pad, descMatch: pad ? "contem" : undefined,
+      descricao: d + " — INDUSTRIALIZADO, substituído: antecipação com encerramento, MVA 45% (UF não signatária) / 30% (signatária)",
+      regime: "antecip_encer", encerra: true, mva: 45, mvaUf: { ufs: ["AL", "BA", "CE", "PB", "PE", "PI", "RN"], mva: 30, motivo: "UF signatária do Prot. ICMS 53/2017 (art. 720-D, I, b)" },
+      aliq: 19, fecoep: null, cest: cest, confirmar: false,
+      fundamento: "RICMS/SE art. 720-C (antecipação com encerramento na entrada de UF não signatária), art. 720-D, II, b (MVA 45%) e I, b (30%, UF signatária: AL, BA, CE, PB, PE, PI e RN), arts. 720-F e 720-G; Prot. ICMS 53/2017; CEST " + cest + ". Prática do escritório (out/2026): só o biscoito industrializado é substituído; o caseiro (polvilho, sequilho) é tributado" })),
 
     // ---- Supérfluos: três faixas distintas desde 01/01/2024 (Lei 9.176/2023) ----
     // 25% = art. 40, VII-A · 28% = art. 40, VII-B · demais = alíquota modal de 19% (inciso I).

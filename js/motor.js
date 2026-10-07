@@ -35,6 +35,10 @@ const MOTOR = (() => {
 
   const EMPRESA_PADRAO = {
     cnpj: '', ie: '', nome: '', regime: 'normal', perfil: 'apto', cestaOptante: false,
+    // Art. 784, § 3º c/c Anexo X, itens 03 e 04: açougueiro, ambulante, barraqueiro, bodegueiro,
+    // cantina, clube social, feirante, microempresa estadual e bloco carnavalesco. Desligado por
+    // padrão — é o cadastro da empresa que liga.
+    varejoMva40: false,
   };
 
   function receita(id) { return T.receitas.find(r => r.id === id) || T.receitas.find(r => r.id === 'nao_antecipa'); }
@@ -118,7 +122,12 @@ const MOTOR = (() => {
   function decidirReceita(ctx) {
     const { nota, item, empresa, tri, regra, ov } = ctx;
     if (ov && ov.ignorar) return { id: 'nao_antecipa', motivo: 'Item EXCLUÍDO manualmente desta apuração pelo usuário — a versão deixa de ser a calculada automaticamente.' };
-    if (ov && ov.receita) return { id: ov.receita, motivo: 'Receita definida manualmente pelo usuário.' };
+    if (ov && ov.receita) {
+      if (ov.receita === 'difal') return { id: 'difal', motivo: 'DIFAL marcado manualmente pelo usuário — ' + (tri.finalidade === 'ativo'
+        ? 'bem do ATIVO IMOBILIZADO: diferencial de alíquota SEM o adicional do Fundo de Combate à Pobreza (RICMS/SE, art. 616-C-B, II); DAE 0110.'
+        : 'bem de USO E CONSUMO: diferencial de alíquota COM o adicional do Fundo de Combate à Pobreza (art. 616-B, VII, c/c art. 40-D); DAE 0111 + 0150.') };
+      return { id: ov.receita, motivo: 'Receita definida manualmente pelo usuário.' };
+    }
     if (!tri.interestadual) return { id: 'nao_antecipa', motivo: 'Não é entrada interestadual para contribuinte de SE (emitente ' + nota.emit.uf + ' → destinatário ' + nota.dest.uf + ').' };
     if (['industrializacao', 'devolucao', 'remessaRetorno'].includes(tri.cfopTipo)) return { id: 'nao_antecipa', motivo: T.descCfop[tri.cfopTipo] + ' (CFOP ' + item.cfop + ').' };
     // ST retida PARA SERGIPE nesta operação: nada a antecipar em qualquer regime (a SEFAZ marca "operação não antecipada" — J C de Lira mar/2026)
@@ -159,9 +168,14 @@ const MOTOR = (() => {
     // DIA, que marcam essas entradas como "OPERAÇÃO NÃO ANTECIPADA", e nos mapas de Mais Barato, J C de Lira e Faro Tem,
     // onde nenhuma nota de CFOP 6949 foi lançada.
     if (tri.finalidadeExplicita && (tri.finalidade === 'ativo' || tri.finalidade === 'usoConsumo')) {
-      if (ctx.alertas && empresa.regime !== 'simples') ctx.alertas.push({ nivel: 'baixo', msg: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso e consumo') + ' pelo CFOP ' + item.cfop + ': essa nota não seria no DIFAL? Para apurar o diferencial aqui, marque "Calcular como DIFAL (Port. 367/2016)" na coluna Receita da nota.' });
-      return { id: 'nao_antecipa', motivo: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso/consumo') + ' (CFOP ' + item.cfop + '): não entra no DIA — o diferencial de alíquota é apurado à parte (a SEFAZ marca como operação não antecipada; LC 123/2006, art. 13, § 1º, XIII, "h", para o optante do Simples). Para calcular o DIFAL, marque a nota como "Calcular como DIFAL" na coluna Receita.' };
+      if (ctx.alertas && empresa.regime !== 'simples') ctx.alertas.push({ nivel: 'baixo', msg: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso e consumo') + ' pelo CFOP ' + item.cfop + ': essa nota não seria no DIFAL? Para apurar o diferencial aqui, marque "Calcular como DIFAL — ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso e consumo') + '" na coluna Receita da nota.' });
+      return { id: 'nao_antecipa', motivo: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso/consumo') + ' (CFOP ' + item.cfop + '): não entra no DIA — o diferencial de alíquota é apurado à parte (a SEFAZ marca como operação não antecipada; LC 123/2006, art. 13, § 1º, XIII, "h", para o optante do Simples). Para calcular o DIFAL, marque a nota como "Calcular como DIFAL — uso e consumo" ou "— ativo imobilizado" na coluna Receita.' };
     }
+    // Art. 784, § 3º c/c Anexo X, itens 03 e 04 (Dec. 30.826/2017): açougueiro, ambulante, barraqueiro,
+    // bodegueiro, cantina, clube social, feirante, microempresa estadual e bloco carnavalesco pagam a
+    // antecipação COM encerramento em QUALQUER mercadoria, com MVA de 40%. O item 4 ressalva "se outro
+    // percentual não for estabelecido": produto com MVA própria (Anexo X ou IX) fica com a dele.
+    if (empresa.varejoMva40) return { id: 'antecip_encer', motivo: 'Adquirente do art. 784, § 3º (açougueiro, ambulante, barraqueiro, bodegueiro, cantina, clube social, feirante, microempresa estadual ou bloco carnavalesco): antecipação COM encerramento em qualquer mercadoria, pela MVA de 40% dos itens 03 e 04 do Anexo X' + (regra && regra.mva != null ? ' — este produto tem MVA própria (' + regra.descricao + '), que prevalece, porque o item 04 vale "se outro percentual não for estabelecido"' : '') + '.' };
     if (empresa.regime === "simples") return { id: "simples", motivo: 'Adquirente optante do Simples Nacional: complementação de alíquota interestadual sem MVA (Lei 3.796/96, art. 42-A).' };
     if (tri.finalidade === 'ativo' || tri.finalidade === 'usoConsumo') return { id: 'nao_antecipa', motivo: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso/consumo') + ' (CFOP ' + item.cfop + '): não entra no DIA — o DIFAL é apurado à parte (a SEFAZ marca como operação não antecipada). Se quiser lançar no mapa, escolha a receita "Difer. de Alíquota".' };
     if (regra && regra.regime === 'antecip_encer') return { id: 'antecip_encer', motivo: regra.descricao + ' — antecipação COM encerramento, MVA própria.' };
@@ -173,7 +187,10 @@ const MOTOR = (() => {
     const P = { ...PARAMS_PADRAO, ...(params || {}) };
     const E = { ...EMPRESA_PADRAO, ...(empresa || {}) };
     const ov = { ...(ovItem || {}) };
-    if (ovNota && ovNota.receita && !ov.receita) ov.receita = ovNota.receita;
+    // Receita marcada na NOTA vale para todos os itens que não têm receita própria. A finalidade da nota
+    // ("Calcular como DIFAL — uso e consumo" ou "— ativo imobilizado") acompanha, porque é ela que decide
+    // se há adicional do Fundo de Pobreza (uso e consumo paga; ativo não — art. 616-C-B, II).
+    if (ovNota && ovNota.receita && !ov.receita) { ov.receita = ovNota.receita; if (ovNota.finalidade && !ov.finalidade) ov.finalidade = ovNota.finalidade; }
     const alertas = [];
     const mem = [];
 
@@ -200,8 +217,8 @@ const MOTOR = (() => {
         // Aplica quando o parâmetro manda ("aplicar") OU quando a própria nota confirma (indFinal=1: o remetente vendeu como consumidor final,
         // sinal independente de que não é revenda) — validado na Mais Barato fev/2026 (Fast Ariam, móveis de checkout)
         const notaConsumidorFinal = nota.indFinal === '1';
-        if ((P.finalidadeCnae === 'aplicar' || notaConsumidorFinal) && sugFin.confianca === 'alta') { finalidade = sugFin.finalidade; sugFin.aplicada = true; alertas.push({ nivel: 'medio', msg: 'Finalidade ' + (finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' aplicada' + (notaConsumidorFinal && P.finalidadeCnae !== 'aplicar' ? ' (nota de consumidor final + CNAE: ' : ' pelo CNAE (') + sugFin.motivo + ') — fora do DIA. Essa nota não seria no DIFAL? No regime normal, dá para marcar "Calcular como DIFAL (Port. 367/2016)" na coluna Receita da nota. Ajuste a finalidade no item se não for o caso.' }); }
-        else alertas.push({ nivel: sugFin.confianca === 'alta' ? 'medio' : 'baixo', msg: 'Pelo CNAE da empresa este item parece ' + (sugFin.finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' (' + sugFin.motivo + '). Se for isso, ajuste a finalidade no item — e, no regime normal, essa nota não seria no DIFAL? Dá para marcar "Calcular como DIFAL (Port. 367/2016)" na coluna Receita.' });
+        if ((P.finalidadeCnae === 'aplicar' || notaConsumidorFinal) && sugFin.confianca === 'alta') { finalidade = sugFin.finalidade; sugFin.aplicada = true; alertas.push({ nivel: 'medio', msg: 'Finalidade ' + (finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' aplicada' + (notaConsumidorFinal && P.finalidadeCnae !== 'aplicar' ? ' (nota de consumidor final + CNAE: ' : ' pelo CNAE (') + sugFin.motivo + ') — fora do DIA. Essa nota não seria no DIFAL? No regime normal, dá para marcar "Calcular como DIFAL — uso e consumo" ou "— ativo imobilizado" na coluna Receita da nota. Ajuste a finalidade no item se não for o caso.' }); }
+        else alertas.push({ nivel: sugFin.confianca === 'alta' ? 'medio' : 'baixo', msg: 'Pelo CNAE da empresa este item parece ' + (sugFin.finalidade === 'ativo' ? 'ATIVO IMOBILIZADO' : 'USO/CONSUMO') + ' (' + sugFin.motivo + '). Se for isso, ajuste a finalidade no item — e, no regime normal, essa nota não seria no DIFAL? Dá para marcar "Calcular como DIFAL — uso e consumo" ou "— ativo imobilizado" na coluna Receita.' });
       }
     }
     const tri = {
@@ -236,7 +253,8 @@ const MOTOR = (() => {
         stTab = { linhas: [{ ...l, mva: mvaOrig, norma: l.protocolo, dispositivo: l.legislacao, trecho: l.descricao }], exato: pr.exato, prefixo: pr.prefixo };
         const confiavel = pr.exato && pr.cestOk;
         const aplicar = P.tabelaSt === 'aplicar' && confiavel && mvaOrig != null;
-        if (!aplicar && (!regra || regra.regime == null)) {
+        // regra.semSt: produto que o escritório decidiu que NÃO é substituído (ex.: biscoito caseiro de polvilho) — o aviso da planilha só confundiria
+        if (!aplicar && (!regra || (regra.regime == null && !regra.semSt))) {
           alertas.push({ nivel: confiavel ? 'medio' : 'baixo', msg: 'NCM ' + item.ncm + (item.cest ? ' / CEST ' + item.cest : '') + (pr.exato ? '' : ' (pelo prefixo ' + pr.prefixo + ')') + (pr.cestOk ? '' : ' — CEST da nota diferente do da planilha') + ' consta do Portal Nacional da ST (SE): segmento ' + (l.segmento || '?') + (mvaOrig != null ? ', MVA-ST ' + mvaOrig + '% (origem ' + aliqInter + '%)' : (l.pfc ? ', pauta PFC R$ ' + l.pfc : ', sem MVA')) + (l.fecoep != null ? ', FECOEP ' + l.fecoep + ' pt' : '') + '. Aplicada a regra geral; se for ST sem retenção (art. 784, II), altere a receita do item para "Antecip. com encer." ou ligue "aplicar" em Parâmetros.' });
         }
         if (aplicar && (!regra || regra.regime == null)) {
@@ -362,8 +380,11 @@ const MOTOR = (() => {
       // A MVA-ST varia com a ALÍQUOTA INTERESTADUAL da operação, não com o imposto efetivamente destacado:
       // em item isento/reduzido na origem (CST 40, amostra, bonificação) L pode ser 0 — usa-se a alíquota da UF de origem.
       const Lmva = L > 0 ? L : NFE.aliquotaInterestadual(nota.emit.uf, item.icms.orig, T);
-      const m = mvaDaRegra(regra, Lmva);
-      if (m != null) { O = m; origemO = 'MVA do produto — ' + regra.descricao + ' (origem ' + Lmva + '%' + (L !== Lmva ? ', alíquota interestadual da UF — a nota não destaca ICMS' : '') + ')'; }
+      let m = mvaDaRegra(regra, Lmva), porUf = '';
+      // MVA que depende da UF do remetente, e não da alíquota (ex.: derivados de farinha de trigo, art. 720-D:
+      // 30% quando a origem é UF signatária do Prot. ICMS 53/2017 e 45% das demais)
+      if (regra && regra.mvaUf && Array.isArray(regra.mvaUf.ufs) && regra.mvaUf.ufs.includes(nota.emit.uf) && regra.mvaUf.mva != null) { m = regra.mvaUf.mva; porUf = '; remetente de ' + nota.emit.uf + ', ' + (regra.mvaUf.motivo || 'UF com MVA própria') + ': ' + m + '%'; }
+      if (m != null) { O = m; origemO = 'MVA do produto — ' + regra.descricao + ' (origem ' + Lmva + '%' + (L !== Lmva ? ', alíquota interestadual da UF — a nota não destaca ICMS' : '') + porUf + ')'; }
       else if (regra && regra.mvaOriginal != null) {
         const mo = regra.mvaOriginal;
         if (P.ajustarMva && L > 0 && M < 100 && L < M) {
@@ -372,6 +393,7 @@ const MOTOR = (() => {
         } else { O = mo; origemO = 'MVA original ' + mo + '% da planilha oficial de ST/SE (sem ajuste)'; }
       }
       else if (regra && regra.fonte === 'st_se') { O = 0; origemO = 'produto de ST em SE sem MVA na planilha oficial (segmento ' + (stTab && stTab.linhas[0] ? stTab.linhas[0].segmento : '?') + ') — usa PAUTA FISCAL / PMPF'; alertas.push({ nivel: 'alto', msg: 'NCM ' + item.ncm + ' está na ST de SE por PAUTA (PMPF), sem MVA. Informe o valor de pauta (N) no item ou a MVA manualmente.' }); }
+      else if (E.varejoMva40) { O = 40; origemO = 'MVA de 40% dos itens 03 e 04 do Anexo X — adquirente do art. 784, § 3º (açougueiro, ambulante, barraqueiro, bodegueiro, cantina, clube social, feirante, microempresa estadual ou bloco carnavalesco), produto sem MVA própria'; }
       else { O = 0; origemO = 'MVA do produto NÃO cadastrada'; alertas.push({ nivel: 'alto', msg: 'MVA do produto não encontrada para o NCM ' + item.ncm + '. Cadastre em Cadastros › NCM/MVA ou informe manualmente.' }); }
     }
     else if (typeof R.mva === 'number') { O = R.mva; origemO = 'MVA fixa da receita (' + R.mva + '%)'; }
@@ -386,6 +408,10 @@ const MOTOR = (() => {
 
     // ---- Pauta (N), base (P), débito (Q), a recolher (S) ----
     const N = ov.pauta != null ? r2(ov.pauta) : 0;
+    // Produto cuja base legal é o valor de PAUTA, não o da nota (ex.: frango vivo — art. 786, III).
+    // Sem a pauta informada o cálculo sai pelo valor da operação e fica subavaliado.
+    if (regra && regra.exigePauta && !N && rec.id !== 'nao_antecipa')
+      alertas.push({ nivel: 'alto', msg: 'A base deste produto é o VALOR DE PAUTA fixado pela SEFAZ, não o valor da nota (' + regra.fundamento + '). Informe a pauta (coluna N) no item — sem ela o cálculo usou o valor da operação e está a menor.' });
     let baseMva = K * (1 + O / 100);
     let usouPauta = false;
     let Pb = baseMva;
@@ -415,7 +441,8 @@ const MOTOR = (() => {
     // FCP da Faro Tem fev/2026, que cobra 1% da nota 4791 (CFOP 6949) mesmo fora do mapa.
     // No regime NORMAL o escritório não lança no DIA (Mais Barato jul/2026, nota 18201, também CFOP
     // 6949): ali o diferencial e o seu adicional entram na apuração mensal do ICMS. Para calcular os
-    // dois aqui, marque a nota como "Calcular como DIFAL". Bem do ATIVO fica fora (art. 616-C-B, II).
+    // dois aqui, marque a nota como "Calcular como DIFAL — uso e consumo". Bem do ATIVO fica fora (art. 616-C-B, II):
+    // para ele a opção é "Calcular como DIFAL — ativo imobilizado", que sai sem o Fundo.
     const usoConsumoForaDoDia = rec.id === 'nao_antecipa' && tri.finalidadeExplicita
       && tri.finalidade === 'usoConsumo' && E.regime === 'simples';
     if (P.fecoepAtivo && (rec.id !== 'nao_antecipa' || usoConsumoForaDoDia)) {
@@ -530,7 +557,8 @@ const MOTOR = (() => {
     }
     // Valor a recolher por receita não fica negativo (saldo credor maior que devedor → zero).
     // O DIFAL fica fora do total do DIA: tem mapa próprio (Portaria 367/2016) e DAE próprio.
-    const difal = { valor: 0, base: 0, fecoep: 0, notas: 0, linhas: [] };
+    // usoConsumo / ativo: o ICMS do DIFAL separado por finalidade (DAE 0111 e 0110); o Fundo só existe no uso e consumo (DAE 0150).
+    const difal = { valor: 0, base: 0, fecoep: 0, notas: 0, usoConsumo: 0, ativo: 0, notasUso: 0, notasAtivo: 0, linhas: [] };
     for (const [id, p] of Object.entries(porReceita)) {
       p.recolher = p.devido > 0 ? p.devido : 0;
       if (receita(id).difal) { difal.valor = r2(difal.valor + p.recolher); difal.base = r2(difal.base + p.base); difal.notas = p.notas; p.difal = true; }
@@ -542,8 +570,13 @@ const MOTOR = (() => {
         const itens = r.itens.filter(i => receita(i.receita).difal);
         if (!itens.length) continue;
         const soma = c => r2(itens.reduce((s, i) => s + (i[c] || 0), 0));
+        const somaFin = (c, fin) => r2(itens.reduce((s, i) => s + ((i.tri && i.tri.finalidade === 'ativo') === (fin === 'ativo') ? (i[c] || 0) : 0), 0));
         difal.fecoep = r2(difal.fecoep + soma('fecoep'));
+        const qAtivo = somaFin('Q', 'ativo'), qUso = somaFin('Q', 'usoConsumo');
+        difal.ativo = r2(difal.ativo + qAtivo); difal.usoConsumo = r2(difal.usoConsumo + qUso);
+        if (qAtivo > 0) difal.notasAtivo++; if (qUso > 0) difal.notasUso++;
         difal.linhas.push({ nNF: r.nota.nNF, chave: r.nota.chave, emitente: r.nota.emit.nome, uf: r.nota.emit.uf,
+          finalidade: qAtivo > 0 && qUso > 0 ? 'misto' : qAtivo > 0 ? 'ativo' : 'usoConsumo',
           B: soma('K'), C: itens[0].L, E: itens[0].M, F: itens[0].fecoepPts, G: soma('P'), H: r2(itens[0].M - itens[0].L),
           I: soma('Q'), J: soma('fecoep'), K: r2(soma('Q') + soma('fecoep')) });
       }

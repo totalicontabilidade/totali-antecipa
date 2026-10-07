@@ -89,6 +89,10 @@ Os PDFs oficiais do RICMS/SE (regulamento e anexos) foram baixados do portal `le
 - **Art. 785/786/788**: antecipação sem encerramento com MVA de 10% (apto) ou **30% (contribuinte suspenso)**; crédito do ICMS destacado; base reduzida = diferença de carga (art. 789).
 - **Art. 40, § 3º + art. 787**: lista oficial da cesta básica; optante do Regime Simplificado paga 3,6% (sabão em barra, leite em pó, charque) ou 2,1% (demais), sem crédito; não optante MVA 30%.
 - **Anexo X** (Decretos 717/2024 e 756/2024): carnes 30,37/26,30/19,51%, aves 43,57/39,09/31,61%, cerâmicos 68,30/63,04/54,27%.
+- **Carnes e aves — alíquota e FECOEP (revisto em 15/09/2026)**: 19% e 1 ponto de FECOEP. Carne saiu da cesta básica em 01/11/2008 (Dec. 25.631/08 revogou o item 2 do art. 40, VIII, "b") e ave tem previsão expressa de 19% no art. 40, XIV (Lei 9.176/2023, desde 01/01/2024); o adicional incide porque a exclusão do art. 616-C-A, V é só da antecipação *sem* encerramento. Só o charque 0210.20 segue a 12% como cesta básica (art. 40, § 3º, XII). As regras estão `confirmar: true` até fecharem com um mapa da SEFAZ.
+- **Art. 784, III + art. 786, III**: frango vivo (NCM 0105) é antecipação **com encerramento** sobre o **valor de pauta** da SEFAZ acrescido de 20% de MVA — informe a pauta (coluna N) no item; o sistema alerta enquanto ela faltar.
+- **Art. 784, § 3º + Anexo X, itens 03 e 04**: açougueiro, ambulante, barraqueiro, bodegueiro, cantina, clube social, feirante, microempresa estadual e bloco carnavalesco pagam antecipação com encerramento em qualquer mercadoria, com MVA de 40% — marque no cadastro da empresa. Produto com MVA própria mantém a dele (o item 04 vale "se outro percentual não for estabelecido").
+- **Art. 598-E**: dispensados o lançamento e o pagamento nas saídas **internas** de aves vivas para abate em SE e nas operações internas seguintes com o produto do abate. Não alcança a entrada interestadual.
 - **Art. 674-A**: complementação de alíquota do Simples inclui IPI/frete na base e alcança uso/consumo e ativo; FECOEP na mesma data.
 - **Arts. 616-C-A / 616-C-B / 616-F / 616-G**: FECOEP não incide na antecipação sem encerramento nem no ativo; planilha do fundo só nas receitas com encerramento (normal) e nas do Simples.
 - **Portaria 390/2016**: códigos atuais do DAE (0108, 0146, 0153, 0110/0111, 0102, 0140; FECOEP 0145, 0119, 0143, 0150, 0142).
@@ -117,3 +121,12 @@ git push -u origin main
 ```
 
 Depois, em Settings › Pages, escolha a branch `main` (pasta raiz). No site publicado funcionam o cálculo, o espelho, o upload de XML, os materiais e a exportação; a busca automática no Portal Nacional continua só na versão local (INICIAR.bat), porque depende do certificado A1 guardado na máquina.
+
+## DIFAL com e sem Fundo, biscoitos e sincronização (07/10/2026, v1.27.0)
+
+- Na coluna Receita da nota (regime normal) há duas opções de DIFAL: **"Calcular como DIFAL — uso e consumo (com Fundo)"** (DAE 0111 + Fundo 0150) e **"Calcular como DIFAL — ativo imobilizado (sem Fundo)"** (DAE 0110). A única diferença é o adicional do Fundo de Combate à Pobreza, que incide no uso e consumo (art. 616-B, VII) e não no ativo (art. 616-C-B, II). No Passo 3 o DIFAL aparece em dois quadros: o ICMS do diferencial e o Fundo.
+- **Biscoitos (NCM 1905)**: industrializado (biscoito, bolacha, wafer, cookie, rosquinha) é substituído — antecipação com encerramento pelos arts. 720-C e 720-D do RICMS/SE (Prot. ICMS 53/2017), MVA 45% de UF não signatária e 30% vindo de AL, BA, CE, PB, PE, PI ou RN. Biscoito caseiro (polvilho, sequilho, goma, avoador, beiju) é tributado pela regra geral. As regras de NCM aceitam `mvaUf: { ufs: [...], mva }` para MVA que depende da UF de origem.
+- **Galinha e demais aves abatidas (NCM 0207, Anexo X item 10)**: antecipação com encerramento pelo art. 784, VIII, com a MVA do item 10 (43,57% / 39,09% / 31,61%), também para o optante do Simples (o art. 784 alcança todo atacadista ou varejista). Conferido no RICMS/SE atualizado até o Dec. 1.536/2026.
+- As apurações (espelho, ajustes por nota e XMLs) sincronizam em **tempo real** entre os usuários logados, como já acontecia com empresas, regras e parâmetros.
+- O filtro de notas não vem mais preenchido com o e-mail do login (autofill do navegador).
+- **Publicação**: uma versão só chega a quem usa o site depois de `versionar.ps1` + commit + `git push` (ver "Publicar como site"). Quem abre pelo INICIAR.bat na pasta do escritório vê a versão da pasta — por isso uma mudança pode aparecer num login e não nos outros.
