@@ -939,6 +939,12 @@ function limparAutofill() {
   if (mexeu && CONF.length) renderNotas();
 }
 limparAutofill(); setTimeout(limparAutofill, 600); setTimeout(limparAutofill, 2500);
+// Os filtros são textarea de uma linha (o gerenciador de senhas do Chrome não atua em textarea): Enter não quebra linha
+// e texto colado perde as quebras.
+document.querySelectorAll('textarea.filtro1').forEach(el => {
+  el.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+  el.addEventListener('input', () => { if (/[\r\n]/.test(el.value)) el.value = el.value.replace(/[\r\n]+/g, ' '); });
+});
 
 // ------------------------------------------------------------------ exportação
 function exportar() {

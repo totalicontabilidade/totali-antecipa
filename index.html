@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="js/firebase-config.js?v=1.27.0"></script>
+<script src="js/firebase-config.js?v=1.27.1"></script>
 <style>
   :root {
     --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
@@ -71,6 +71,8 @@
   .btn.sm { padding: 5px 10px; font-size: 12px; border-radius: 7px; } .btn.danger { background: #fff; color: var(--bad); border-color: var(--bad); }
   .fi { width: 100%; border: 1px solid #D1D5DB; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13.5px; background: #fff; color: var(--ink); }
   .fi[type=search] { -webkit-appearance: none; appearance: none; }
+  /* filtros como textarea de UMA linha: o gerenciador de senhas do Chrome não oferece e-mail/senha em textarea (ele ignorava autocomplete=off nos input) */
+  textarea.fi.filtro1 { resize: none; height: 35px; line-height: 17px; overflow: hidden; white-space: pre; display: inline-block; vertical-align: middle; font-family: inherit; }
   .fi:focus { outline: 2px solid var(--gold-2); border-color: var(--gold); }
   .fi-label { display: block; font-size: 11.5px; font-weight: 700; color: var(--ink-2); margin: 0 0 4px; text-transform: uppercase; letter-spacing: .06em; }
   .field { margin-bottom: 12px; }
@@ -245,7 +247,7 @@
           <div class="row">
             <select class="fi" id="filtroNotasRec" style="max-width:260px"><option value="">todas as receitas</option></select>
             <label class="small"><input type="checkbox" id="chkSoDif"> só com diferença vs SEFAZ</label>
-            <input class="fi" type="search" autocomplete="off" name="busca-notas" id="filtroNotas" placeholder="filtrar por nº, emitente, chave…" style="width:240px">
+            <textarea class="fi filtro1" rows="1" autocomplete="off" spellcheck="false" name="busca-notas" id="filtroNotas" placeholder="filtrar por nº, emitente, chave…" style="width:240px"></textarea>
           </div>
         </div>
         <div class="tblwrap"><table class="tbl" id="tblNotas"><thead><tr>
@@ -306,7 +308,7 @@
       </div>
       <div class="card">
         <div class="row" style="gap:10px;flex-wrap:wrap;margin-bottom:10px">
-          <input class="fi" type="search" autocomplete="off" name="busca-itens" id="filtroItens" placeholder="filtrar por produto, NCM, CFOP, CST, NF ou emitente" style="max-width:340px">
+          <textarea class="fi filtro1" rows="1" autocomplete="off" spellcheck="false" name="busca-itens" id="filtroItens" placeholder="filtrar por produto, NCM, CFOP, CST, NF ou emitente" style="max-width:340px"></textarea>
           <select class="fi" id="filtroItensRec" style="max-width:230px"><option value="">todas as receitas</option></select>
           <label class="small"><input type="checkbox" id="chkItensAlerta"> só com alerta</label>
           <label class="small"><input type="checkbox" id="chkItensAjust"> só ajustados</label>
@@ -333,7 +335,7 @@
       <div class="pagehdr"><div><h1>NCM · MVA · Alíquotas</h1><p>Regras por NCM (prefixo ou igual) e descrição do produto. As suas regras têm prioridade sobre as embutidas; menor prioridade vence.</p></div>
         <div class="row"><button class="btn ghost sm" id="btnImportRegras">Importar Excel/JSON</button><button class="btn ghost sm" id="btnExportRegras">Exportar</button><button class="btn" id="btnNovaRegra">+ Nova regra</button></div></div>
       <div class="card">
-        <div class="row" style="margin-bottom:10px"><input class="fi" type="search" autocomplete="off" name="busca-regras" id="filtroRegras" placeholder="buscar NCM, descrição, regime…" style="width:300px">
+        <div class="row" style="margin-bottom:10px"><textarea class="fi filtro1" rows="1" autocomplete="off" spellcheck="false" name="busca-regras" id="filtroRegras" placeholder="buscar NCM, descrição, regime…" style="width:300px"></textarea>
           <label class="small"><input type="checkbox" id="chkEmbutidas" checked> mostrar regras embutidas (RICMS/SE)</label>
           <span class="small muted">Teste um NCM: <input class="fi" type="search" autocomplete="off" name="teste-ncm" id="testeNcm" placeholder="ex. 02071400" style="width:120px;display:inline-block"> <span id="testeNcmRes"></span></span></div>
         <div class="tblwrap"><table class="tbl compact" id="tblRegras"><thead><tr><th>Prior.</th><th>NCM</th><th>Match</th><th>Descrição / padrão</th><th>Regime</th><th>MVA (4% · 7% · 12% · int.)</th><th>Alíq.</th><th>FECOEP</th><th>Origem</th><th></th></tr></thead><tbody></tbody></table></div>
@@ -588,20 +590,20 @@
 
 <div id="toast"></div>
 
-<script src="js/versao.js?v=1.27.0"></script>
-<script src="js/tabelas.js?v=1.27.0"></script>
-<script src="js/tabelas-fundamentos.js?v=1.27.0"></script>
-<script src="js/tabelas-cnae.js?v=1.27.0"></script>
-<script src="js/nfe.js?v=1.27.0"></script>
-<script src="js/materiais.js?v=1.27.0"></script>
-<script src="js/motor.js?v=1.27.0"></script>
-<script src="js/espelho.js?v=1.27.0"></script>
-<script src="js/exportar.js?v=1.27.0"></script>
-<script src="js/auditoria.js?v=1.27.0"></script>
-<script src="js/app.js?v=1.27.0"></script>
-<script src="js/app-regime.js?v=1.27.0"></script>
-<script src="js/app-materiais.js?v=1.27.0"></script>
-<script src="js/firebase-sync.js?v=1.27.0"></script>
-<script src="js/firebase-certs.js?v=1.27.0"></script>
+<script src="js/versao.js?v=1.27.1"></script>
+<script src="js/tabelas.js?v=1.27.1"></script>
+<script src="js/tabelas-fundamentos.js?v=1.27.1"></script>
+<script src="js/tabelas-cnae.js?v=1.27.1"></script>
+<script src="js/nfe.js?v=1.27.1"></script>
+<script src="js/materiais.js?v=1.27.1"></script>
+<script src="js/motor.js?v=1.27.1"></script>
+<script src="js/espelho.js?v=1.27.1"></script>
+<script src="js/exportar.js?v=1.27.1"></script>
+<script src="js/auditoria.js?v=1.27.1"></script>
+<script src="js/app.js?v=1.27.1"></script>
+<script src="js/app-regime.js?v=1.27.1"></script>
+<script src="js/app-materiais.js?v=1.27.1"></script>
+<script src="js/firebase-sync.js?v=1.27.1"></script>
+<script src="js/firebase-certs.js?v=1.27.1"></script>
 </body>
 </html>
