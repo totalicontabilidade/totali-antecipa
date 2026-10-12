@@ -426,6 +426,22 @@ const TABELAS_SE = {
     { id: 'comb-2710', prioridade: 5, ncm: '2710', match: 'inicia', descricao: 'Combustíveis — ICMS monofásico ad rem (Convênio CONFAZ), não antecipar por %',
       regime: 'nao_antecipa', mva: null, aliq: null, fecoep: 0, confirmar: true, fundamento: 'LC 192/2022; Convênio ICMS 199/2022' },
 
+    // ---------------------------------------------------------------------------------------------
+    // LIVROS, JORNAIS E PERIÓDICOS — IMUNIDADE (CF art. 150, VI, "d"; RICMS/SE art. 2º, I): o ICMS não
+    // incide, então não há antecipação nem complementação de alíquota, em qualquer regime. NCM 4901
+    // (livros e brochuras), 4902 (jornais e periódicos), 4903 (livros de ilustração infantis) e 4904
+    // (música impressa). O art. 2º, § 1º tira da imunidade os livros em branco, pautados ou de
+    // escrituração, as agendas, os catálogos e listas — normalmente NCM 4820, mas a descrição
+    // também exclui, porque o emitente às vezes classifica em 4901. O papel (4802/4810) NÃO entra
+    // aqui: a imunidade do papel depende de credenciamento no RECOPI (art. 2º, § 1º-A).
+    // ---------------------------------------------------------------------------------------------
+    ...['4901', '4902', '4903', '4904'].map(n => ({
+      id: 'imune-' + n, prioridade: 5, ncm: n, match: 'inicia', simplesTambem: true,
+      descExcluir: 'AGENDA|EM BRANCO|PAUTAD|RISCAD|CATALOGO|CAT\\u00c1LOGO|LISTA TELEF|CADERNO|LIVRO ATA|LIVRO CAIXA|LIVRO DE PONTO|LIVRO PONTO|DIARIO DE CLASSE|DI\\u00c1RIO DE CLASSE|PLANNER|BLOCO DE NOTA|FICHARIO|FICH\\u00c1RIO',
+      descricao: ({ 4901: 'Livros e brochuras (4901)', 4902: 'Jornais e publicações periódicas (4902)', 4903: 'Álbuns e livros de ilustração para crianças (4903)', 4904: 'Música manuscrita ou impressa (4904)' })[n] + ' — IMUNES: o ICMS não incide, sem antecipação nem complementação',
+      regime: 'nao_antecipa', mva: null, aliq: null, fecoep: 0, confirmar: false,
+      fundamento: 'CF/88, art. 150, VI, "d" (imunidade de livros, jornais e periódicos); RICMS/SE art. 2º, I. Não alcança livros em branco, pautados ou de escrituração, agendas, catálogos e listas (art. 2º, § 1º, II a IV), excluídos pela descrição' })),
+
   ],
 
   // Descrição amigável dos grupos de CFOP (para a memória de cálculo)
