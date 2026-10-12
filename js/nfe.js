@@ -44,6 +44,8 @@ const NFE = (() => {
       dhEmi: t(ide, 'dhEmi') || t(ide, 'dEmi'),
       natOp: t(ide, 'natOp'), tpNF: t(ide, 'tpNF'), idDest: t(ide, 'idDest'),
       finNFe: t(ide, 'finNFe'), indFinal: t(ide, 'indFinal'),
+      // NF-e referenciadas (ide/NFref/refNFe): numa NF de devolução, é a chave da nota original
+      refNFe: Array.from(ide ? ide.getElementsByTagName('*') : []).filter(e => e.localName === 'refNFe').map(e => (e.textContent || '').trim()).filter(Boolean),
       emit: {
         cnpj: t(emit, 'CNPJ') || t(emit, 'CPF'), nome: t(emit, 'xNome'), fant: t(emit, 'xFant'),
         uf: t(emit, 'enderEmit/UF'), mun: t(emit, 'enderEmit/xMun'), ie: t(emit, 'IE'), crt: t(emit, 'CRT'),

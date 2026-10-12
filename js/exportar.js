@@ -80,7 +80,7 @@ const EXPORTAR = (() => {
         if (MOTOR.receita(g.receita).difal) continue;            // sai na aba DIFAL, não no mapa do DIA
         const usaAcr = MOTOR.receita(g.receita).acrescimos;
         const direto = MOTOR.receita(g.receita).direto;
-        cell(ws, A(0, rr), g.nNF); cell(ws, A(2, rr), g.receitaNome); cell(ws, A(3, rr), g.fornecedor); cell(ws, A(4, rr), 1);
+        cell(ws, A(0, rr), g.nNF); if (g.devNF) cell(ws, A(1, rr), 'NF ' + g.devNF); cell(ws, A(2, rr), g.receitaNome); cell(ws, A(3, rr), g.fornecedor); cell(ws, A(4, rr), 1);
         cell(ws, A(5, rr), g.F, { z: money });
         if (usaAcr) { cell(ws, A(6, rr), g.G || 0, { z: money }); cell(ws, A(7, rr), g.H || 0, { z: money }); cell(ws, A(8, rr), g.I || 0, { z: money }); cell(ws, A(9, rr), g.J || 0, { z: money }); }
         const x = rr + 1;

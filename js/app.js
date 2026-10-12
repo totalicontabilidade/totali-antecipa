@@ -194,6 +194,8 @@ function badgeStatus(l) {
   let b = l.res.naoAntecipada ? '<span class="badge b-muted">não antecipada</span>' : '<span class="badge b-ok">calculada</span>';
   if (n) b += ` <span class="badge b-bad" title="alertas altos">${n} ⚠</span>`; else if (m) b += ` <span class="badge b-warn" title="alertas">${m} ⚠</span>`;
   if (!l.noEspelho) b += ' <span class="badge b-info" title="XML carregado mas não consta no espelho">fora do espelho</span>';
+  const dv = (apur().overrides[l.chave] || {}).devolucao;
+  if (dv) b += ' <span class="badge b-gold" title="quantidades devolvidas abatidas da nota original">devolução' + (dv.nNF ? ' NF ' + esc(dv.nNF) : '') + '</span>';
   return b;
 }
 
@@ -478,6 +480,24 @@ function abrirNota(chave) {
   let html = `<div class="row" style="justify-content:space-between;margin-bottom:12px">
     <div class="stat"><span>Valor NF <b>${fmtR(n.tot.vNF)}</b></span><span>Produtos <b>${fmtR(n.tot.vProd)}</b></span><span>Desconto <b>${fmtR(n.tot.vDesc)}</b></span><span>IPI <b>${fmtR(n.tot.vIPI)}</b></span><span>Frete <b>${fmtR(n.tot.vFrete)}</b></span><span>ICMS destacado <b>${fmtR(n.tot.vICMS)}</b></span><span>ST <b>${fmtR(n.tot.vST)}</b></span>${l.esp ? `<span>SEFAZ: <b>${esc(l.esp.forma)}</b> = <b>${fmtR(l.esp.vlIcmsCalc)}</b></span>` : ''}</div>
     <div class="kpi" style="padding:10px 16px"><div class="k">Antecipado + FECOEP</div><div class="v" style="font-size:20px">${fmtR(r.totais.devido)} <span style="font-size:13px;opacity:.7">+ ${fmtR(r.totais.fecoep)}</span></div></div></div>`;
+  // ---- Devolução ("Tem devolução?"): NF de devolução abatida da nota original, item a item ----
+  const dv = (A.overrides[n.chave] || {}).devolucao || null;
+  const qDevTot = dv ? r.itens.reduce((s, it) => s + (it.qtdDevolvida || 0), 0) : 0;
+  html += `<div class="card" style="margin-bottom:12px;padding:10px 14px${dv ? ';border-color:var(--gold)' : ''}">
+    <div class="row" style="justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="row" style="gap:8px;align-items:center"><b>Tem devolução?</b> <select class="fi" id="devSel" style="width:auto;padding:4px 8px"><option value="nao" ${dv ? '' : 'selected'}>Não</option><option value="sim" ${dv ? 'selected' : ''}>Sim</option></select>
+        <span class="small muted">Se sim, a quantidade devolvida de cada item é abatida da nota original e todos os valores do item entram na proporção.</span></div>
+      ${dv ? `<div class="row" style="gap:6px"><button class="btn sm soft" id="devXml" title="Lê a NF-e de devolução e casa os itens com a nota original pelo código, pela descrição ou pelo NCM">⬆ XML da NF de devolução</button><button class="btn sm ghost" id="devTotal" title="Todos os itens devolvidos por inteiro">Devolução total</button><button class="btn sm ghost" id="devRemover">Remover devolução</button></div>` : ''}
+    </div>
+    ${dv ? `<div class="grid g3" style="gap:8px;margin-top:8px">
+      <div class="field"><label class="fi-label">NF de devolução nº</label><input class="fi" id="devNNF" autocomplete="off" value="${esc(dv.nNF || '')}" placeholder="nº da NF-e de devolução"></div>
+      <div class="field"><label class="fi-label">Chave de acesso (opcional)</label><input class="fi mono" id="devChave" autocomplete="off" value="${esc(dv.chave || '')}" placeholder="44 dígitos"></div>
+      <div class="field"><label class="fi-label">Data (opcional)</label><input class="fi" type="date" id="devData" value="${esc(dv.data || '')}"></div></div>
+      <div class="tblwrap" style="max-height:260px;margin-top:6px"><table class="tbl compact"><thead><tr><th>#</th><th>Produto</th><th class="num">Qtd na nota</th><th class="num">Qtd devolvida</th><th class="num">Fica</th><th class="num">Valor que fica</th></tr></thead><tbody>
+      ${r.itens.map(it => `<tr><td>${it.item.nItem}</td><td>${esc(it.item.xProd)}</td><td class="num">${it.qtdNota} ${esc(it.item.uCom || '')}</td><td class="num"><input class="fi" type="number" min="0" max="${it.qtdNota}" step="0.0001" style="width:110px;padding:3px 6px;text-align:right" data-dev="${it.item.nItem}" value="${dv.itens && dv.itens[it.item.nItem] != null ? dv.itens[it.item.nItem] : ''}" placeholder="0"></td><td class="num">${it.qtdUsada}</td><td class="num">${fmt(it.F)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="small muted" style="margin-top:6px">${dv.aviso ? '<span class="badge b-warn">' + esc(dv.aviso) + '</span> ' : ''}Abatido nesta nota: <b>${qDevTot}</b> unidade(s) devolvida(s). A NF de devolução sai na coluna B (Devolução/desfazimento) do mapa da SEFAZ.</div>` : ''}
+  </div>`;
   if (alertasNota.length) html += `<div style="margin-bottom:12px">${alertasNota.map(a => `<div class="alert ${a.nivel}">Item ${a.nItem}: ${esc(a.msg)}</div>`).join('')}</div>`;
   html += `<div class="tblwrap" style="max-height:none"><table class="tbl compact"><thead><tr><th>#</th><th>Produto</th><th>NCM</th><th>CFOP</th><th>CST</th><th class="num">Valor</th><th class="num">IPI</th><th class="num">L orig.</th><th class="num">K</th><th class="num">MVA</th><th class="num">M int.</th><th class="num">P base</th><th class="num">Q déb.</th><th class="num">R créd.</th><th class="num">S antecip.</th><th class="num">FECOEP</th><th>Receita</th></tr></thead><tbody>`;
   for (const it of r.itens) {
@@ -515,6 +535,16 @@ function abrirNota(chave) {
     </tbody></table>
     <div class="small muted" style="margin-top:10px">Clique no nome do produto para ver a memória de cálculo passo a passo e ajustar o item. Ajustes ficam salvos nesta apuração.</div>`;
   $('mnBody').innerHTML = html;
+  // devolução: tudo fica em overrides[chave].devolucao = { nNF, chave, data, itens: { nItem: qtdDevolvida } }
+  const salvaDev = fn => { const o = A.overrides; o[n.chave] = { ...(o[n.chave] || {}) }; fn(o[n.chave]); if (!Object.keys(o[n.chave]).length) delete o[n.chave]; salvar(); recalcular(); abrirNota(chave); };
+  $('devSel').onchange = () => salvaDev(o => { if ($('devSel').value === 'sim') { if (!o.devolucao) o.devolucao = { nNF: '', chave: '', data: '', itens: {} }; } else delete o.devolucao; });
+  if (dv) {
+    $('devRemover').onclick = () => salvaDev(o => { delete o.devolucao; });
+    $('devTotal').onclick = () => salvaDev(o => { o.devolucao.itens = {}; r.itens.forEach(it => o.devolucao.itens[it.item.nItem] = it.qtdNota); });
+    ['devNNF', 'devChave', 'devData'].forEach(id => $(id).onchange = () => salvaDev(o => { o.devolucao.nNF = $('devNNF').value.trim(); o.devolucao.chave = $('devChave').value.replace(/\D/g, ''); o.devolucao.data = $('devData').value; }));
+    $('mnBody').querySelectorAll('[data-dev]').forEach(el => el.onchange = () => salvaDev(o => { const v = parseFloat(String(el.value).replace(',', '.')); o.devolucao.itens = o.devolucao.itens || {}; if (!(v > 0)) delete o.devolucao.itens[el.dataset.dev]; else o.devolucao.itens[el.dataset.dev] = v; }));
+    $('devXml').onclick = () => { const i = document.createElement('input'); i.type = 'file'; i.accept = '.xml'; i.onchange = async () => { const f = i.files[0]; if (!f) return; try { const d = NFE.parse(await f.text(), f.name); aplicarXmlDevolucao(n, d); } catch (e) { showToast('Não consegui ler o XML: ' + e.message, 'error'); } }; i.click(); };
+  }
   $("mnBody").querySelectorAll("[data-aplicafin]").forEach(b => b.onclick = () => { const o = A.overrides; const k = b.dataset.aplicafin; o[k] = { ...(o[k] || {}), finalidade: b.dataset.fin }; salvar(); recalcular(); abrirNota(chave); });
   $("mnBody").querySelectorAll("[data-memo]").forEach(el => el.onclick = () => { const tr = $('memo-' + el.dataset.memo); tr.style.display = tr.style.display === 'none' ? '' : 'none'; });
   $('mnBody').querySelectorAll('[data-ov]').forEach(el => el.onchange = () => {
@@ -525,6 +555,32 @@ function abrirNota(chave) {
     salvar(); recalcular(); abrirNota(chave);
   });
   openModal('modal-nota');
+}
+
+// Lê a NF-e de devolução e casa cada item dela com um item da nota original: pelo código do produto, pela
+// descrição igual, pelo NCM (quando só há um item com aquele NCM) ou por palavras em comum na descrição.
+// A quantidade devolvida vai para overrides[chave].devolucao.itens; o que não casar fica para digitar.
+function aplicarXmlDevolucao(n, d) {
+  const A = apur(); const o = A.overrides; o[n.chave] = { ...(o[n.chave] || {}) };
+  const dev = o[n.chave].devolucao = { ...(o[n.chave].devolucao || {}), nNF: d.nNF, chave: d.chave, data: d.dataEmissao || '', itens: {} };
+  const norm = s => String(s || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]+/g, ' ').trim();
+  const avisos = [], semPar = [];
+  if (d.refNFe && d.refNFe.length && !d.refNFe.includes(n.chave)) avisos.push('o XML referencia outra NF-e (nº ' + String(parseInt(d.refNFe[0].slice(25, 34), 10)) + '), não esta');
+  else if (!d.refNFe || !d.refNFe.length) avisos.push('o XML não traz referência (refNFe) à nota original');
+  if (d.emit && d.emit.cnpj && n.dest && n.dest.cnpj && d.emit.cnpj !== n.dest.cnpj) avisos.push('o emitente da devolução não é o destinatário da nota original');
+  for (const di of d.itens) {
+    const mesmoNcm = n.itens.filter(it => it.ncm === di.ncm);
+    const alvo = n.itens.find(it => it.cProd && it.cProd === di.cProd)
+      || mesmoNcm.find(it => norm(it.xProd) === norm(di.xProd))
+      || (mesmoNcm.length === 1 ? mesmoNcm[0] : null)
+      || mesmoNcm.find(it => { const a = norm(it.xProd).split(' '), b = norm(di.xProd).split(' '); return a.filter(w => w.length > 2 && b.includes(w)).length >= 2; });
+    if (!alvo) { semPar.push(di.xProd); continue; }
+    dev.itens[alvo.nItem] = Math.round(((dev.itens[alvo.nItem] || 0) + (di.qCom || 0)) * 10000) / 10000;
+  }
+  if (semPar.length) avisos.push(semPar.length + ' item(ns) do XML sem par na nota original — informe a quantidade à mão: ' + semPar.slice(0, 3).join('; '));
+  if (avisos.length) dev.aviso = avisos.join(' · '); else delete dev.aviso;
+  salvar(); recalcular(); abrirNota(n.chave);
+  showToast('NF de devolução ' + d.nNF + ' lida: ' + Object.keys(dev.itens).length + ' item(ns) casado(s) com a nota original.', semPar.length ? '' : 'success');
 }
 
 // ------------------------------------------------------------------ mapa SEFAZ na tela
@@ -555,7 +611,7 @@ function renderMapa() {
       <tr><th>NOTA FISCAL DE ENTRADA</th><th>Devolução/ desfazimento</th><th>Receita a ser antecipada</th><th>IDENTIFICAÇÃO DO FORNECEDOR</th><th>Quant.</th><th>Valor da Nota Fiscal/ Base de cálculo</th><th>IPI</th><th>Frete</th><th>Seguro</th><th>OUTRAS DESPESAS</th><th>Preço Composto</th><th>Alíquota de origem</th><th>Carga tributária de destino</th><th>Valor da pauta</th><th>Margem de Agreg. MVA</th><th>Base de Cálculo</th><th>Débito do Imposto</th><th>Crédito da NF de origem</th><th>ICMS a ser recolhido</th><th>ICMS a ser devolvido</th></tr>
       <tr class="tot"><td colspan="15" style="text-align:right">TOTAIS</td><td class="n">${fmt(CONS.base)}</td><td class="n">${fmt(CONS.debito)}</td><td class="n">${fmt(CONS.credito)}</td><td class="n">${fmt(MOTOR.r2(CONS.debito - CONS.credito))}</td><td class="n">0,00</td></tr>`;
   let linhas = 0;
-  for (const r of RES) { if (r.ignorada) continue; for (const g of r.linhasMapa) { linhas++; const acr = MOTOR.receita(g.receita).acrescimos; h += `<tr><td>${esc(g.nNF)}</td><td></td><td>${esc(g.receitaNome)}</td><td>${esc(g.fornecedor)}</td><td class="n">1</td><td class="n">${fmt(g.F)}</td><td class="n">${acr ? fmt(g.G) : ''}</td><td class="n">${acr ? fmt(g.H) : ''}</td><td class="n">${acr ? fmt(g.I) : ''}</td><td class="n">${acr ? fmt(g.J) : ''}</td><td class="n">${fmt(g.K)}</td><td class="n">${fmtP(g.L)}</td><td class="n">${fmtP(g.M)}</td><td class="n">${g.N ? fmt(g.N) : ''}</td><td class="n">${g.O ? fmtP(g.O) : ''}</td><td class="n">${fmt(g.P)}</td><td class="n">${fmt(g.Q)}</td><td class="n">${fmt(g.R)}</td><td class="n"><b>${fmt(g.S)}</b></td><td class="n">0,00</td></tr>`; } }
+  for (const r of RES) { if (r.ignorada) continue; for (const g of r.linhasMapa) { linhas++; const acr = MOTOR.receita(g.receita).acrescimos; h += `<tr><td>${esc(g.nNF)}</td><td>${g.devNF ? 'NF ' + esc(g.devNF) : ''}</td><td>${esc(g.receitaNome)}</td><td>${esc(g.fornecedor)}</td><td class="n">1</td><td class="n">${fmt(g.F)}</td><td class="n">${acr ? fmt(g.G) : ''}</td><td class="n">${acr ? fmt(g.H) : ''}</td><td class="n">${acr ? fmt(g.I) : ''}</td><td class="n">${acr ? fmt(g.J) : ''}</td><td class="n">${fmt(g.K)}</td><td class="n">${fmtP(g.L)}</td><td class="n">${fmtP(g.M)}</td><td class="n">${g.N ? fmt(g.N) : ''}</td><td class="n">${g.O ? fmtP(g.O) : ''}</td><td class="n">${fmt(g.P)}</td><td class="n">${fmt(g.Q)}</td><td class="n">${fmt(g.R)}</td><td class="n"><b>${fmt(g.S)}</b></td><td class="n">0,00</td></tr>`; } }
   if (!linhas) h += '<tr><td colspan="20" style="text-align:center;color:#888;padding:20px">Sem linhas — carregue XMLs na apuração.</td></tr>';
   h += '</table></div>';
   $('mapaSefaz').innerHTML = h;

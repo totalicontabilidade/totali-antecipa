@@ -293,14 +293,21 @@ const MOTOR = (() => {
     // Quantidade ajustada (ov.qtd): devolução parcial, quebra ou item recusado — tudo é reduzido na mesma proporção,
     // como o escritório faz no mapa (Central Net mai/2026: 1 das 10 fontes devolvida, base de 10 para 9 unidades).
     const qNota = item.qCom > 0 ? item.qCom : 1;
-    const qUsada = (ov.qtd != null && ov.qtd >= 0) ? ov.qtd : qNota;
+    // Devolução informada na NOTA ("Tem devolução?"): a quantidade devolvida de cada item, lida do XML da NF de
+    // devolução ou digitada, é abatida da nota original. A quantidade ajustada à mão no item (ov.qtd) prevalece.
+    const dev = ovNota && ovNota.devolucao ? ovNota.devolucao : null;
+    const qDev = dev && dev.itens && dev.itens[item.nItem] != null ? Math.max(0, Math.min(qNota, parseFloat(dev.itens[item.nItem]) || 0)) : 0;
+    const qUsada = (ov.qtd != null && ov.qtd >= 0) ? ov.qtd : (qDev > 0 ? Math.round((qNota - qDev) * 10000) / 10000 : qNota);
     const fatorQtd = qUsada === qNota ? 1 : (qUsada / qNota);
     const px = v => r2((v || 0) * fatorQtd);
     const F = px(item.vProd - item.vDesc);
     const G = px(item.vIPI), H = px(item.vFrete), I = px(item.vSeg), J = px(item.vOutro);
     const usaAcr = !!R.acrescimos;
     const K = usaAcr ? r2(F + G + H + I + J) : F;
-    if (fatorQtd !== 1) alertas.push({ nivel: 'medio', msg: 'Quantidade ajustada de ' + qNota + ' para ' + qUsada + ' ' + (item.uCom || 'un') + ': todos os valores do item entram na proporção de ' + (fatorQtd * 100).toFixed(2).replace('.', ',') + '%. Use para devolução parcial, quebra ou recusa.' });
+    const porDevolucao = ov.qtd == null && qDev > 0;
+    if (fatorQtd !== 1) alertas.push({ nivel: porDevolucao ? 'baixo' : 'medio', msg: porDevolucao
+      ? 'Devolução' + (dev.nNF ? ' (NF ' + dev.nNF + ')' : '') + ': ' + qDev + ' de ' + qNota + ' ' + (item.uCom || 'un') + ' devolvida(s), ficam ' + qUsada + ' — todos os valores do item entram na proporção de ' + (fatorQtd * 100).toFixed(2).replace('.', ',') + '%' + (qUsada === 0 ? ' (item devolvido por inteiro: nada a antecipar)' : '') + '.'
+      : 'Quantidade ajustada de ' + qNota + ' para ' + qUsada + ' ' + (item.uCom || 'un') + ': todos os valores do item entram na proporção de ' + (fatorQtd * 100).toFixed(2).replace('.', ',') + '%. Use para devolução parcial, quebra ou recusa.' });
 
     // ---- Alíquota de origem (L) e crédito (R) ----
     let L = item.icms.pICMS, credito = item.icms.vICMS, origemCredito = 'ICMS destacado na nota (vICMS)';
@@ -484,7 +491,7 @@ const MOTOR = (() => {
     mem.push({ passo: '2. Regra do produto', txt: (ncmInfo && ncmInfo.descricao ? 'NCM ' + item.ncm + ' = ' + ncmInfo.descricao + ' · ' : '') + (regra ? regra.descricao + ' [' + regra.fundamento + ']' : 'Nenhuma regra específica para o NCM — regra geral.') + (stTab && stTab.linhas.length && regra && regra.fonte !== 'st_se' ? ' · consta da planilha ST/SE (' + stTab.linhas[0].segmento + ', MVA ' + stTab.linhas[0].mva + '%)' : '') });
     mem.push({ passo: '3. Receita (coluna C do mapa)', txt: R.titulo + (R.cod ? ' · código ' + R.cod : '') + ' — ' + rec.motivo });
     if (rec.id !== 'nao_antecipa') {
-      if (fatorQtd !== 1) mem.push({ passo: '3b. Quantidade ajustada', txt: qNota + ' ' + (item.uCom || 'un') + ' na nota → ' + qUsada + ' considerada(s) (devolução parcial/quebra): valores na proporção de ' + (fatorQtd * 100).toFixed(2).replace('.', ',') + '%' });
+      if (fatorQtd !== 1) mem.push({ passo: porDevolucao ? '3b. Devolução abatida' : '3b. Quantidade ajustada', txt: qNota + ' ' + (item.uCom || 'un') + ' na nota' + (porDevolucao ? ' − ' + qDev + ' devolvida(s)' + (dev.nNF ? ' pela NF ' + dev.nNF : '') : '') + ' → ' + qUsada + ' considerada(s)' + (porDevolucao ? '' : ' (devolução parcial/quebra)') + ': valores na proporção de ' + (fatorQtd * 100).toFixed(2).replace('.', ',') + '%' });
       mem.push({ passo: '4. Formação do preço', txt: 'F valor = ' + f(F) + (usaAcr ? ' · G IPI = ' + f(G) + ' · H frete = ' + f(H) + ' · I seguro = ' + f(I) + ' · J outras = ' + f(J) + ' → K = ' + f(K) : ' → K = F = ' + f(K) + ' (sem encerramento: IPI/frete/seguro não entram na base — manual da SEFAZ, itens 7 a 10)') });
       mem.push({ passo: '5. Alíquota de origem (L)', txt: L + '% — ' + origemCredito });
       mem.push({ passo: '6. Carga de destino (M)', txt: M + '% — ' + origemM });
@@ -508,7 +515,7 @@ const MOTOR = (() => {
     return {
       chave: nota.chave, nItem: item.nItem, item, tri, regra, receita: rec.id, cod: R.cod, receitaNome: R.nome, motivo: rec.motivo,
       F, G, H, I, J, K, L, M, N, O, P: Pb, Q, R: credito, S, fecoep, fecoepPts, fecoepBase, usaAcrescimos: usaAcr, usouPauta,
-      qtdNota: qNota, qtdUsada: qUsada, fatorQtd,
+      qtdNota: qNota, qtdUsada: qUsada, fatorQtd, qtdDevolvida: qDev,
       memoria: mem, alertas, override: ov, ncmInfo, stTab: stTab && stTab.linhas.length ? stTab.linhas[0] : null, beneficios: benef, sugestaoFinalidade: sugFin,
     };
   }
@@ -522,7 +529,7 @@ const MOTOR = (() => {
     for (const r of itens) {
       if (r.receita === 'nao_antecipa') continue;
       const k = [r.receita, r.L, r.M, r.O].join('|');
-      if (!grupos[k]) grupos[k] = { receita: r.receita, cod: r.cod, receitaNome: r.receitaNome, nNF: nota.nNF, fornecedor: nota.emit.nome, E: 1, F: 0, G: 0, H: 0, I: 0, J: 0, K: 0, L: r.L, M: r.M, N: 0, O: r.O, P: 0, Q: 0, R: 0, S: 0, T: 0, fecoep: 0, itens: [] };
+      if (!grupos[k]) grupos[k] = { receita: r.receita, cod: r.cod, receitaNome: r.receitaNome, nNF: nota.nNF, fornecedor: nota.emit.nome, devNF: ovNota.devolucao && ovNota.devolucao.nNF ? String(ovNota.devolucao.nNF) : '', E: 1, F: 0, G: 0, H: 0, I: 0, J: 0, K: 0, L: r.L, M: r.M, N: 0, O: r.O, P: 0, Q: 0, R: 0, S: 0, T: 0, fecoep: 0, itens: [] };
       const g = grupos[k];
       ["F", "G", "H", "I", "J", "K", "N", "P", "Q", "R", "S", "fecoep"].forEach(c => g[c] = g[c] + r[c]);
       g.itens.push(r.nItem);
@@ -540,7 +547,7 @@ const MOTOR = (() => {
     for (const r of itens) if (r.receita === 'nao_antecipa' && r.fecoep > 0) tot.fecoep = r2(tot.fecoep + r.fecoep);
     const alertas = []; itens.forEach(i => i.alertas.forEach(a => alertas.push({ ...a, nItem: i.nItem })));
     const naoAntecipada = itens.length > 0 && itens.every(i => i.receita === 'nao_antecipa');
-    return { nota, itens, linhasMapa, totais: tot, alertas, naoAntecipada, ignorada: !!ovNota.ignorar || !!ovNota.situacao, situacao: ovNota.situacao || "" };
+    return { nota, itens, linhasMapa, totais: tot, alertas, naoAntecipada, ignorada: !!ovNota.ignorar || !!ovNota.situacao, situacao: ovNota.situacao || "", devolucao: ovNota.devolucao || null };
   }
 
   // Consolida várias notas (uma competência)
