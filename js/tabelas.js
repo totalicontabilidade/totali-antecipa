@@ -414,6 +414,17 @@ const TABELAS_SE = {
     { id: 'sup-jetski', prioridade: 19, ncm: '950629', match: 'inicia', descPadrao: 'JET SKI|JETSKI|JET-SKI|ESQUI AQUAT|ESQUI AQUÁT', descMatch: 'contem',
       descricao: 'Jet ski e esqui aquático — alíquota interna 28% + FECOEP 2 pontos', regime: null, encerra: false, mva: null, aliq: 28, fecoep: 2, confirmar: false,
       fundamento: 'RICMS/SE, art. 40, VII-B, "b", item 6 (28%); art. 40-C, VI (2 pontos)' },
+    // Botão e passante de metal vêm de alguns fornecedores classificados em 7117 (bijuteria), mas são AVIAMENTO,
+    // não bijuteria: o NCM correto é 9606.22 (botão de metal comum) ou 8308.90 (passante, fivela). Decisão do
+    // escritório (PL Pinto, set/2026): vale o produto, não o NCM errado da nota — alíquota modal de 19% e 1 ponto
+    // de FECOEP. Vence a regra de bijuteria (prioridade 20) por ter prioridade menor. Brinco, colar, pulseira
+    // e abotoadura continuam bijuteria de verdade.
+    { id: 'avi-botao-7117', prioridade: 17, ncm: '7117', match: 'inicia', simplesTambem: true,
+      descPadrao: 'BOTAO|BOTÃO|PASSANTE', descMatch: 'contem',
+      descExcluir: 'BRINCO|COLAR|PULSEIRA|ANEL|PINGENTE|CORRENTE|ABOTOADURA|TORNOZELEIRA|BROCHE',
+      descricao: 'Botão e passante de metal classificados em 7117 — aviamento, não bijuteria: alíquota modal 19% + FECOEP 1 ponto',
+      regime: null, encerra: false, mva: null, aliq: 19, fecoep: null, confirmar: false,
+      fundamento: 'Decisão do escritório (out/2026): botão e passante são aviamento, não bijuteria (NCM correto 9606.22 ou 8308.90), então a alíquota de 28% do art. 40, VII-B, "d" e os 2 pontos do art. 40-C, XVI não se aplicam, mesmo com o NCM 7117 na nota. Vale a alíquota modal do art. 40, I (19%) e 1 ponto do art. 40-D. Se a SEFAZ cobrar pelo NCM da nota, a diferença aparece contra o espelho' },
     { id: 'sup-surfe', prioridade: 20, ncm: '950629', match: 'inicia',
       descricao: 'Prancha de surfe — alíquota interna 25% + FECOEP 2 pontos', regime: null, encerra: false, mva: null, aliq: 25, fecoep: 2, confirmar: false,
       fundamento: 'RICMS/SE, art. 40, VII-A, "b" (25%); art. 40-C, XIV (2 pontos)' },
