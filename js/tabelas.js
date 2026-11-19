@@ -342,9 +342,12 @@ const TABELAS_SE = {
     //     não é produto industrializado de farinha de trigo, então fica fora da ST. A regra vem antes
     //     (prioridade 14) e com semSt:true, para o aviso da planilha do Portal da ST não aparecer.
     // ---------------------------------------------------------------------------------------------
-    { id: "bisc-caseiro", prioridade: 14, ncm: "1905", match: "inicia", simplesTambem: false, semSt: true,
-      descPadrao: "POLVILHO|SEQUILHO|CASEIRO|CASEIRA|AVOADOR|GOMA|BEIJU|TAPIOCA|ARTESANAL", descMatch: "contem",
-      descricao: "Biscoito caseiro — polvilho, sequilho, goma, avoador, beiju (1905): TRIBUTADO pela regra geral, não é substituído",
+    // O nome vem escrito de vários jeitos nas notas (POLVILHO, POVILHO, SEQUILHO...) e o NCM varia dentro do
+    // capítulo 19, por isso a regra casa o capítulo todo e quem decide é a descrição.
+    { id: "bisc-caseiro", prioridade: 14, ncm: "19", match: "inicia", simplesTambem: false, semSt: true,
+      // POLV e POV só valem como palavra inteira (BISC.POLV. PAJUCARA): "POLVILHADO" (açúcar por cima) é industrializado
+      descRegex: "POLVILHO|POVILHO|PVILHO|SEQUILHO|SEQUILIO|CASEIR|AVOADOR|BEIJU|TAPIOCA|ARTESANAL|\\bGOMA\\b|\\bPOLV\\b|\\bPOV\\b",
+      descricao: "Biscoito caseiro — polvilho/povilho (POLV.), sequilho, goma, avoador, beiju (capítulo 19): TRIBUTADO pela regra geral, não é substituído",
       regime: null, mva: null, aliq: null, fecoep: null, confirmar: false,
       fundamento: "Prática do escritório (out/2026): biscoito caseiro não é derivado industrializado de farinha de trigo, então fica fora da ST dos arts. 720-A a 720-G do RICMS/SE (Prot. ICMS 53/2017) e segue a receita normal da empresa (antecipação sem encerramento no regime normal; complementação no Simples)" },
     ...[

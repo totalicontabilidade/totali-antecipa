@@ -68,6 +68,8 @@ const MOTOR = (() => {
       if (!okNcm) return false;
       // descExcluir: a DESCRIÇÃO do produto manda mais que o CEST/NCM da nota, que o emitente às vezes carimba errado
       if (rg.descExcluir && new RegExp(rg.descExcluir).test(desc)) return false;
+      // descRegex: expressão regular na descrição (limite de palavra, abreviações como "POLV."); sem ela vale o descPadrao
+      if (rg.descRegex) return new RegExp(rg.descRegex).test(desc);
       if (rg.descPadrao) {
         // várias alternativas separadas por "|" (ex.: "MILHO|FUBA"): basta uma casar
         const pats = String(rg.descPadrao).toUpperCase().split('|').map(s => s.trim()).filter(Boolean);
@@ -257,7 +259,7 @@ const MOTOR = (() => {
         if (!aplicar && (!regra || (regra.regime == null && !regra.semSt))) {
           alertas.push({ nivel: confiavel ? 'medio' : 'baixo', msg: 'NCM ' + item.ncm + (item.cest ? ' / CEST ' + item.cest : '') + (pr.exato ? '' : ' (pelo prefixo ' + pr.prefixo + ')') + (pr.cestOk ? '' : ' — CEST da nota diferente do da planilha') + ' consta do Portal Nacional da ST (SE): segmento ' + (l.segmento || '?') + (mvaOrig != null ? ', MVA-ST ' + mvaOrig + '% (origem ' + aliqInter + '%)' : (l.pfc ? ', pauta PFC R$ ' + l.pfc : ', sem MVA')) + (l.fecoep != null ? ', FECOEP ' + l.fecoep + ' pt' : '') + '. Aplicada a regra geral; se for ST sem retenção (art. 784, II), altere a receita do item para "Antecip. com encer." ou ligue "aplicar" em Parâmetros.' });
         }
-        if (aplicar && (!regra || regra.regime == null)) {
+        if (aplicar && (!regra || (regra.regime == null && !regra.semSt))) {
           regra = { id: 'st_portal:' + l.cest, prioridade: 25, ncm: item.ncm, match: 'igual', fonte: 'st_portal', tabela: true,
             descricao: 'Portal da ST/SE — ' + (l.segmento || '') + ' CEST ' + l.cest + ': ' + String(l.descricao || '').slice(0, 70),
             regime: 'antecip_encer', encerra: true, mva: { 4: l.mva4, 7: l.mva7, 12: l.mva12, interna: l.mva_int }, aliq: l.aliq_interna != null ? l.aliq_interna : null,
@@ -272,10 +274,10 @@ const MOTOR = (() => {
       const linhaTab = stTab && stTab.linhas.length ? stTab.linhas[0] : null;
       const exato = !!(stTab && stTab.exato && linhaTab && (!item.cest || !linhaTab.cest || String(linhaTab.cest).replace(/\D/g, '') === item.cest));
       const aplicar = P.tabelaSt === 'aplicar' && exato && linhaTab && linhaTab.mva != null;
-      if (linhaTab && !aplicar && (!regra || regra.regime == null)) {
+      if (linhaTab && !aplicar && (!regra || (regra.regime == null && !regra.semSt))) {
         alertas.push({ nivel: exato ? 'medio' : 'baixo', msg: 'NCM ' + item.ncm + (exato ? '' : ' (pelo prefixo ' + stTab.prefixo + ')') + ' consta da planilha de ST/SE do Fiscal Certo — segmento ' + (linhaTab.segmento || '?') + (linhaTab.mva != null ? ', MVA ' + linhaTab.mva + '%' : ', sem MVA (pauta/PMPF)') + '. Aplicada a regra geral; se for produto com ST/encerramento, altere a receita do item ou cadastre a regra em NCM/MVA.' });
       }
-      if (aplicar && (!regra || regra.regime == null)) {
+      if (aplicar && (!regra || (regra.regime == null && !regra.semSt))) {
         const l = stTab.linhas[0];
         regra = { id: 'st_se:' + l.ncm, prioridade: 25, ncm: l.ncm, match: 'inicia', fonte: 'st_se', tabela: true,
           descricao: 'ST em SE — segmento ' + (l.segmento || '?') + (l.trecho ? ': ' + l.trecho.slice(0, 80) : ''),
