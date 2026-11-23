@@ -35,7 +35,7 @@ const MOTOR = (() => {
   };
 
   const EMPRESA_PADRAO = {
-    cnpj: '', ie: '', nome: '', uf: 'SE', regime: 'normal', perfil: 'apto', cestaOptante: false,
+    cnpj: '', ie: '', nome: '', uf: 'SE', reducaoMeEpp: false, regime: 'normal', perfil: 'apto', cestaOptante: false,
     // Art. 784, § 3º c/c Anexo X, itens 03 e 04: açougueiro, ambulante, barraqueiro, bodegueiro,
     // cantina, clube social, feirante, microempresa estadual e bloco carnavalesco. Desligado por
     // padrão — é o cadastro da empresa que liga.
@@ -411,10 +411,11 @@ const MOTOR = (() => {
       if (m != null) { O = m; origemO = 'MVA do produto — ' + regra.descricao + ' (origem ' + Lmva + '%' + (L !== Lmva ? ', alíquota interestadual da UF — a nota não destaca ICMS' : '') + porUf + ')'; }
       else if (regra && regra.mvaOriginal != null) {
         const mo = regra.mvaOriginal;
-        if (P.ajustarMva && L > 0 && M < 100 && L < M) {
+        // Bahia, RICMS/BA art. 295, § 3º: remetente optante do Simples Nacional usa a "MVA ST original", sem ajuste (Conv. ICMS 35/11)
+        if (P.ajustarMva && L > 0 && M < 100 && L < M && !(isBA && tri.emitenteSimples)) {
           O = r2(((1 + mo / 100) * (1 - L / 100) / (1 - M / 100) - 1) * 100);
-          origemO = 'MVA ajustada = [(1 + ' + mo + '%) × (1 − ' + L + '%) ÷ (1 − ' + M + '%)] − 1 = ' + O + '% (Convênio ICMS 142/2018, cláusula 11; MVA original ' + mo + '% da planilha ST/SE)';
-        } else { O = mo; origemO = 'MVA original ' + mo + '% da planilha oficial de ST/SE (sem ajuste)'; }
+          origemO = 'MVA ajustada = [(1 + ' + mo + '%) × (1 − ' + L + '%) ÷ (1 − ' + M + '%)] − 1 = ' + O + '% (' + (isBA ? 'RICMS/BA, art. 289, § 14' : 'Convênio ICMS 142/2018, cláusula 11') + '; MVA ST original ' + mo + '%' + (isBA ? '' : ' da planilha ST/SE') + ')';
+        } else { O = mo; origemO = isBA ? ('MVA ST original ' + mo + '%, sem ajuste' + (tri.emitenteSimples ? ' — remetente optante do Simples Nacional (RICMS/BA, art. 295, § 3º)' : '')) : 'MVA original ' + mo + '% da planilha oficial de ST/SE (sem ajuste)'; }
       }
       else if (regra && regra.fonte === 'st_se') { O = 0; origemO = 'produto de ST em SE sem MVA na planilha oficial (segmento ' + (stTab && stTab.linhas[0] ? stTab.linhas[0].segmento : '?') + ') — usa PAUTA FISCAL / PMPF'; alertas.push({ nivel: 'alto', msg: 'NCM ' + item.ncm + ' está na ST de SE por PAUTA (PMPF), sem MVA. Informe o valor de pauta (N) no item ou a MVA manualmente.' }); }
       else if (E.varejoMva40) { O = 40; origemO = 'MVA de 40% dos itens 03 e 04 do Anexo X — adquirente do art. 784, § 3º (açougueiro, ambulante, barraqueiro, bodegueiro, cantina, clube social, feirante, microempresa estadual ou bloco carnavalesco), produto sem MVA própria'; }
@@ -462,6 +463,13 @@ const MOTOR = (() => {
     else if (R.direto) { Q = K * R.direto / 100; S = Q; }
     else { Q = Pb * M / 100; S = Q - credito; }
     if (rec.id === 'nao_antecipa') { Q = 0; S = 0; Pb = 0; }
+    // Bahia, RICMS/BA art. 274: ME e EPP têm redução de 20% do imposto apurado na ANTECIPAÇÃO PARCIAL, se recolherem no prazo regulamentar.
+    // Vem DESLIGADA: só vale para quem paga no prazo, e é o cadastro da empresa que liga.
+    let reducaoMeEpp = 0;
+    if (isBA && rec.id === 'ba_parcial' && E.reducaoMeEpp && S > 0) {
+      reducaoMeEpp = r2(S * 0.2); S = S - reducaoMeEpp;
+      alertas.push({ nivel: 'baixo', msg: 'Redução de 20% para ME/EPP aplicada (RICMS/BA, art. 274): só vale se o recolhimento for feito no prazo regulamentar. Desligue no cadastro da empresa se não for o caso.' });
+    }
 
     // ---- FECOEP ----
     let fecoepPts = 0, origemFecoep = 'desligado';
@@ -544,7 +552,7 @@ const MOTOR = (() => {
         mem.push({ passo: '8. Base de cálculo (P)', txt: (usouPauta ? 'Pauta N = ' + f(N) + ' maior que ' : '') + 'K × (1 + ' + O + '%) = ' + f(K) + ' × ' + (1 + O / 100).toFixed(4) + ' = ' + f(baseMva) + (R.grossup ? ' ÷ (1 − ' + M + '%) = ' + f(Pb) : '') });
         mem.push({ passo: '9. Débito (Q)', txt: 'P × M = ' + f(Pb) + ' × ' + M + '% = ' + f(Q) });
         mem.push({ passo: '10. Crédito (R)', txt: f(credito) + ' — ' + origemCredito });
-        mem.push({ passo: '11. ICMS a recolher (S)', txt: 'Q − R = ' + f(Q) + ' − ' + f(credito) + ' = ' + f(S) });
+        mem.push({ passo: '11. ICMS a recolher (S)', txt: 'Q − R = ' + f(Q) + ' − ' + f(credito) + ' = ' + f(r2(Q - credito)) + (reducaoMeEpp > 0 ? ' − redução de 20% para ME/EPP (RICMS/BA, art. 274; vale se pago no prazo) ' + f(reducaoMeEpp) + ' = ' + f(S) : '') });
       }
       mem.push({ passo: isBA ? '12. FECEP' : '12. FECOEP', txt: fecoepPts > 0 ? fecoepPts + ' ponto(s) × ' + (P.fecoepBase === 'P' ? 'base P ' : 'valor K ') + f(fecoepBase) + ' = ' + f(fecoep) + ' (' + origemFecoep + ') — DAE à parte' : 'não aplicado (' + origemFecoep + ')' });
     }
@@ -552,7 +560,7 @@ const MOTOR = (() => {
     return {
       chave: nota.chave, nItem: item.nItem, item, tri, regra, receita: rec.id, cod: R.cod, receitaNome: R.nome, motivo: rec.motivo,
       F, G, H, I, J, K, L, M, N, O, P: Pb, Q, R: credito, S, fecoep, fecoepPts, fecoepBase, usaAcrescimos: usaAcr, usouPauta,
-      qtdNota: qNota, qtdUsada: qUsada, fatorQtd, qtdDevolvida: qDev,
+      qtdNota: qNota, qtdUsada: qUsada, fatorQtd, qtdDevolvida: qDev, reducaoMeEpp,
       memoria: mem, alertas, override: ov, ncmInfo, stTab: stTab && stTab.linhas.length ? stTab.linhas[0] : null, beneficios: benef, sugestaoFinalidade: sugFin,
     };
   }

@@ -175,7 +175,7 @@ const receitasUF = () => { const ba = ehBA(); return TABELAS_SE.receitas.filter(
 function renderAvisoBA() {
   const el = $('avisoBA'); if (!el) return;
   const ba = ehBA(); el.style.display = ba ? '' : 'none';
-  if (ba) el.innerHTML = '<b>Empresa da Bahia — módulo em validação.</b> A Totali é <b>especialista em ICMS de Sergipe</b>. Na Bahia o sistema aplica a antecipação parcial (Lei 7.014/96, art. 12-A) sobre o valor da operação, sem MVA, com alíquota interna de ' + fmtP((DB.params && DB.params.aliqModalBA) || TABELAS_BA.aliquotaInternaModal) + ' e o ICMS destacado como crédito, como o escritório faz hoje na planilha. Não há mapa oficial da SEFAZ-BA: a exportação sai no padrão do mapa de Sergipe. Os textos oficiais da SEFAZ-BA não puderam ser conferidos na fonte, então <b>valide antes de recolher</b>.';
+  if (ba) el.innerHTML = '<b>Empresa da Bahia — módulo em validação.</b> A Totali é <b>especialista em ICMS de Sergipe</b>. Na Bahia o sistema aplica a antecipação parcial (Lei 7.014/96, art. 12-A) sobre o valor da operação, sem MVA, com alíquota interna de ' + fmtP((DB.params && DB.params.aliqModalBA) || TABELAS_BA.aliquotaInternaModal) + ' e o ICMS destacado como crédito, como o escritório faz hoje na planilha. Não há mapa oficial da SEFAZ-BA: a exportação sai no padrão do mapa de Sergipe. O RICMS/BA foi conferido no texto oficial (Decreto 13.780/2012, até o Decreto 24.829/2026); a Lei 7.014/96, o Anexo 1 e a alíquota de 20,5% ainda não, então <b>valide antes de recolher</b>.';
 }
 function renderKpis() {
   renderAvisoModificada(); renderObs(); renderReguaMeses(); renderAvisoBA();
@@ -641,19 +641,20 @@ function renderEmpresas() {
 }
 var editarEmpresa = function (id) {
   const e = DB.empresas.find(x => x.id === id) || { id: '', nome: '', cnpj: '', ie: '', regime: 'normal', perfil: 'apto', cestaOptante: false, varejoMva40: false, obs: '' };
-  $("eRegimeInfo").style.display = "none"; delete $("eObs").dataset.regimeFonte; $("eId").value = e.id; $("eNome").value = e.nome; $('eCnpj').value = fmtCnpj(e.cnpj); $('eIe').value = e.ie; $('eRegime').value = e.regime; $('ePerfil').value = e.perfil; $('eCesta').checked = !!e.cestaOptante; $('eVarejo40').checked = !!e.varejoMva40; $('eObs').value = e.obs || ''; $('eUf').value = e.uf || 'SE'; ajustaCamposUF();
+  $("eRegimeInfo").style.display = "none"; delete $("eObs").dataset.regimeFonte; $("eId").value = e.id; $("eNome").value = e.nome; $('eCnpj').value = fmtCnpj(e.cnpj); $('eIe').value = e.ie; $('eRegime').value = e.regime; $('ePerfil').value = e.perfil; $('eCesta').checked = !!e.cestaOptante; $('eVarejo40').checked = !!e.varejoMva40; $('eObs').value = e.obs || ''; $('eUf').value = e.uf || 'SE'; $('eReducao').checked = !!e.reducaoMeEpp; ajustaCamposUF();
   openModal('modal-empresa');
 }
 // Perfil na SEFAZ, cesta básica optante e MVA de 40% são regras de Sergipe: somem quando a UF é BA
 function ajustaCamposUF() {
   const ba = $('eUf').value === 'BA';
   ['fPerfil', 'fCesta', 'fVarejo40'].forEach(id => { const el = $(id); if (el) el.style.display = ba ? 'none' : ''; });
+  const fr = $('fReducao'); if (fr) fr.style.display = ba ? '' : 'none';
   const av = $('eUfAviso'); if (av) av.style.display = ba ? '' : 'none';
 }
 $('eUf').onchange = ajustaCamposUF;
 $('btnNovaEmpresa').onclick = () => editarEmpresa('');
 $('btnSalvarEmpresa').onclick = () => {
-  const e = { id: $('eId').value || uid(), nome: $('eNome').value.trim(), cnpj: $('eCnpj').value.replace(/\D/g, ''), ie: $('eIe').value.replace(/\D/g, ''), regime: $('eRegime').value, perfil: $('ePerfil').value, cestaOptante: $('eCesta').checked, varejoMva40: $('eVarejo40').checked, uf: $('eUf').value || 'SE', obs: $('eObs').value.trim(), regimeConfirmado: true, regimeFonte: $("eObs").dataset.regimeFonte || "informado manualmente", cestaConfirmada: true, cnaes: (DB.empresas.find(x => x.id === $("eId").value) || {}).cnaes || window._cnaesConsulta || [] };
+  const e = { id: $('eId').value || uid(), nome: $('eNome').value.trim(), cnpj: $('eCnpj').value.replace(/\D/g, ''), ie: $('eIe').value.replace(/\D/g, ''), regime: $('eRegime').value, perfil: $('ePerfil').value, cestaOptante: $('eCesta').checked, varejoMva40: $('eVarejo40').checked, uf: $('eUf').value || 'SE', reducaoMeEpp: $('eUf').value === 'BA' && $('eReducao').checked, obs: $('eObs').value.trim(), regimeConfirmado: true, regimeFonte: $("eObs").dataset.regimeFonte || "informado manualmente", cestaConfirmada: true, cnaes: (DB.empresas.find(x => x.id === $("eId").value) || {}).cnaes || window._cnaesConsulta || [] };
   if (!e.nome) return showToast('Informe a razão social.', 'error');
   const i = DB.empresas.findIndex(x => x.id === e.id); if (i >= 0) DB.empresas[i] = e; else DB.empresas.push(e);
   ST.empresaId = e.id; salvar(); closeModal("modal-empresa"); renderEmpresasSelect(); renderEmpresas(); recalcular(); if (typeof checarSefaz === "function") checarSefaz(); showToast('Empresa salva.', 'success');
@@ -740,7 +741,7 @@ function editarRegra(r) {
   r = r || {};
   $('rId').value = r.id || ''; $('rUf').value = r.uf || 'SE'; $('rPrior').value = r.prioridade ?? 50; $('rNcm').value = r.ncm || ''; $('rMatch').value = r.match || 'inicia'; $('rDesc').value = r.descricao || '';
   $('rDescPadrao').value = r.descPadrao || ''; $('rDescMatch').value = r.descMatch || 'contem'; $('rRegime').value = r.regime || ''; $('rAliq').value = r.aliq ?? ''; $('rFecoep').value = r.fecoep ?? ''; $('rCest').value = r.cest || ''; $('rFund').value = r.fundamento || '';
-  const m = r.mva; $('rMva4').value = m && typeof m === 'object' ? (m[4] ?? '') : ''; $('rMva7').value = m && typeof m === 'object' ? (m[7] ?? '') : (typeof m === 'number' ? m : ''); $('rMva12').value = m && typeof m === 'object' ? (m[12] ?? '') : ''; $('rMvaInt').value = m && typeof m === 'object' ? (m.interna ?? '') : '';
+  const m = r.mva; $('rMva4').value = m && typeof m === 'object' ? (m[4] ?? '') : ''; $('rMva7').value = m && typeof m === 'object' ? (m[7] ?? '') : (typeof m === 'number' ? m : ''); $('rMva12').value = m && typeof m === 'object' ? (m[12] ?? '') : ''; $('rMvaInt').value = m && typeof m === 'object' ? (m.interna ?? '') : ''; $('rMvaOrig').value = r.mvaOriginal ?? '';
   openModal('modal-regra');
 }
 $('btnNovaRegra').onclick = () => editarRegra(null);
@@ -749,7 +750,7 @@ $('btnSalvarRegra').onclick = () => {
   const m4 = n($('rMva4').value), m7 = n($('rMva7').value), m12 = n($('rMva12').value), mi = n($('rMvaInt').value);
   let mva = null; const vals = [m4, m7, m12, mi].filter(x => x != null);
   if (vals.length === 1) mva = vals[0]; else if (vals.length > 1) { mva = {}; if (m4 != null) mva[4] = m4; if (m7 != null) mva[7] = m7; if (m12 != null) mva[12] = m12; if (mi != null) mva.interna = mi; }
-  const r = { id: $('rId').value || uid(), uf: $('rUf').value || 'SE', prioridade: parseInt($('rPrior').value || '50', 10), ncm: $('rNcm').value.replace(/\D/g, ''), match: $('rMatch').value, descricao: $('rDesc').value.trim(), descPadrao: $('rDescPadrao').value.trim() || null, descMatch: $('rDescMatch').value, regime: $('rRegime').value || null, aliq: n($('rAliq').value), mva, fecoep: n($('rFecoep').value), cest: $('rCest').value.replace(/\D/g, '') || null, fundamento: $('rFund').value.trim(), encerra: $('rRegime').value === 'antecip_encer' || $('rRegime').value === 'st_interna' };
+  const r = { id: $('rId').value || uid(), uf: $('rUf').value || 'SE', prioridade: parseInt($('rPrior').value || '50', 10), ncm: $('rNcm').value.replace(/\D/g, ''), match: $('rMatch').value, descricao: $('rDesc').value.trim(), descPadrao: $('rDescPadrao').value.trim() || null, descMatch: $('rDescMatch').value, regime: $('rRegime').value || null, aliq: n($('rAliq').value), mva, mvaOriginal: n($('rMvaOrig').value), fecoep: n($('rFecoep').value), cest: $('rCest').value.replace(/\D/g, '') || null, fundamento: $('rFund').value.trim(), encerra: $('rRegime').value === 'antecip_encer' || $('rRegime').value === 'st_interna' };
   if (!r.ncm) return showToast('Informe o NCM.', 'error');
   if (!r.descricao) r.descricao = 'NCM ' + r.ncm;
   const i = DB.regras.findIndex(x => x.id === r.id); if (i >= 0) DB.regras[i] = r; else DB.regras.push(r);

@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="js/firebase-config.js?v=1.29.0"></script>
+<script src="js/firebase-config.js?v=1.29.1"></script>
 <style>
   :root {
     --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
@@ -408,14 +408,16 @@
       <div class="pagehdr"><div><h1>Base legal e como o sistema decide</h1><p>Resumo do núcleo de ICMS antecipado da Totali. Toda decisão do motor cita o artigo na memória de cálculo.</p></div></div>
       <div class="card" style="margin-bottom:16px">
         <h3>Empresas da Bahia (módulo em validação)</h3>
-        <p class="muted" style="margin:0 0 8px"><b>A Totali é especialista em ICMS de Sergipe.</b> O módulo da Bahia foi montado a partir da planilha de cálculo e do mapa que o escritório já usa para empresa baiana, da Lei 7.014/96 e de fontes secundárias. Os textos oficiais da SEFAZ-BA não puderam ser conferidos na fonte: valide antes de recolher.</p>
+        <p class="muted" style="margin:0 0 8px"><b>A Totali é especialista em ICMS de Sergipe.</b> O módulo da Bahia foi montado a partir da planilha de cálculo e do mapa que o escritório já usa para empresa baiana, da Lei 7.014/96 e de fontes secundárias, e conferido no <b>texto oficial do RICMS/BA</b> (Decreto 13.780/2012, atualizado até o Decreto 24.829/2026). A alíquota de 20,5%, os códigos do DAE, o FECEP e o Anexo 1 (lista de ST) <b>ainda não foram conferidos</b> em fonte oficial: valide antes de recolher.</p>
         <ol style="padding-left:18px; margin:0">
           <li><b>Cadastro:</b> em Cadastros › Empresas, escolha <i>UF = Bahia</i>. As regras embutidas (Anexo X, cesta básica, supérfluos, informática) são de Sergipe e deixam de valer.</li>
           <li><b>Relatório no lugar do espelho:</b> a Bahia não tem espelho do DIA. Arraste no Passo 1 o relatório de NF-e destinadas (<span class="mono">rpt_cons_dest.csv</span>): ele traz as chaves, a competência e as notas canceladas, que saem da apuração.</li>
           <li><b>XML:</b> "Buscar pendentes no Portal Nacional" consulta como empresa da Bahia (UF do autor 29). Na versão publicada no site a busca depende da função na nuvem, que precisa ser reimplantada; pelo INICIAR.bat funciona na hora.</li>
           <li><b>Cálculo:</b> entrada interestadual para revenda = antecipação parcial (código 2175): base = valor + IPI + frete + seguro + outras − desconto, sem MVA, × alíquota interna de 20,5%, menos o ICMS destacado. Produto com ST: cadastre uma regra com UF = BA, regime "com encerramento", MVA e alíquota (antecipação total, código 1145).</li>
           <li><b>DIFAL:</b> uso, consumo e ativo saem da antecipação; marque "Calcular como DIFAL" na nota. Fórmula da planilha do escritório: (valor − ICMS origem) ÷ (1 − 20,5%) × 20,5% − ICMS origem.</li>
-          <li><b>Não faz sozinho:</b> redução de 20% para ME/EPP que paga no prazo (art. 274, segundo fontes secundárias), FECEP por produto (art. 16-A: só os que a lei lista) e a lista de ST do Anexo 1 do RICMS/BA. Informe por regra ou no item.</li>
+          <li><b>Redução de 20% (RICMS/BA, art. 274):</b> ME e EPP que recolhem a antecipação parcial no prazo regulamentar. Vem desligada: marque no cadastro da empresa quando for o caso.</li>
+          <li><b>Prazo (art. 332):</b> antes da entrada no Estado ou, para o contribuinte que cumpre os requisitos do § 2º (mais de 6 meses de atividade, sem dívida ativa, adimplente, obrigações em dia) e com MDF-e vinculado, até o dia 25 do mês seguinte à emissão do MDF-e.</li>
+          <li><b>Não faz sozinho:</b> FECEP por produto (art. 16-A da Lei: só os que ela lista) e a lista de ST do Anexo 1 do RICMS/BA. Informe por regra ou no item. Na regra de ST informe a MVA ST ORIGINAL: o sistema ajusta pela fórmula do art. 289, § 14 (remetente do Simples usa a original, art. 295, § 3º).</li>
           <li><b>Exportação:</b> sai no padrão de Sergipe, com o mapa do sistema, igual às demais empresas. Estudo e fontes em <span class="mono">docs/icms-ba/ESTUDO_ICMS_BA.md</span>.</li>
         </ol>
       </div>
@@ -479,11 +481,12 @@
       <div id="eRegimeInfo" class="alert baixo" style="display:none;margin-bottom:10px"></div>
       <div class="field"><label class="fi-label">CNAEs (Receita Federal) — usados para supor a finalidade das compras</label><div id="eCnaes" class="small muted">Clique em "Receita" para puxar a atividade principal e as secundárias.</div></div>
       <div class="field"><label class="fi-label">UF onde a empresa recolhe</label><select class="fi" id="eUf"><option value="SE">Sergipe (SE) — especialidade da Totali</option><option value="BA">Bahia (BA) — módulo em validação</option></select>
-        <div class="hint" id="eUfAviso" style="display:none">Bahia: antecipação parcial (Lei 7.014/96, art. 12-A), sem MVA, alíquota interna de 20,5% pela prática do escritório. A Totali é especialista em ICMS de Sergipe: valide antes de recolher. Perfil na SEFAZ, cesta básica e MVA de 40% são regras de Sergipe e ficam ocultos.</div></div>
+        <div class="hint" id="eUfAviso" style="display:none">Bahia: antecipação parcial (Lei 7.014/96, art. 12-A), sem MVA, alíquota interna de 20,5% pela prática do escritório. O RICMS/BA foi conferido no texto oficial; a Lei 7.014/96, o Anexo 1 e a alíquota de 20,5% ainda não. A Totali é especialista em ICMS de Sergipe: valide antes de recolher. Perfil na SEFAZ, cesta básica e MVA de 40% são regras de Sergipe e ficam ocultos.</div></div>
       <div class="grid g2">
         <div class="field"><label class="fi-label">Regime</label><select class="fi" id="eRegime"><option value="normal">Regime normal (conta corrente)</option><option value="simples">Simples Nacional</option></select></div>
         <div class="field" id="fPerfil"><label class="fi-label">Perfil na SEFAZ</label><select class="fi" id="ePerfil"><option value="apto">Apto (MVA 10%)</option><option value="inapto">Suspenso / inapto (MVA 30%)</option></select></div>
       </div>
+      <div class="field" id="fReducao" style="display:none"><label class="small"><input type="checkbox" id="eReducao"> ME ou EPP que recolhe a antecipação parcial NO PRAZO: aplicar a redução de 20% (RICMS/BA, art. 274)</label></div>
       <div class="field" id="fCesta"><label class="small"><input type="checkbox" id="eCesta"> Optante do regime simplificado da cesta básica (2,1%)</label></div>
       <div class="field" id="fVarejo40"><label class="small"><input type="checkbox" id="eVarejo40"> Açougueiro, ambulante, barraqueiro, bodegueiro, cantina, clube social, feirante, microempresa estadual ou bloco carnavalesco — antecipação COM encerramento em qualquer mercadoria, MVA 40% (RICMS/SE art. 784, § 3º e Anexo X, itens 03 e 04)</label></div>
       <div class="field"><label class="fi-label">Observações</label><input class="fi" id="eObs"></div>
@@ -510,6 +513,7 @@
         <div class="field"><label class="fi-label">Alíquota interna em SE (%)</label><input class="fi" type="number" step="0.01" id="rAliq" placeholder="vazio = modal"></div>
       </div>
       <div class="field"><label class="fi-label">MVA (%) por alíquota de origem</label>
+        <div class="field" style="margin-bottom:6px"><input class="fi" type="number" step="0.01" id="rMvaOrig" placeholder="MVA ST ORIGINAL do Anexo 1 (%) — o sistema ajusta pela origem (RICMS/BA, art. 289, § 14)"></div>
         <div class="grid g4"><input class="fi" type="number" step="0.01" id="rMva4" placeholder="orig. 4%"><input class="fi" type="number" step="0.01" id="rMva7" placeholder="orig. 7%"><input class="fi" type="number" step="0.01" id="rMva12" placeholder="orig. 12%"><input class="fi" type="number" step="0.01" id="rMvaInt" placeholder="interna"></div>
         <div class="hint">Preencha só um valor para MVA fixa. Vazio = sem MVA própria.</div></div>
       <div class="grid g2"><div class="field"><label class="fi-label">FECOEP (pontos)</label><input class="fi" type="number" step="0.5" id="rFecoep" placeholder="vazio = padrão"></div><div class="field"><label class="fi-label">CEST (opcional)</label><input class="fi" id="rCest"></div></div>
@@ -608,20 +612,20 @@
 
 <div id="toast"></div>
 
-<script src="js/versao.js?v=1.29.0"></script>
-<script src="js/tabelas.js?v=1.29.0"></script>
-<script src="js/tabelas-fundamentos.js?v=1.29.0"></script>
-<script src="js/tabelas-cnae.js?v=1.29.0"></script>
-<script src="js/nfe.js?v=1.29.0"></script>
-<script src="js/materiais.js?v=1.29.0"></script>
-<script src="js/motor.js?v=1.29.0"></script>
-<script src="js/espelho.js?v=1.29.0"></script>
-<script src="js/exportar.js?v=1.29.0"></script>
-<script src="js/auditoria.js?v=1.29.0"></script>
-<script src="js/app.js?v=1.29.0"></script>
-<script src="js/app-regime.js?v=1.29.0"></script>
-<script src="js/app-materiais.js?v=1.29.0"></script>
-<script src="js/firebase-sync.js?v=1.29.0"></script>
-<script src="js/firebase-certs.js?v=1.29.0"></script>
+<script src="js/versao.js?v=1.29.1"></script>
+<script src="js/tabelas.js?v=1.29.1"></script>
+<script src="js/tabelas-fundamentos.js?v=1.29.1"></script>
+<script src="js/tabelas-cnae.js?v=1.29.1"></script>
+<script src="js/nfe.js?v=1.29.1"></script>
+<script src="js/materiais.js?v=1.29.1"></script>
+<script src="js/motor.js?v=1.29.1"></script>
+<script src="js/espelho.js?v=1.29.1"></script>
+<script src="js/exportar.js?v=1.29.1"></script>
+<script src="js/auditoria.js?v=1.29.1"></script>
+<script src="js/app.js?v=1.29.1"></script>
+<script src="js/app-regime.js?v=1.29.1"></script>
+<script src="js/app-materiais.js?v=1.29.1"></script>
+<script src="js/firebase-sync.js?v=1.29.1"></script>
+<script src="js/firebase-certs.js?v=1.29.1"></script>
 </body>
 </html>
