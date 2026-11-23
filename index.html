@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="js/firebase-config.js?v=1.29.1"></script>
+<script src="js/firebase-config.js?v=1.29.2"></script>
 <style>
   :root {
     --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
@@ -350,7 +350,7 @@
         <div class="card">
           <h3>Alíquotas e MVA</h3>
           <div class="field"><label class="fi-label">Alíquota interna modal de SE (%)</label><input class="fi" type="number" step="0.01" id="pAliq"><div class="hint">19% desde 01/04/2023 (Lei 9.176/2023).</div></div>
-          <div class="field"><label class="fi-label">Alíquota interna modal da Bahia (%) — módulo em validação</label><input class="fi" type="number" step="0.01" id="pAliqBA"><div class="hint">20,5% pela planilha do escritório e por fontes comerciais (Lei 14.629/2023, desde 07/02/2024). A cópia da Lei 7.014/96 consultada ainda mostra 18% no art. 15, I: confirme o texto vigente. A Totali é especialista em Sergipe.</div></div>
+          <div class="field"><label class="fi-label">Alíquota interna modal da Bahia (%) — módulo em validação</label><input class="fi" type="number" step="0.01" id="pAliqBA"><div class="hint">20,5%: Lei 7.014/96, art. 15, I, na redação da Lei 14.629/2023, desde 07/02/2024 (conferido no texto consolidado do Econet). Altere só se a lei mudar. A Totali é especialista em Sergipe.</div></div>
           <div class="grid g2"><div class="field"><label class="fi-label">MVA geral — contribuinte apto (%)</label><input class="fi" type="number" step="0.01" id="pMvaApto"></div>
           <div class="field"><label class="fi-label">MVA geral — suspenso/inapto (%)</label><input class="fi" type="number" step="0.01" id="pMvaInapto"><div class="hint">art. 786, II, b: 30% (contribuinte suspenso). IN 17/2023 no trânsito: 30%; sem destinatário certo 40%.</div></div></div>
           <div class="field"><label class="fi-label">Crédito da origem (coluna R)</label><select class="fi" id="pCredModo"><option value="mapa">Fórmula do mapa: (F + frete) × alíquota de origem — como o DIA calcula</option><option value="destacado">ICMS destacado na nota (vICMS)</option></select></div>
@@ -408,7 +408,7 @@
       <div class="pagehdr"><div><h1>Base legal e como o sistema decide</h1><p>Resumo do núcleo de ICMS antecipado da Totali. Toda decisão do motor cita o artigo na memória de cálculo.</p></div></div>
       <div class="card" style="margin-bottom:16px">
         <h3>Empresas da Bahia (módulo em validação)</h3>
-        <p class="muted" style="margin:0 0 8px"><b>A Totali é especialista em ICMS de Sergipe.</b> O módulo da Bahia foi montado a partir da planilha de cálculo e do mapa que o escritório já usa para empresa baiana, da Lei 7.014/96 e de fontes secundárias, e conferido no <b>texto oficial do RICMS/BA</b> (Decreto 13.780/2012, atualizado até o Decreto 24.829/2026). A alíquota de 20,5%, os códigos do DAE, o FECEP e o Anexo 1 (lista de ST) <b>ainda não foram conferidos</b> em fonte oficial: valide antes de recolher.</p>
+        <p class="muted" style="margin:0 0 8px"><b>A Totali é especialista em ICMS de Sergipe.</b> O módulo da Bahia foi montado a partir da planilha de cálculo e do mapa que o escritório já usa para empresa baiana, da Lei 7.014/96 e de fontes secundárias, e conferido no <b>texto oficial do RICMS/BA</b> (Decreto 13.780/2012, atualizado até o Decreto 24.829/2026). A Lei 7.014/96 foi conferida no texto consolidado do Econet (art. 12-A, art. 15, I com 20,5%, art. 16-A e art. 23, III). Os códigos do DAE, o FECEP por produto e o Anexo 1 (lista de ST) <b>ainda não foram conferidos</b> em fonte oficial: valide antes de recolher. Calçados e vestuário <b>não constam do Anexo 1</b> (19 segmentos), então vão para a antecipação parcial.</p>
         <ol style="padding-left:18px; margin:0">
           <li><b>Cadastro:</b> em Cadastros › Empresas, escolha <i>UF = Bahia</i>. As regras embutidas (Anexo X, cesta básica, supérfluos, informática) são de Sergipe e deixam de valer.</li>
           <li><b>Relatório no lugar do espelho:</b> a Bahia não tem espelho do DIA. Arraste no Passo 1 o relatório de NF-e destinadas (<span class="mono">rpt_cons_dest.csv</span>): ele traz as chaves, a competência e as notas canceladas, que saem da apuração.</li>
@@ -481,7 +481,7 @@
       <div id="eRegimeInfo" class="alert baixo" style="display:none;margin-bottom:10px"></div>
       <div class="field"><label class="fi-label">CNAEs (Receita Federal) — usados para supor a finalidade das compras</label><div id="eCnaes" class="small muted">Clique em "Receita" para puxar a atividade principal e as secundárias.</div></div>
       <div class="field"><label class="fi-label">UF onde a empresa recolhe</label><select class="fi" id="eUf"><option value="SE">Sergipe (SE) — especialidade da Totali</option><option value="BA">Bahia (BA) — módulo em validação</option></select>
-        <div class="hint" id="eUfAviso" style="display:none">Bahia: antecipação parcial (Lei 7.014/96, art. 12-A), sem MVA, alíquota interna de 20,5% pela prática do escritório. O RICMS/BA foi conferido no texto oficial; a Lei 7.014/96, o Anexo 1 e a alíquota de 20,5% ainda não. A Totali é especialista em ICMS de Sergipe: valide antes de recolher. Perfil na SEFAZ, cesta básica e MVA de 40% são regras de Sergipe e ficam ocultos.</div></div>
+        <div class="hint" id="eUfAviso" style="display:none">Bahia: antecipação parcial (Lei 7.014/96, art. 12-A), sem MVA, alíquota interna de 20,5% (art. 15, I). O RICMS/BA foi conferido no texto oficial e a Lei 7.014/96 no texto consolidado do Econet; o Anexo 1, o FECEP por produto e os códigos do DAE ainda não. A Totali é especialista em ICMS de Sergipe: valide antes de recolher. Perfil na SEFAZ, cesta básica e MVA de 40% são regras de Sergipe e ficam ocultos.</div></div>
       <div class="grid g2">
         <div class="field"><label class="fi-label">Regime</label><select class="fi" id="eRegime"><option value="normal">Regime normal (conta corrente)</option><option value="simples">Simples Nacional</option></select></div>
         <div class="field" id="fPerfil"><label class="fi-label">Perfil na SEFAZ</label><select class="fi" id="ePerfil"><option value="apto">Apto (MVA 10%)</option><option value="inapto">Suspenso / inapto (MVA 30%)</option></select></div>
@@ -612,20 +612,20 @@
 
 <div id="toast"></div>
 
-<script src="js/versao.js?v=1.29.1"></script>
-<script src="js/tabelas.js?v=1.29.1"></script>
-<script src="js/tabelas-fundamentos.js?v=1.29.1"></script>
-<script src="js/tabelas-cnae.js?v=1.29.1"></script>
-<script src="js/nfe.js?v=1.29.1"></script>
-<script src="js/materiais.js?v=1.29.1"></script>
-<script src="js/motor.js?v=1.29.1"></script>
-<script src="js/espelho.js?v=1.29.1"></script>
-<script src="js/exportar.js?v=1.29.1"></script>
-<script src="js/auditoria.js?v=1.29.1"></script>
-<script src="js/app.js?v=1.29.1"></script>
-<script src="js/app-regime.js?v=1.29.1"></script>
-<script src="js/app-materiais.js?v=1.29.1"></script>
-<script src="js/firebase-sync.js?v=1.29.1"></script>
-<script src="js/firebase-certs.js?v=1.29.1"></script>
+<script src="js/versao.js?v=1.29.2"></script>
+<script src="js/tabelas.js?v=1.29.2"></script>
+<script src="js/tabelas-fundamentos.js?v=1.29.2"></script>
+<script src="js/tabelas-cnae.js?v=1.29.2"></script>
+<script src="js/nfe.js?v=1.29.2"></script>
+<script src="js/materiais.js?v=1.29.2"></script>
+<script src="js/motor.js?v=1.29.2"></script>
+<script src="js/espelho.js?v=1.29.2"></script>
+<script src="js/exportar.js?v=1.29.2"></script>
+<script src="js/auditoria.js?v=1.29.2"></script>
+<script src="js/app.js?v=1.29.2"></script>
+<script src="js/app-regime.js?v=1.29.2"></script>
+<script src="js/app-materiais.js?v=1.29.2"></script>
+<script src="js/firebase-sync.js?v=1.29.2"></script>
+<script src="js/firebase-certs.js?v=1.29.2"></script>
 </body>
 </html>

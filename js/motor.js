@@ -384,7 +384,7 @@ const MOTOR = (() => {
 
     // ---- Carga de destino (M) ----
     let M = ov.aliq ?? R.aliq ?? (regra && regra.aliq != null ? regra.aliq : (isBA ? (P.aliqModalBA ?? 20.5) : P.aliqModal));
-    let origemM = ov.aliq != null ? 'informada manualmente' : R.aliq != null ? 'fixa da receita' : (regra && regra.aliq != null) ? 'regra do NCM (' + regra.descricao + ')' : (isBA ? 'alíquota modal da Bahia (20,5% pela prática do escritório; Lei 7.014/96, art. 15, I — confirmar a vigência no texto oficial)' : 'alíquota modal de SE');
+    let origemM = ov.aliq != null ? 'informada manualmente' : R.aliq != null ? 'fixa da receita' : (regra && regra.aliq != null) ? 'regra do NCM (' + regra.descricao + ')' : (isBA ? 'alíquota modal da Bahia (20,5%: Lei 7.014/96, art. 15, I, na redação da Lei 14.629/2023, desde 07/02/2024)' : 'alíquota modal de SE');
 
     // Manual de Preenchimento do Mapa (Anexo II da Portaria 103/2006, item 12.2, na redação da Portaria 705/2014):
     // quando a carga de destino (M) é MENOR que a praticada na operação interestadual, a coluna L usa a carga interna.

@@ -501,18 +501,19 @@ const TABELAS_SE = {
 const TABELAS_BA = {
   uf: 'BA',
   versao: '2026-11',
-  aviso: 'A Totali é especialista em ICMS de Sergipe. O módulo da Bahia segue o RICMS/BA (conferido no texto oficial, Decreto 13.780/2012 até o Decreto 24.829/2026), a Lei 7.014/96 e a prática do escritório; a Lei 7.014/96, o Anexo 1 e a alíquota de 20,5% ainda não foram conferidos em fonte oficial. Valide antes de recolher.',
-  // 20,5%: usada na planilha de cálculo do escritório para empresa baiana (set/2026) e citada por sites comerciais (Lei 14.629/2023, desde 07/02/2024).
-  // A cópia consolidada da Lei 7.014/96 consultada ainda mostra 18% no art. 15, I: confirmar o texto vigente.
+  aviso: 'A Totali é especialista em ICMS de Sergipe. O módulo da Bahia segue o RICMS/BA (conferido no texto oficial, Decreto 13.780/2012 até o Decreto 24.829/2026), a Lei 7.014/96 (texto consolidado do Econet: arts. 12-A, 15, 16-A e 23) e a prática do escritório; o Anexo 1 (lista de ST), o FECEP por produto e os códigos do DAE ainda não foram conferidos em fonte oficial. Valide antes de recolher.',
+  // 20,5%: CONFERIDA no texto consolidado da Lei 7.014/96 do Econet (art. 15, I, redação da Lei 14.629/2023, DOE de 09/11/2023, efeitos desde 07/02/2024)
+  // e igual à usada na planilha de cálculo do escritório para empresa baiana (set/2026).
+  // (Uma cópia mais antiga da lei, em outro site, ainda mostrava 18%: estava desatualizada.)
   aliquotaInternaModal: 20.5,
   codigoParcial: '2175',      // Econet (blog); não confirmado na SEFAZ-BA
   codigoTotal: '1145',        // planilha do escritório; não confirmado em fonte oficial
   prazo: 'Antecipação parcial (RICMS/BA, art. 332, III, "b"): antes da entrada da mercadoria no território baiano. O contribuinte que cumpre os requisitos do § 2º (mais de 6 meses de atividade e já ter comprado de outra UF, sem débito em dívida ativa, adimplente com o ICMS e com as obrigações acessórias em dia) paga até o dia 25 do mês seguinte à data de emissão do MDF-e vinculado à nota, e o MDF-e é obrigatório (§ 2º-A). Ficam de fora desse prazo especial a importação e as operações com açúcar, farinha de trigo, trigo em grão, charque, embutidos e produtos do abate de aves e gado.',
   reducaoMeEpp: 'RICMS/BA, art. 274: microempresa ou empresa de pequeno porte, independentemente da receita bruta, tem redução de 20% do imposto apurado na antecipação parcial, se recolher no prazo regulamentar. O sistema só aplica se o cadastro da empresa marcar essa opção (vem desligada: o escritório fechou setembro sem a redução).',
   fundamentos: {
-    parcial: 'Lei 7.014/96, art. 12-A: nas aquisições interestaduais para comercialização, antecipação parcial pela alíquota interna sobre a base do art. 23, III, deduzido o imposto destacado; não encerra a fase de tributação; não alcança mercadoria isenta, não tributada ou já sujeita à antecipação/substituição que encerre a fase.',
+    parcial: 'Lei 7.014/96, art. 12-A (texto consolidado do Econet): nas aquisições interestaduais para comercialização, antecipação parcial feita pelo próprio adquirente, independentemente do regime de apuração, pela alíquota interna sobre a base do art. 23, III (o valor da operação interestadual do documento de aquisição), deduzido o imposto destacado; não encerra a fase de tributação; não alcança mercadoria cuja operação interna seja isenta, não tributada ou já sujeita à antecipação/substituição que encerre a fase.',
     simples: 'Optante do Simples Nacional (RICMS/BA, art. 321, VII, "b" e § 1º): antecipação parcial pela diferença entre a alíquota interna e a interestadual, esta tomada pelas alíquotas dos contribuintes NÃO optantes, sendo vedada a agregação de qualquer valor, sem prejuízo das reduções dos arts. 273 e 274. Com remetente normal, o crédito pelo imposto destacado dá o mesmo resultado.',
-    fecep: 'Lei 7.014/96, art. 16-A: dois pontos do FECEP sobre os produtos que a lei lista (por exemplo bebidas, cosméticos, cigarros, armas). Vestuário e calçados não constam das tabelas consultadas.',
+    fecep: 'Lei 7.014/96, art. 16-A: dois pontos do FECEP sobre os produtos que a lei lista (por exemplo bebidas, cosméticos, cigarros, armas). Vestuário e calçados não constam (texto consolidado do Econet): o adicional recai sobre os incisos II, IV, V e VII do art. 16 e, pelo parágrafo único, sobre AEHC, cosméticos, isotônicos, energéticos, refrigerantes, cervejas e chopes. Desde 01/01/2024 não há FECEP sobre energia elétrica nem comunicação (Lei 14.629/2023).',
     difal: 'Lei 7.014/96, art. 4º, XV (fato gerador na entrada para uso, consumo ou ativo), art. 15, § 7º e art. 17. Fórmula de base única adotada na planilha do escritório (Conv. ICMS 93/2015).',
   },
 };

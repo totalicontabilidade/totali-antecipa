@@ -1,8 +1,8 @@
 # Estudo preliminar: ICMS da Bahia no Totali Antecipa
 
-> **A Totali é especialista em ICMS de Sergipe.** Este estudo existe para o escritório atender empresas baianas com o mesmo método de trabalho, mas **não tem a profundidade do material de Sergipe**. O **texto oficial do RICMS/BA** (Decreto 13.780/2012, atualizado até o Decreto 24.829/2026) foi lido no portal da SEFAZ-BA e conferido artigo por artigo. A **Lei 7.014/96**, o **Anexo 1** (lista de ST) e a **alíquota de 20,5%** ainda **não** foram conferidos em fonte oficial: vêm de uma cópia consolidada da lei, de sites comerciais e da planilha do escritório. **Valide antes de recolher.**
+> **A Totali é especialista em ICMS de Sergipe.** Este estudo existe para o escritório atender empresas baianas com o mesmo método de trabalho, mas **não tem a profundidade do material de Sergipe**. O **texto oficial do RICMS/BA** (Decreto 13.780/2012, atualizado até o Decreto 24.829/2026) foi lido no portal da SEFAZ-BA e conferido artigo por artigo. A **Lei 7.014/96** foi conferida no texto consolidado do **Econet** (assinatura do escritório, aba "Lei do ICMS" do portal de ICMS da Bahia): arts. 12-A, 15, 16-A e 23. O **Anexo 1** foi aberto no Econet apenas para conferir os segmentos. Continuam **sem fonte oficial**: o texto de cada MVA do Anexo 1, o FECEP por produto e os códigos do DAE. **Valide antes de recolher.**
 
-Data do estudo: 23/11/2026. Versão do sistema: 1.29.1.
+Data do estudo: 23/11/2026. Versão do sistema: 1.29.2.
 
 ## Como ler os graus de confiança
 
@@ -10,17 +10,18 @@ Data do estudo: 23/11/2026. Versão do sistema: 1.29.1.
 |---|---|
 | **[Escritório]** | Prática do escritório, vista na planilha de cálculo e no mapa de uma empresa baiana atendida (set/2026). É o que o sistema reproduz. |
 | **[RICMS oficial]** | Lido no texto oficial do RICMS/BA no portal da SEFAZ-BA (Decreto 13.780/2012, até o Decreto 24.829/2026). O portal avisa que só o texto do Diário Oficial tem validade legal. |
-| **[Lei]** | Lido na cópia consolidada da Lei 7.014/96 do site normasbrasil.com.br, sem conferência no Diário Oficial. |
+| **[Lei Econet]** | Lido no texto consolidado da Lei 7.014/96 do Econet, com as notas de alteração (por exemplo "Lei 14.629/2023, efeitos a partir de 07/02/2024"). É texto de editora, não o Diário Oficial. |
+| **[Lei]** | Lido numa cópia mais antiga da Lei 7.014/96 (normasbrasil.com.br). **Estava desatualizada** (mostrava 18% no art. 15, I). Vale o texto do Econet. |
 | **[Comercial]** | Site comercial ou blog (Econet, Simtax, TaxGroup). Pode estar desatualizado. |
 | **[Não confirmado]** | Não achei fonte. O sistema não presume. |
 
 ## 1. Antecipação parcial (o caso da empresa baiana atendida)
 
-- **Quem paga.** Contribuinte baiano que adquire mercadoria de outra UF para comercialização. **[Lei]** art. 12-A.
-- **Base e fórmula.** Alíquota interna sobre a base do art. 23, III (o valor da operação interestadual do documento de aquisição), deduzido o imposto destacado na nota. **[Lei]** art. 12-A e art. 23, III.
-- **Não encerra a fase.** O imposto antecipado vira crédito na conta corrente. **[Lei]** art. 12-A, § 1º, e art. 26, § 6º.
-- **Fora da regra.** Mercadoria com saída interna isenta, não tributada ou já sujeita a antecipação ou substituição que encerre a tributação. **[Lei]** art. 12-A, § 1º.
-- **Exclusões por regulamento.** O Executivo pode excluir mercadorias ou atividades. **[Lei]** art. 12-A, § 2º. A lista do RICMS/BA **[Não confirmado]**.
+- **Quem paga.** Contribuinte baiano que adquire mercadoria de outra UF para comercialização, feita pelo próprio adquirente, **independentemente do regime de apuração** (inclui o Simples). **[Lei Econet]** art. 12-A.
+- **Base e fórmula.** Alíquota interna sobre a base do art. 23, III (o valor da operação interestadual do documento de aquisição), deduzido o imposto destacado na nota. **[Lei Econet]** art. 12-A e art. 23, III.
+- **Não encerra a fase.** O imposto antecipado vira crédito na conta corrente. **[Lei Econet]** art. 12-A, § 1º; **[Lei]** art. 26, § 6º.
+- **Fora da regra.** Mercadoria com saída interna isenta, não tributada ou já sujeita a antecipação ou substituição que encerre a tributação. **[Lei Econet]** art. 12-A, § 1º.
+- **Exclusões por regulamento.** O Executivo pode excluir mercadorias ou atividades. **[Lei Econet]** art. 12-A, § 2º. A lista do RICMS/BA **[Não confirmado]**.
 - **Simples Nacional.** O recolhimento pelo Simples não exclui a antecipação nas aquisições interestaduais. **[RICMS oficial]** art. 321, VII. Quando a mercadoria não é de ST (sem encerramento, a antecipação parcial), cobra-se **a diferença entre a alíquota interna e a interestadual, sendo vedada a agregação de qualquer valor, sem prejuízo das reduções dos arts. 273 e 274**. **[RICMS oficial]** art. 321, VII, "b". E o § 1º manda calcular essa diferença **com as alíquotas aplicáveis aos contribuintes não optantes**, ou seja, a interestadual cheia de origem (12%, 7% ou 4%), e não o pouco que o fornecedor do Simples destaca. O STF validou a cobrança. **[Comercial]** (informativo do STF).
 - **ME e EPP: redução de 20%.** Microempresa ou empresa de pequeno porte, **independentemente da receita bruta**, tem redução de 20% do imposto apurado na antecipação parcial, **se recolher no prazo regulamentar**. **[RICMS oficial]** art. 274. Não se acumula com a do art. 273, que está revogado. O mapa da empresa atendida **não** aplica a redução. O sistema traz a opção **desligada**: o cadastro da empresa liga.
 - **Acúmulo de crédito.** O contribuinte pode pedir ao inspetor fazendário para reduzir a antecipação parcial quando as saídas seguintes tiverem diferimento ou alíquota menor que a interna e isso acumular crédito. **[RICMS oficial]** art. 276. O sistema não faz.
@@ -36,22 +37,25 @@ Data do estudo: 23/11/2026. Versão do sistema: 1.29.1.
 - Nas operações interestaduais a ST segue os convênios e protocolos entre a Bahia e a UF de origem. **[RICMS oficial]** art. 295. O imposto antecipado nesses casos tem o prazo antes da entrada (art. 332, III, "a" e "g").
 - O código do DAE da antecipação total aparece na planilha como **1145**. **[Escritório]** e **[Não confirmado]** em fonte oficial.
 - A lista de NCM e MVA do **Anexo 1 do RICMS/BA não foi carregada**. Quem precisa de ST cadastra a regra no sistema, por NCM, com UF = BA.
+- **O Anexo 1 tem 19 segmentos** (conferido no Econet): autopeças, cigarros, cimentos, combustíveis e lubrificantes, lâmpadas e reatores, materiais de construção, medicamentos e higiene pessoal, pneus e câmaras, produtos alimentícios, papelaria, eletrônicos e eletrodomésticos, rações para animais domésticos, sorvetes, tintas e vernizes, veículos de quatro e de duas e três rodas, e venda porta a porta. **Calçados e artigos do vestuário não estão em nenhum deles**, então vão para a antecipação parcial. Cada item traz CEST, NCM, acordos, MVA ajustada por alíquota interestadual (4%, 7% e 12%) e MVA original.
+- **Atenção:** o próprio Anexo avisa que os percentuais de MVA válidos desde 01/01/2025 foram divulgados direto no site da SEFAZ-BA (art. 289, § 16), então o texto do Anexo no Econet pode estar defasado quanto à MVA.
 - Calçados (6401 a 6405) e vestuário (capítulos 61 e 62): nenhuma das fontes lidas os coloca na ST. O escritório os trata como antecipação parcial, com MVA zero. **[Escritório]**.
 
 ## 3. Alíquotas
 
 | Item | Valor | Confiança |
 |---|---|---|
-| Alíquota interna geral | **20,5%** | **[Escritório]** (planilha da empresa atendida) e **[Comercial]** (Lei 14.629/2023, desde 07/02/2024) |
-| Texto do art. 15, I na cópia consolidada | 18% (Lei 13.461/2015, desde 10/03/2016) | **[Lei]** |
+| Alíquota interna geral | **20,5%** | **[Lei Econet]** art. 15, I (Lei 14.629/2023, desde 07/02/2024) e **[Escritório]** (planilha da empresa atendida) |
+| Texto do art. 15, I numa cópia antiga | 18% (Lei 13.461/2015, desde 10/03/2016) | **[Lei]** desatualizada: não vale |
 | Interestadual de origem | 12% geral, 7% do Sul e Sudeste (exceto ES), 4% importados | regra nacional, igual à de Sergipe |
 
-**O regulamento não traz a alíquota geral** (a busca por 20,5% no texto oficial não encontrou nada): ela está na Lei 7.014/96. **Divergência a resolver.** A cópia da lei consultada para no 18% e cita como última alteração a Lei 14.415/2021. A alíquota de 20,5% vem de lei posterior, que só os sites comerciais citam. O sistema usa **20,5%**, como o escritório, e deixa o valor editável em Parâmetros.
+**20,5% está confirmada.** O regulamento não traz a alíquota geral: ela está no art. 15, I da Lei 7.014/96, que no texto consolidado do Econet diz 20,5% "alterado pela Lei nº 14.629/2023 (DOE de 09.11.2023), efeitos a partir de 07.02.2024". **[Lei Econet]**. A divergência anterior vinha de uma cópia desatualizada da lei, que parava no 18% e cita como última alteração a Lei 14.415/2021. A alíquota de 20,5% vem de lei posterior, que só os sites comerciais citam. O sistema usa **20,5%**, como o escritório, e deixa o valor editável em Parâmetros.
 
 Alíquotas diferenciadas citadas por sites comerciais **[Comercial]**: 7% para a cesta básica listada, 12% para veículos, 25% mais 2 pontos de fundo para bebidas alcoólicas, joias, perfumes e embarcações, 28% mais 2 pontos para cigarros e fumo, 38% mais 2 pontos para armas e munições, e 20,5% mais 2 pontos para cosméticos, refrigerantes, isotônicos e energéticos. O sistema **não aplica nenhuma delas sozinho**. Quem compra esses produtos informa a alíquota e os pontos por regra de NCM com UF = BA, ou no item.
 
 ## 4. Fundo de pobreza (FECEP)
 
+- **Conferido no Econet. [Lei Econet]** O art. 16-A soma 2 pontos às alíquotas do art. 15, I para os produtos dos incisos II, IV, V e VII do art. 16, e o parágrafo único inclui álcool hidratado combustível, cosméticos, isotônicos, energéticos, refrigerantes, cervejas e chopes. Desde 01/01/2024 não há FECEP sobre energia elétrica nem comunicação (Lei 14.629/2023). Vestuário e calçados não aparecem.
 - O art. 16-A da Lei soma 2 pontos às alíquotas de certos produtos, com a arrecadação vinculada ao fundo estadual. A lista inclui, por remissão, álcool hidratado, cosméticos, isotônicos, energéticos, refrigerantes, cervejas e chopes. **[Lei]**.
 - Vestuário e calçados não aparecem. **[Não confirmado]** se algum item de armarinho entra.
 - O sistema **não presume FECEP** na Bahia. O ponto é informado por regra de NCM, ou no item.
@@ -104,9 +108,9 @@ Os 30 XMLs do mês foram calculados pelo sistema e comparados com o mapa que o e
 
 ## 9. Pendências para validar com a SEFAZ-BA
 
-1. Texto vigente do art. 15, I da Lei 7.014/96 e a vigência de 20,5% (o regulamento não traz a alíquota).
-2. **Anexo 1 do RICMS/BA** (NCM, MVA original, alíquota), para carregar a ST no sistema. Não está no arquivo do regulamento.
-3. Texto oficial da Lei 7.014/96 (arts. 12-A, 15, 16-A, 23).
+1. ~~Alíquota de 20,5%~~: **conferida** no texto consolidado do Econet (art. 15, I, Lei 14.629/2023).
+2. **MVA do Anexo 1** (NCM, MVA original, MVA ajustada), para carregar a ST no sistema, com os percentuais vigentes publicados pela SEFAZ-BA desde 01/01/2025. Não está no arquivo do regulamento e a lista do Econet pode estar defasada.
+3. Texto da Lei 7.014/96 no Diário Oficial, se o escritório quiser a fonte primária (o Econet é texto de editora).
 4. Tabela oficial de códigos de receita do DAE: 2175, 1145 e o do DIFAL (o regulamento não traz).
 5. Lista de produtos do FECEP (art. 16-A e Lei 7.988/2001).
 6. **Base da antecipação do optante do Simples.** O art. 321, VII, "b" veda "a agregação de qualquer valor". O sistema mantém a base com IPI, frete, seguro e outras despesas, como na planilha do escritório. Confirmar se, para o optante, a base é só o valor das mercadorias.
@@ -116,6 +120,7 @@ Os 30 XMLs do mês foram calculados pelo sistema e comparados com o mapa que o e
 
 ## 10. Fontes
 
+- Econet Editora (assinatura do escritório), ICMS > Nordeste > Bahia: "Regulamento do ICMS - Estado da Bahia", abas "Lei do ICMS" (Lei 7.014/96: arts. 12-A, 15, 16-A e 23) e "RICMS Anexos" (Anexo 1, segmentos). Conferido em 23/11/2026.
 - [RICMS/BA, texto oficial (Decreto 13.780/2012, até o Decreto 24.829/2026)](https://mbusca.sefaz.ba.gov.br/DITRI/normas_complementares/decretos/decreto_2012_13780_ricms_texto_2021.pdf) — arts. 274, 276, 289, 295, 305, 321, 332 e 449-B.
 - [Lei 7.014/1996 (BA), cópia consolidada](https://www.normasbrasil.com.br/norma/lei-7014-1996-ba_119751.html) — arts. 12-A, 15, 16, 16-A, 23, 26 e 8º/9º.
 - [Econet: ICMS BA, antecipação parcial](https://blog.econeteditora.com.br/icms-ba-antecipacao-parcial/) — prazo, código 2175, redução de 20%, Simples.
