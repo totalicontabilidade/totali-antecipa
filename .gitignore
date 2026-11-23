@@ -7,3 +7,6 @@ docs/Fiscal_Certo.pdf
 *.nsu
 Thumbs.db
 _teste/
+
+# Conciliacoes com dados de cliente (fornecedores, notas, valores): so locais
+docs/icms-ba/CONCILIACAO_LOCAL_*.md

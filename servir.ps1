@@ -10,8 +10,8 @@
 #    POST /api/certificado  {cnpj,pfxBase64,senha,lembrar}
 #    POST /api/senha        {cnpj,senha}      destrava a senha só nesta sessão
 #    DELETE /api/certificado/<cnpj>
-#    GET  /api/nfe/<chave>?cnpj=<cnpj>        XML completo (Distribuição DF-e + ciência)
-#    GET  /api/distribuicao?cnpj=<cnpj>       todas as NF-e novas do CNPJ (por NSU)
+#    GET  /api/nfe/<chave>?cnpj=<cnpj>&uf=<SE|BA>   XML completo (Distribuição DF-e + ciência); uf = UF da empresa (cUFAutor)
+#    GET  /api/distribuicao?cnpj=<cnpj>&uf=<SE|BA>  todas as NF-e novas do CNPJ (por NSU)
 # =====================================================================
 param([int]$Porta = 8788, [switch]$SemNavegador)
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -68,12 +68,12 @@ while ($l.IsListening) {
         }
         if ($path -like '/api/nfe/*') {
           $chave = ($path -split '/')[-1]; $cnpj = [string]$qs['cnpj']
-          $r = Get-NFeCompleta -cnpj $cnpj -chave $chave
+          $r = Get-NFeCompleta -cnpj $cnpj -chave $chave -uf ([string]$qs['uf'])
           Send-Json $res $r; continue
         }
         if ($path -eq '/api/distribuicao') {
           $cnpj = [string]$qs['cnpj']; $lotes = 10; if ($qs['lotes']) { $lotes = [int]$qs['lotes'] }
-          $r = Get-NFeDistribuicao -cnpj $cnpj -maxLotes $lotes
+          $r = Get-NFeDistribuicao -cnpj $cnpj -maxLotes $lotes -uf ([string]$qs['uf'])
           Send-Json $res $r; continue
         }
         Send-Json $res @{ ok = $false; erro = 'rota não encontrada' } 404; continue

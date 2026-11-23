@@ -79,6 +79,48 @@ const ESPELHO = (() => {
     return { contribuinte: '', ie: '', nDia: '', linhas: chaves.map(c => ({ chave: c, nNF: c.substring(25, 34).replace(/^0+/, ''), emitente: c.substring(6, 20), forma: '', vlTotal: 0, vlIcmsCalc: 0, vlRecolher: 0 })), avisos: [] };
   }
 
+  // ---------------------------------------------------------------------------------------------
+  // BAHIA: não existe espelho do DIA. O escritório parte do relatório de NF-e destinadas ao CNPJ (rpt_cons_dest.csv),
+  // que traz: Numero NF-e;CNPJ/CPF Emitente;Razao Social Emitente;Data de Emissao;Data de Autorizacao;Valor;
+  // Chave de Acesso;UF Emit.;Situacao;Tipo Operacao. Separador ";", chave com apóstrofo na frente, valor "2.472,30".
+  // Faz o papel do espelho: dá a lista de chaves para baixar os XMLs. Não traz valor calculado pela SEFAZ (vlIcmsCalc = null).
+  // ---------------------------------------------------------------------------------------------
+  function ehCsvDestinatario(txt) {
+    const cab = norm(String(txt || '').replace(/^\uFEFF/, '').split(/\r?\n/)[0] || '');
+    return cab.includes('chave de acesso') && cab.includes('uf emit');
+  }
+  function lerCsvDestinatario(txt) {
+    const out = { contribuinte: '', ie: '', nDia: '', ref: '', origem: 'relatorio-destinatario', linhas: [], avisos: [] };
+    const rows = String(txt || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+    if (!rows.length) { out.avisos.push('Arquivo vazio.'); return out; }
+    const sep = (rows[0].match(/;/g) || []).length >= (rows[0].match(/,/g) || []).length ? ';' : ',';
+    const cab = rows[0].split(sep).map(norm);
+    const col = nome => cab.findIndex(c => c.includes(nome));
+    const i = { num: col('numero'), cnpj: col('cnpj'), razao: col('razao'), emi: col('data de emissao'), val: col('valor'), chave: col('chave'), uf: col('uf emit'), sit: col('situacao'), tipo: col('tipo') };
+    if (i.chave < 0) { out.avisos.push('Não encontrei a coluna "Chave de Acesso".'); return out; }
+    const vistas = new Set();
+    for (const l of rows.slice(1)) {
+      const c = l.split(sep);
+      const chave = String(c[i.chave] || '').replace(/\D/g, '');
+      if (chave.length !== 44 || vistas.has(chave)) continue;
+      vistas.add(chave);
+      const d = String(c[i.emi] || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      const sit = String(c[i.sit] || '').trim();
+      out.linhas.push({
+        mesRef: d ? d[2] + '/' + d[3] : '', etiqueta: '', nNF: String(parseInt(String(c[i.num] || '').replace(/\D/g, ''), 10) || ''),
+        dtEmissao: d ? d[3] + '-' + d[2] + '-' + d[1] : '', dtRegistro: '', pago: '', vlTotal: num(c[i.val]), vlIcmsCalc: null, vlRecolher: 0,
+        emitente: String(c[i.cnpj] || '').replace(/\D/g, ''), chave, forma: '', obs: '', alterada: '', adiada: '', partes: [],
+        emitenteNome: String(c[i.razao] || '').trim(), ufEmit: String(c[i.uf] || '').trim(), situacaoNfe: sit, tipoOperacao: String(c[i.tipo] || '').trim(),
+        cancelada: /cancelad|denegad/i.test(sit),
+      });
+    }
+    if (!out.linhas.length) out.avisos.push('Nenhuma linha com chave de acesso (44 dígitos) foi encontrada no arquivo.');
+    // competência = mês com mais notas emitidas
+    const cont = {}; for (const l of out.linhas) if (l.mesRef) cont[l.mesRef] = (cont[l.mesRef] || 0) + 1;
+    out.ref = Object.keys(cont).sort((a, b) => cont[b] - cont[a])[0] || '';
+    return out;
+  }
+
   // Mapeia a "Forma Recolhimento" do espelho para a receita do mapa
   function formaParaReceita(forma) {
     const f = norm(forma);
@@ -101,5 +143,5 @@ const ESPELHO = (() => {
     return { uf: UF, ano: '20' + aamm.substring(0, 2), mes: aamm.substring(2, 4), cnpj, mod, serie: String(parseInt(serie, 10)), nNF: String(parseInt(nNF, 10)) };
   }
 
-  return { lerPlanilha, lerTexto, formaParaReceita, infoChave };
+  return { lerPlanilha, lerTexto, lerCsvDestinatario, ehCsvDestinatario, formaParaReceita, infoChave };
 })();

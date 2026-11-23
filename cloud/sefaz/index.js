@@ -136,9 +136,12 @@ function parseRetDist(resp) {
   }
   return r;
 }
-async function distDFe(cert, cnpj, chave, ultNSU) {
+// Código IBGE da UF do autor da consulta (cUFAutor): empresa baiana consulta como 29; Sergipe, 28 (padrão)
+const cUFAutor = uf => (String(uf || '').toUpperCase() === 'BA' ? 29 : 28);
+
+async function distDFe(cert, cnpj, chave, ultNSU, uf) {
   const cons = chave ? `<consChNFe><chNFe>${chave}</chNFe></consChNFe>` : `<distNSU><ultNSU>${String(ultNSU || '0').padStart(15, '0')}</ultNSU></distNSU>`;
-  const dist = `<distDFeInt xmlns="${NS_NFE}" versao="1.01"><tpAmb>1</tpAmb><cUFAutor>28</cUFAutor><CNPJ>${cnpj}</CNPJ>${cons}</distDFeInt>`;
+  const dist = `<distDFeInt xmlns="${NS_NFE}" versao="1.01"><tpAmb>1</tpAmb><cUFAutor>${cUFAutor(uf)}</cUFAutor><CNPJ>${cnpj}</CNPJ>${cons}</distDFeInt>`;
   const body = `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe"><nfeDadosMsg>${dist}</nfeDadosMsg></nfeDistDFeInteresse>`;
   return parseRetDist(await soap(URL_DIST, body, cert));
 }
@@ -175,11 +178,11 @@ async function cienciaOperacao(cert, cnpj, chave) {
 }
 
 // ---------------------------------------------------------------- fluxos
-async function nfeCompleta(uid, cnpj, chave) {
+async function nfeCompleta(uid, cnpj, chave, uf) {
   cnpj = dig(cnpj); chave = dig(chave);
   if (chave.length !== 44) throw new ErroApi('Chave de acesso inválida.', 'CHAVE');
   const cert = await certificadoDoLogin(uid, cnpj);
-  const r = await distDFe(cert, cnpj, chave);
+  const r = await distDFe(cert, cnpj, chave, '', uf);
   const log = [`distDFe consChNFe: ${r.cStat} ${r.xMotivo}`];
   const proc = r.docs.find(d => /^procNFe/.test(d.schema));
   if (proc) return { ok: true, xml: proc.xml, chave, log };
@@ -189,7 +192,7 @@ async function nfeCompleta(uid, cnpj, chave) {
     log.push(`ciência 210210: ${ev.cStat} ${ev.xMotivo}`);
     if (['135', '136', '573'].includes(ev.cStat)) {
       await new Promise(r2 => setTimeout(r2, 2000));
-      const r2 = await distDFe(cert, cnpj, chave);
+      const r2 = await distDFe(cert, cnpj, chave, '', uf);
       log.push(`distDFe após ciência: ${r2.cStat} ${r2.xMotivo}`);
       const proc2 = r2.docs.find(d => /^procNFe/.test(d.schema));
       if (proc2) return { ok: true, xml: proc2.xml, chave, log };
@@ -199,12 +202,12 @@ async function nfeCompleta(uid, cnpj, chave) {
   }
   return { ok: false, motivo: `SEFAZ: ${r.cStat} ${r.xMotivo}`, log };
 }
-async function distribuicao(uid, cnpj, maxLotes) {
+async function distribuicao(uid, cnpj, maxLotes, uf) {
   cnpj = dig(cnpj);
   const cert = await certificadoDoLogin(uid, cnpj);
   let ult = cert.ultNSU || '0'; const docs = []; const log = []; let lotes = 0;
   while (lotes < maxLotes) {
-    const r = await distDFe(cert, cnpj, '', ult); lotes++;
+    const r = await distDFe(cert, cnpj, '', ult, uf); lotes++;
     log.push(`distNSU ultNSU=${ult} -> ${r.cStat} ${r.xMotivo} (docs ${r.docs.length}, ultNSU ${r.ultNSU}, maxNSU ${r.maxNSU})`);
     for (const d of r.docs) docs.push(d);
     if (r.ultNSU) { ult = r.ultNSU; await cert.ref.set({ ultNSU: ult }, { merge: true }); }
@@ -260,8 +263,8 @@ functions.http('sefaz', async (req, res) => {
       await colCerts(u.uid).doc(dig(path.split('/').pop())).delete();
       return res.json({ ok: true });
     }
-    if (/^\/api\/nfe\/\d+$/.test(path) && req.method === 'GET') return res.json(await nfeCompleta(u.uid, req.query.cnpj, path.split('/').pop()));
-    if (path === '/api/distribuicao' && req.method === 'GET') return res.json(await distribuicao(u.uid, req.query.cnpj, Math.min(parseInt(req.query.lotes || '10', 10) || 10, 20)));
+    if (/^\/api\/nfe\/\d+$/.test(path) && req.method === 'GET') return res.json(await nfeCompleta(u.uid, req.query.cnpj, path.split('/').pop(), req.query.uf));
+    if (path === '/api/distribuicao' && req.method === 'GET') return res.json(await distribuicao(u.uid, req.query.cnpj, Math.min(parseInt(req.query.lotes || '10', 10) || 10, 20), req.query.uf));
     return res.status(404).json({ ok: false, erro: 'rota não encontrada' });
   } catch (e) {
     const codigo = e.codigo || (/SENHA_NECESSARIA/.test(e.message) ? 'SENHA_NECESSARIA' : /não cadastrado/.test(e.message) ? 'SEM_CERTIFICADO' : 'ERRO');

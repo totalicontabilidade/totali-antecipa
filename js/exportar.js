@@ -43,12 +43,13 @@ const EXPORTAR = (() => {
     cell(ws, 'A5', 'GOVERNO DE SERGIPE', title); cell(ws, 'A6', 'SECRETARIA DE ESTADO DA FAZENDA', title);
     cell(ws, 'B7', 'VERSÃO 5'); cell(ws, 'A8', 'PORTARIA N.º 103/2006-SEFAZ'); cell(ws, 'A9', 'DE 26 DE JANEIRO DE 2006');
     cell(ws, 'A11', 'ANEXO I', bold); cell(ws, 'A12', 'MAPA DE APURAÇÃO DO ICMS', title);
+    if (empresa.uf === 'BA') cell(ws, 'A10', 'EMPRESA DA BAHIA — a Bahia não tem mapa oficial: esta é a grade do mapa de Sergipe, usada para calcular a antecipação parcial (Lei 7.014/96, art. 12-A). A Totali é especialista em ICMS de Sergipe: valide antes de recolher.', { font: { bold: true, color: { rgb: '990000' } } });
     cell(ws, 'A14', 'MÊS DE REFERÊNCIA', bold); cell(ws, 'D14', fmtComp(competencia));
     cell(ws, 'A15', 'CONTRIBUINTE:', bold); cell(ws, 'D15', empresa.nome);
     cell(ws, 'A16', 'INSCRIÇÃO ESTADUAL N.º:', bold); cell(ws, 'D16', empresa.ie);
     cell(ws, 'A17', 'CNPJ:', bold); cell(ws, 'B17', empresa.cnpj);
     cell(ws, 'H13', 'Valor devido por Receita', bold); cell(ws, 'M13', 'Valor da devolução', bold); cell(ws, 'O13', 'Valor a recolher por Receita', bold);
-    const ordem = ['cesta_opt36', 'cesta_opt21', 'difal', 'antecip_encer', 'importacoes', 'antecip_interest', 'simfaz', 'cesta_nao_opt', 'st_interna', 'antecip_interna', 'simples'];
+    const ordem = empresa.uf === 'BA' ? ['ba_parcial', 'ba_total'] : ['cesta_opt36', 'cesta_opt21', 'difal', 'antecip_encer', 'importacoes', 'antecip_interest', 'simfaz', 'cesta_nao_opt', 'st_interna', 'antecip_interna', 'simples'];
     let r = 14;
     for (const id of ordem) {
       const R = MOTOR.receita(id); const v = R.difal ? null : consolidado.porReceita[id];   // o DIFAL tem mapa proprio (Port. 367/2016)
@@ -62,7 +63,7 @@ const EXPORTAR = (() => {
     cell(ws, 'A23', 'Imposto devido', bold); cell(ws, 'E23', MOTOR.r2(consolidado.debito - consolidado.credito), { z: money });
     cell(ws, 'A24', 'Devolução de mercadoria / desfazimento', bold); cell(ws, 'E24', 0, { z: money });
     cell(ws, 'A25', 'valor a recolher', bold); cell(ws, 'E25', consolidado.devido, { z: money, s: goldStyle });
-    cell(ws, 'A26', 'FECOEP (DAE à parte)', bold); cell(ws, 'E26', consolidado.fecoep, { z: money });
+    cell(ws, 'A26', (empresa.uf === 'BA' ? 'FECEP' : 'FECOEP') + ' (DAE à parte)', bold); cell(ws, 'E26', consolidado.fecoep, { z: money });
     cell(ws, 'A28', 'Gerado por Totali Antecipa — memória de cálculo item a item na aba "Itens". Confira os itens marcados antes de recolher.', { font: { italic: true, color: { rgb: '666666' } } });
 
     // Cabeçalho da tabela (linhas 33-38 no original; aqui letras na 33 e nomes na 34)
@@ -208,7 +209,7 @@ const EXPORTAR = (() => {
     const { empresa, competencia, consolidado } = ctx;
     const ws = {};
     cell(ws, 'A1', 'RESUMO DO ICMS ANTECIPADO — ' + empresa.nome, { s: { font: { bold: true, sz: 13, color: { rgb: NAVY } } } });
-    cell(ws, 'A2', 'IE ' + empresa.ie + ' · CNPJ ' + empresa.cnpj + ' · competência ' + fmtComp(competencia) + ' · regime ' + (empresa.regime === 'simples' ? 'Simples Nacional' : 'Normal (' + empresa.perfil + ')'));
+    cell(ws, 'A2', (empresa.uf === 'BA' ? 'BAHIA · ' : '') + 'IE ' + empresa.ie + ' · CNPJ ' + empresa.cnpj + ' · competência ' + fmtComp(competencia) + ' · regime ' + (empresa.regime === 'simples' ? 'Simples Nacional' : 'Normal (' + empresa.perfil + ')'));
     ['Receita', 'Código DAE', 'Notas', 'Base de cálculo', 'Débito', 'Crédito', 'Devido', 'A recolher'].forEach((h, i) => cell(ws, A(i, 3), h, { s: hdrStyle }));
     let r = 4;
     for (const [id, v] of Object.entries(consolidado.porReceita)) {
@@ -218,7 +219,7 @@ const EXPORTAR = (() => {
     cell(ws, A(0, r), 'FECOEP / FUNPOBREZA (DAE à parte)'); cell(ws, A(1, r), 'FECOEP'); cell(ws, A(7, r), consolidado.fecoep, { z: money, s: bold }); r++;
     cell(ws, A(0, r + 1), 'TOTAL A RECOLHER (ICMS + FECOEP)', bold); cell(ws, A(7, r + 1), consolidado.totalDae, { z: money, s: goldStyle });
     cell(ws, A(0, r + 4), 'Gerado por ' + (typeof APP_VERSAO !== 'undefined' ? APP_VERSAO.nome + ' v' + APP_VERSAO.numero + ' (' + APP_VERSAO.data + ')' : 'Totali Antecipa') + ' — tabelas ' + TABELAS_SE.versao, { s: { font: { italic: true, color: { rgb: '666666' } } } });
-    cell(ws, A(0, r + 3), 'Fundamento: Lei 3.796/96, arts. 42 e 42-A; RICMS/SE (Dec. 21.400/2002) arts. 785 a 790 e Anexo X; FECOEP Lei 4.731/2002. Confirme prazo e código do DAE vigentes na SEFAZ/SE.', { s: { font: { italic: true, color: { rgb: '666666' } } } });
+    cell(ws, A(0, r + 3), empresa.uf === 'BA' ? 'Fundamento (Bahia, módulo em validação): Lei 7.014/96, art. 12-A (antecipação parcial), arts. 8º e 9º (antecipação total), art. 15 (alíquotas) e art. 16-A (FECEP). Códigos do DAE 2175 (parcial, segundo a Econet) e 1145 (planilha do escritório) a confirmar. A Totali é especialista em ICMS de Sergipe: valide antes de recolher.' : 'Fundamento: Lei 3.796/96, arts. 42 e 42-A; RICMS/SE (Dec. 21.400/2002) arts. 785 a 790 e Anexo X; FECOEP Lei 4.731/2002. Confirme prazo e código do DAE vigentes na SEFAZ/SE.', { s: { font: { italic: true, color: { rgb: '666666' } } } });
     range(ws, 0, 0, r + 4, 7); ws['!cols'] = [52, 12, 8, 16, 14, 14, 14, 14].map(w => ({ wch: w }));
     return ws;
   }

@@ -47,7 +47,7 @@ async function identificarRegime(forcar) {
     const mudou = novo !== E.regime;
     E.regime = novo; E.regimeFonte = d.fonte + " em " + new Date().toLocaleDateString("pt-BR") + (d.mei ? " (MEI)" : ""); if (d.cnaes && d.cnaes.length) E.cnaes = d.cnaes;
     if (d.razao && (!E.nome || /^Contribuinte /.test(E.nome))) E.nome = d.razao;
-    if (d.uf && d.uf !== 'SE') showToast('Atenção: a Receita mostra a empresa em ' + d.uf + ', não em Sergipe.', 'error');
+    if (d.uf && d.uf !== (E.uf || 'SE')) showToast('Atenção: a Receita mostra a empresa em ' + d.uf + ', mas o cadastro está como ' + (E.uf || 'SE') + '. Ajuste a UF em Cadastros › Empresas' + (d.uf === 'BA' ? ' (Bahia: módulo em validação, a Totali é especialista em Sergipe).' : '.'), 'error');
     salvar(); renderEmpresasSelect(); recalcular(); if (ST.view === 'empresas') renderEmpresas();
     showToast((d.simples ? 'Simples Nacional' : 'Regime normal') + ' identificado pela Receita Federal para ' + (d.razao || fmtCnpj(E.cnpj)) + (mudou ? ' — cálculo refeito.' : '.'), 'success');
   } catch (e) { console.warn('consulta CNPJ', e); }

@@ -19,6 +19,7 @@ const MOTOR = (() => {
 
   const PARAMS_PADRAO = {
     aliqModal: T.aliquotaInternaModal,
+    aliqModalBA: (typeof TABELAS_BA !== 'undefined' ? TABELAS_BA.aliquotaInternaModal : 20.5),   // Bahia: prática do escritório (ver TABELAS_BA)
     mvaApto: T.mvaGeral.apto,
     mvaInapto: T.mvaGeral.inapto,
     fecoepAtivo: true,
@@ -34,7 +35,7 @@ const MOTOR = (() => {
   };
 
   const EMPRESA_PADRAO = {
-    cnpj: '', ie: '', nome: '', regime: 'normal', perfil: 'apto', cestaOptante: false,
+    cnpj: '', ie: '', nome: '', uf: 'SE', regime: 'normal', perfil: 'apto', cestaOptante: false,
     // Art. 784, § 3º c/c Anexo X, itens 03 e 04: açougueiro, ambulante, barraqueiro, bodegueiro,
     // cantina, clube social, feirante, microempresa estadual e bloco carnavalesco. Desligado por
     // padrão — é o cadastro da empresa que liga.
@@ -58,7 +59,8 @@ const MOTOR = (() => {
   }
 
   // Procura a regra de NCM: primeiro as do usuário, depois as embutidas. Menor prioridade vence.
-  function buscarRegra(ncm, xProd, regrasUsuario) {
+  function buscarRegra(ncm, xProd, regrasUsuario, uf) {
+    const UFx = uf || 'SE';   // regra do usuário sem UF vale só para SE; "*" vale para todas; as embutidas são de Sergipe
     const n = String(ncm || '').replace(/\D/g, '');
     const desc = String(xProd || '').toUpperCase();
     const casa = (rg) => {
@@ -79,8 +81,8 @@ const MOTOR = (() => {
       return true;
     };
     const cand = [];
-    (regrasUsuario || []).forEach((rg, i) => { if (rg.ativa !== false && casa(rg)) cand.push({ rg, ord: [rg.prioridade ?? 100, 0, i] }); });
-    T.regrasNcm.forEach((rg, i) => { if (casa(rg)) cand.push({ rg: { ...rg, embutida: true }, ord: [rg.prioridade ?? 100, 1, i] }); });
+    (regrasUsuario || []).forEach((rg, i) => { if (rg.ativa !== false && (rg.uf === '*' || (rg.uf || 'SE') === UFx) && casa(rg)) cand.push({ rg, ord: [rg.prioridade ?? 100, 0, i] }); });
+    if (UFx === 'SE') T.regrasNcm.forEach((rg, i) => { if (casa(rg)) cand.push({ rg: { ...rg, embutida: true }, ord: [rg.prioridade ?? 100, 1, i] }); });
     if (!cand.length) return null;
     cand.sort((a, b) => a.ord[0] - b.ord[0] || a.ord[1] - b.ord[1] || String(b.rg.ncm).length - String(a.rg.ncm).length || a.ord[2] - b.ord[2]);
     return cand[0].rg;
@@ -121,19 +123,30 @@ const MOTOR = (() => {
   function empresaAgropet(E) {
     return !!(E && E.cnaes && E.cnaes.some(c => /^(4789004|7500100|4623109|4771704|4692300|0161|0162|4683400)/.test(String((c && c.codigo) || c || '').replace(/\D/g, ''))));
   }
+  // Bahia: não há mapa oficial. Revenda interestadual = antecipação parcial (art. 12-A da Lei 7.014/96), sem MVA; produto com regra de ST
+  // cadastrada pelo usuário = antecipação total. A Totali é especialista em Sergipe: tudo aqui é prática do escritório a validar.
+  function decidirReceitaBA(ctx) {
+    const { item, tri, regra } = ctx;
+    if (regra && regra.regime === 'nao_antecipa') return { id: 'nao_antecipa', motivo: regra.descricao + '.' };
+    if (tri.finalidade === 'ativo' || tri.finalidade === 'usoConsumo') return { id: 'nao_antecipa', motivo: 'Entrada para ' + (tri.finalidade === 'ativo' ? 'ativo imobilizado' : 'uso/consumo') + ' (CFOP ' + item.cfop + '): não é aquisição para comercialização, então não há antecipação parcial (Lei 7.014/96, art. 12-A); o diferencial de alíquota é apurado à parte (art. 4º, XV). Para calcular, marque a nota como "Calcular como DIFAL — uso e consumo" ou "— ativo imobilizado" na coluna Receita.' };
+    if (regra && (regra.regime === 'antecip_encer' || regra.regime === 'st_interna')) return { id: 'ba_total', motivo: regra.descricao + ' — antecipação total (substituição por antecipação, encerra a fase de tributação): MVA e alíquota da regra cadastrada.' };
+    return { id: 'ba_parcial', motivo: 'Aquisição interestadual para comercialização na Bahia: antecipação parcial, alíquota interna sobre o valor da operação, sem MVA, deduzido o ICMS destacado (Lei 7.014/96, art. 12-A e art. 23, III).' };
+  }
   function decidirReceita(ctx) {
     const { nota, item, empresa, tri, regra, ov } = ctx;
     if (ov && ov.ignorar) return { id: 'nao_antecipa', motivo: 'Item EXCLUÍDO manualmente desta apuração pelo usuário — a versão deixa de ser a calculada automaticamente.' };
     if (ov && ov.receita) {
-      if (ov.receita === 'difal') return { id: 'difal', motivo: 'DIFAL marcado manualmente pelo usuário — ' + (tri.finalidade === 'ativo'
+      if (receita(ov.receita).difal && receita(ov.receita).difalBA) return { id: ov.receita, motivo: 'DIFAL marcado manualmente pelo usuário — Bahia (' + (tri.finalidade === 'ativo' ? 'bem do ATIVO IMOBILIZADO' : 'bem de USO E CONSUMO') + '): diferencial de alíquota (Lei 7.014/96, art. 4º, XV e art. 15, § 7º), base única como na planilha do escritório (Conv. ICMS 93/2015). Sem adicional do FECEP, salvo pontos informados no item. A Totali é especialista em Sergipe: valide antes de recolher.' };
+      if (receita(ov.receita).difal) return { id: ov.receita, motivo: 'DIFAL marcado manualmente pelo usuário — ' + (tri.finalidade === 'ativo'
         ? 'bem do ATIVO IMOBILIZADO: diferencial de alíquota SEM o adicional do Fundo de Combate à Pobreza (RICMS/SE, art. 616-C-B, II); DAE 0110.'
         : 'bem de USO E CONSUMO: diferencial de alíquota COM o adicional do Fundo de Combate à Pobreza (art. 616-B, VII, c/c art. 40-D); DAE 0111 + 0150.') };
       return { id: ov.receita, motivo: 'Receita definida manualmente pelo usuário.' };
     }
-    if (!tri.interestadual) return { id: 'nao_antecipa', motivo: 'Não é entrada interestadual para contribuinte de SE (emitente ' + nota.emit.uf + ' → destinatário ' + nota.dest.uf + ').' };
+    if (!tri.interestadual) return { id: 'nao_antecipa', motivo: 'Não é entrada interestadual para contribuinte de ' + (empresa.uf || 'SE') + ' (emitente ' + nota.emit.uf + ' → destinatário ' + nota.dest.uf + ').' };
     if (['industrializacao', 'devolucao', 'remessaRetorno'].includes(tri.cfopTipo)) return { id: 'nao_antecipa', motivo: T.descCfop[tri.cfopTipo] + ' (CFOP ' + item.cfop + ').' };
     // ST retida PARA SERGIPE nesta operação: nada a antecipar em qualquer regime (a SEFAZ marca "operação não antecipada" — J C de Lira mar/2026)
     if (tri.stRetida) return { id: "nao_antecipa", motivo: "ICMS-ST retido pelo remetente nesta operação (CST/CSOSN " + (item.icms.cst || item.icms.csosn) + (tri.cfopTipo === "stRetida" ? ", CFOP " + item.cfop : "") + ") — não cabe nova antecipação" + (empresa.regime === "simples" ? " nem complementação de alíquota (a SEFAZ marca como operação não antecipada)" : "") + "." };
+    if ((empresa.uf || 'SE') === 'BA') return decidirReceitaBA(ctx);
     // CST 60 / CSOSN 500 numa entrada interestadual: o imposto "cobrado anteriormente" foi do estado de ORIGEM, não de Sergipe.
     if (tri.stAnteriorOutraUF && ctx.alertas) ctx.alertas.push({ nivel: 'medio', msg: 'CST/CSOSN ' + (item.icms.cst || item.icms.csosn) + ' (imposto cobrado anteriormente por ST) numa entrada INTERESTADUAL: essa retenção foi para ' + nota.emit.uf + ', não para Sergipe. Como o substituto não reteve para SE, cabe a antecipação com encerramento (RICMS/SE art. 784, II, "a"). Se o remetente tiver retido para SE, informe a receita do item manualmente.' });
     // ---- Agropecuária / pet shop (conferido com o mapa da J C de Lira, mar/2026) ----
@@ -195,6 +208,7 @@ const MOTOR = (() => {
     if (ovNota && ovNota.receita && !ov.receita) { ov.receita = ovNota.receita; if (ovNota.finalidade && !ov.finalidade) ov.finalidade = ovNota.finalidade; }
     const alertas = [];
     const mem = [];
+    const UF = E.uf || 'SE', isBA = UF === 'BA';   // UF onde a empresa recolhe: SE (especialidade da Totali) ou BA (módulo em validação)
 
     // ---- Triagem ----
     const cfopTipo = classificarCfop(item.cfop);
@@ -224,7 +238,7 @@ const MOTOR = (() => {
       }
     }
     const tri = {
-      interestadual: nota.emit.uf !== 'SE' && nota.dest.uf === 'SE',
+      interestadual: nota.emit.uf !== UF && nota.dest.uf === UF,
       cfopTipo, stRetida, stAnteriorOutraUF: stAnterior && !reteveAgora, finalidade,
       // finalidade dita pelo CFOP da nota ou marcada à mão — sinal firme, diferente da suposta pelo CNAE
       finalidadeExplicita: !!ov.finalidade || cfopTipo === 'ativo' || cfopTipo === 'usoConsumo',
@@ -237,14 +251,14 @@ const MOTOR = (() => {
     if (nota.indFinal === '1' && finalidade === 'revenda') alertas.push({ nivel: 'baixo', msg: 'Nota marcada como consumidor final (indFinal=1). Se a entrada for uso/consumo ou ativo, é DIFAL.' });
     // Manual de Preenchimento do Mapa (Anexo II da Portaria 103/2006, observação da coluna C): a planilha do DIA não
     // serve para recolhimento de massas alimentícias, biscoitos e bolachas — esses produtos têm guia própria.
-    if (/^(1902|1905)/.test(String(item.ncm || ''))) alertas.push({ nivel: 'medio', msg: 'Massa alimentícia, biscoito ou bolacha (NCM ' + item.ncm + '): o Manual de Preenchimento do Mapa (Portaria 103/2006, Anexo II) diz que a planilha do DIA NÃO deve ser usada para recolher esses produtos. Confira se o imposto sai por guia própria e, se for o caso, tire a nota da apuração.' });
+    if (!isBA && /^(1902|1905)/.test(String(item.ncm || ''))) alertas.push({ nivel: 'medio', msg: 'Massa alimentícia, biscoito ou bolacha (NCM ' + item.ncm + '): o Manual de Preenchimento do Mapa (Portaria 103/2006, Anexo II) diz que a planilha do DIA NÃO deve ser usada para recolher esses produtos. Confira se o imposto sai por guia própria e, se for o caso, tire a nota da apuração.' });
 
     // ---- Regra de NCM (usuário > embutidas > tabela oficial de ST de SE) ----
-    let regra = buscarRegra(item.ncm, item.xProd, cad && cad.regras);
+    let regra = buscarRegra(item.ncm, item.xProd, cad && cad.regras, UF);
     let stTab = null;
     // Portal Nacional da ST (SE): MVA por alíquota de origem já ajustada, FECOEP e alíquota interna por CEST/NCM
     let portal = null;
-    if (typeof MATERIAIS !== 'undefined' && MATERIAIS.carregada('st_portal')) {
+    if (!isBA && typeof MATERIAIS !== 'undefined' && MATERIAIS.carregada('st_portal')) {
       const pr = MATERIAIS.stPortal(item.ncm, item.cest);
       if (pr && pr.linhas.length) {
         const l = pr.linhas[0];
@@ -267,7 +281,7 @@ const MOTOR = (() => {
         }
       }
     }
-    if (!portal && typeof MATERIAIS !== 'undefined' && MATERIAIS.carregada('st_se')) {
+    if (!isBA && !portal && typeof MATERIAIS !== 'undefined' && MATERIAIS.carregada('st_se')) {
       stTab = MATERIAIS.st(item.ncm, item.cest);
       // A planilha do Fiscal Certo só decide a receita no modo "aplicar", com NCM exato (e CEST igual, quando ambos têm),
       // porque um NCM de 4 dígitos na lista puxa produtos de outro segmento (ex.: 1806 em "Sorvetes" não é chocolate).
@@ -334,7 +348,8 @@ const MOTOR = (() => {
           alertas.push({ nivel: 'medio', msg: 'CST ' + cst + ' sem ICMS destacado: aplicado crédito presumido de ' + L + '% por opção em Parâmetros (prática do escritório). ATENÇÃO: o art. 788 do RICMS/SE manda deduzir "o valor do ICMS destacado na Nota Fiscal de aquisição", e a CF/88 (art. 155, § 2º, II, "a") diz que a isenção não gera crédito — sem imposto na origem, o crédito não tem amparo literal. Para calcular sem crédito, desligue em Parâmetros.' });
         } else {
           L = 0; credito = 0; origemCredito = 'CST ' + cst + (cst === '60' ? ' — ST cobrada em outro estado' : ' — isenta/não tributada na origem') + ': sem ICMS destacado, nada a deduzir (art. 788 do RICMS/SE)';
-          if (rec.id !== 'nao_antecipa') {
+          if (rec.id !== 'nao_antecipa' && isBA) alertas.push({ nivel: 'medio', msg: 'Entrada com CST ' + cst + ' sem ICMS destacado: nada a deduzir na antecipação parcial da Bahia (Lei 7.014/96, art. 12-A: "deduzido o valor do imposto destacado"). Confira com a SEFAZ-BA se cabe crédito. A Totali é especialista em Sergipe.' });
+          if (rec.id !== 'nao_antecipa' && !isBA) {
             const credPresumido = r2((F + H) * aliqInter / 100);
             alertas.push({ nivel: 'medio', isento: true, cst, aliqInter, credPresumido,
               msg: 'Entrada com CST ' + cst + ' (isenta/não tributada na origem, sem ICMS destacado). Calculado pela ALÍQUOTA INTERNA CHEIA: o art. 788 do RICMS/SE manda deduzir "o valor do ICMS destacado na Nota Fiscal de aquisição", e não há destaque. Se quiser seguir a prática do mapa (só a DIFERENÇA, com crédito presumido de ' + aliqInter + '% = ' + credPresumido.toFixed(2) + '), ligue em Parâmetros. Fora da antecipação (art. 785, § 2º, I) só quando o produto for isento AQUI em SE (Anexo I do RICMS/SE) — isenção de outro estado não vale em Sergipe.' });
@@ -352,7 +367,7 @@ const MOTOR = (() => {
       // crédito. O Manual (Anexo II, item 11) confirma que K, P, Q, R, S e T são calculados pelo
       // próprio programa, e não informados pelo contribuinte.
       const credMapa = (F + H) * L / 100;
-      if (P.creditoModo !== 'destacado') {
+      if (P.creditoModo !== 'destacado' && !isBA) {   // Bahia: art. 12-A da Lei 7.014/96 deduz o imposto DESTACADO na nota (a fórmula (F+H)×L é do mapa de Sergipe)
         if (Math.abs(credMapa - credito) > 0.05) alertas.push({ nivel: 'baixo', msg: 'Crédito pela fórmula do mapa (F+H)×L = ' + credMapa.toFixed(2) + ' difere do ICMS destacado ' + credito.toFixed(2) + ' (base de origem inclui IPI/seguro/outras ou é reduzida). Usado o valor do mapa, como faz o DIA.' });
         const baseCred = F + H;
         credito = credMapa; origemCredito = '(F+H) × L = (' + F.toFixed(2) + ' + ' + H.toFixed(2) + ') × ' + L + '% = ' + baseCred.toFixed(2) + ' × ' + L + '%' +
@@ -368,13 +383,13 @@ const MOTOR = (() => {
     if (rec.id === 'cesta_opt36' || rec.id === 'cesta_opt21' || rec.id === 'nao_antecipa') { credito = 0; }
 
     // ---- Carga de destino (M) ----
-    let M = ov.aliq ?? R.aliq ?? (regra && regra.aliq != null ? regra.aliq : P.aliqModal);
-    let origemM = ov.aliq != null ? 'informada manualmente' : R.aliq != null ? 'fixa da receita' : (regra && regra.aliq != null) ? 'regra do NCM (' + regra.descricao + ')' : 'alíquota modal de SE';
+    let M = ov.aliq ?? R.aliq ?? (regra && regra.aliq != null ? regra.aliq : (isBA ? (P.aliqModalBA ?? 20.5) : P.aliqModal));
+    let origemM = ov.aliq != null ? 'informada manualmente' : R.aliq != null ? 'fixa da receita' : (regra && regra.aliq != null) ? 'regra do NCM (' + regra.descricao + ')' : (isBA ? 'alíquota modal da Bahia (20,5% pela prática do escritório; Lei 7.014/96, art. 15, I — confirmar a vigência no texto oficial)' : 'alíquota modal de SE');
 
     // Manual de Preenchimento do Mapa (Anexo II da Portaria 103/2006, item 12.2, na redação da Portaria 705/2014):
     // quando a carga de destino (M) é MENOR que a praticada na operação interestadual, a coluna L usa a carga interna.
     // Ou seja, o crédito nunca supera o imposto que seria devido aqui — evita saldo credor na antecipação.
-    if (ov.aliqOrigem == null && L > M && M > 0 && rec.id !== 'nao_antecipa') {
+    if (!isBA && ov.aliqOrigem == null && L > M && M > 0 && rec.id !== 'nao_antecipa') {
       const Lantes = L;
       L = M; credito = (F + H) * L / 100;
       origemCredito = 'alíquota de origem limitada à carga interna: ' + Lantes + '% → ' + M + '% (Manual do Mapa, item 12.2, Portaria 705/2014)';
@@ -408,7 +423,7 @@ const MOTOR = (() => {
     else if (typeof R.mva === 'number') { O = R.mva; origemO = 'MVA fixa da receita (' + R.mva + '%)'; }
     // ---- Benefícios em SE (isenção / base reduzida) — só alerta, não aplica ----
     let benef = [];
-    if (typeof MATERIAIS !== 'undefined' && MATERIAIS.carregada('beneficios_se') && rec.id !== 'nao_antecipa') {
+    if (!isBA && typeof MATERIAIS !== 'undefined' && MATERIAIS.carregada('beneficios_se') && rec.id !== 'nao_antecipa') {
       benef = MATERIAIS.beneficios(item.ncm).filter(b => b.tipo !== 'st');
       const red = benef.find(b => b.tipo === 'reducao'), ise = benef.find(b => b.tipo === 'isencao');
       if (ise) alertas.push({ nivel: 'baixo', msg: 'NCM ' + item.ncm + ' consta do Anexo I do RICMS/SE (isenção): ' + (ise.dispositivo || '') + '. Se a saída interna for isenta, confira se cabe antecipação.' });
@@ -427,7 +442,14 @@ const MOTOR = (() => {
     if (N > Pb) { Pb = N; usouPauta = true; }
     if (R.grossup && M < 100) Pb = Pb / (1 - M / 100);
     let Q, S, pDifal = 0;
-    if (R.difal) {
+    if (R.difal && R.difalBA) {
+      // Bahia (planilha de cálculo do escritório, base única do Conv. ICMS 93/2015): base = (valor da operação − ICMS da origem) ÷ (1 − alíquota interna);
+      // DIFAL = base × alíquota interna − ICMS da origem. Difere de Sergipe, que usa o percentual (interna − interestadual) sobre a base por dentro.
+      Pb = M < 100 ? Math.max(0, K - credito) / (1 - M / 100) : K;
+      Q = Pb * M / 100; S = Q - credito;
+      pDifal = r2(Math.max(0, M - L));
+    }
+    else if (R.difal) {
       // Portaria SEFAZ 367/2016, Anexo II: o percentual do DIFAL é a diferença entre a alíquota
       // interna e a interestadual, e a base é o valor da operação dividido por (1 − esse percentual),
       // porque o imposto integra a própria base (LC 87/96, art. 13, § 6º). Sem crédito a deduzir:
@@ -454,7 +476,16 @@ const MOTOR = (() => {
     // para ele a opção é "Calcular como DIFAL — ativo imobilizado", que sai sem o Fundo.
     const usoConsumoForaDoDia = rec.id === 'nao_antecipa' && tri.finalidadeExplicita
       && tri.finalidade === 'usoConsumo' && E.regime === 'simples';
-    if (P.fecoepAtivo && (rec.id !== 'nao_antecipa' || usoConsumoForaDoDia)) {
+    if (isBA) {
+      // Bahia: o adicional do FECEP (Lei 7.014/96, art. 16-A) só incide nos produtos que a lei lista (bebidas, cosméticos, cigarros, armas etc.).
+      // Sem a lista oficial carregada, o sistema não presume: informe os pontos por regra do NCM (com UF BA) ou no item.
+      if (rec.id !== 'nao_antecipa') {
+        if (ov.fecoep != null) { fecoepPts = ov.fecoep; origemFecoep = 'informado manualmente'; }
+        else if (regra && regra.fecoep != null) { fecoepPts = regra.fecoep; origemFecoep = 'regra do NCM (' + regra.descricao + ')'; }
+        else { fecoepPts = 0; origemFecoep = 'Bahia: sem adicional presumido (FECEP só nos produtos do art. 16-A da Lei 7.014/96; informe os pontos no item ou em regra do NCM, se for o caso)'; }
+      }
+    }
+    else if (P.fecoepAtivo && (rec.id !== 'nao_antecipa' || usoConsumoForaDoDia)) {
       if (ov.fecoep != null) { fecoepPts = ov.fecoep; origemFecoep = 'informado manualmente'; }
       else if (regra && regra.fecoep != null) { fecoepPts = regra.fecoep; origemFecoep = 'regra do NCM (' + regra.descricao + ')'; }
       else if (['cesta_opt36', 'cesta_opt21', 'cesta_nao_opt'].includes(rec.id)) { fecoepPts = 0; origemFecoep = 'cesta básica — excluída do FECOEP'; }
@@ -474,7 +505,7 @@ const MOTOR = (() => {
     }
     // No DIFAL o adicional do fundo de pobreza é a coluna J da Portaria 367/2016: 2 pontos sobre a
     // base do DIFAL (coluna G), qualquer que seja o regime.
-    const fecoepBase = R.difal ? Pb : usoConsumoForaDoDia ? K
+    const fecoepBase = isBA ? ((R.difal || rec.id === 'ba_total') ? Pb : K) : R.difal ? Pb : usoConsumoForaDoDia ? K
       : (P.fecoepBase === "P" || (P.fecoepBase === "auto" && (E.regime !== "simples" || ["antecip_encer", "st_interna", "importacoes"].includes(rec.id)))) ? Pb : K;
     const fecoep = fecoepBase * fecoepPts / 100;
 
@@ -487,7 +518,7 @@ const MOTOR = (() => {
 
     // ---- Memória de cálculo ----
     const f = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    mem.push({ passo: '1. Triagem', txt: (tri.interestadual ? 'Entrada interestadual ' + nota.emit.uf + ' → SE' : 'Operação NÃO interestadual') + ' · CFOP ' + item.cfop + ' (' + T.descCfop[cfopTipo] + ') · CST/CSOSN ' + (cst || csosn || '-') + ' · NCM ' + item.ncm + (item.cest ? ' · CEST ' + item.cest : '') });
+    mem.push({ passo: '1. Triagem', txt: (tri.interestadual ? 'Entrada interestadual ' + nota.emit.uf + ' → ' + UF : 'Operação NÃO interestadual') + ' · CFOP ' + item.cfop + ' (' + T.descCfop[cfopTipo] + ') · CST/CSOSN ' + (cst || csosn || '-') + ' · NCM ' + item.ncm + (item.cest ? ' · CEST ' + item.cest : '') });
     const ncmInfo = (typeof MATERIAIS !== 'undefined' && MATERIAIS.carregada('ncm')) ? MATERIAIS.ncmInfo(item.ncm) : null;
     if (ncmInfo && !ncmInfo.existe && rec.id !== 'nao_antecipa') alertas.push({ nivel: 'medio', msg: 'NCM ' + item.ncm + ' não consta da tabela NCM vigente (Siscomex)' + (ncmInfo.descricao ? ' — posição: ' + ncmInfo.descricao : '') + '. Confira a classificação.' });
     mem.push({ passo: '2. Regra do produto', txt: (ncmInfo && ncmInfo.descricao ? 'NCM ' + item.ncm + ' = ' + ncmInfo.descricao + ' · ' : '') + (regra ? regra.descricao + ' [' + regra.fundamento + ']' : 'Nenhuma regra específica para o NCM — regra geral.') + (stTab && stTab.linhas.length && regra && regra.fonte !== 'st_se' ? ' · consta da planilha ST/SE (' + stTab.linhas[0].segmento + ', MVA ' + stTab.linhas[0].mva + '%)' : '') });
@@ -497,7 +528,11 @@ const MOTOR = (() => {
       mem.push({ passo: '4. Formação do preço', txt: 'F valor = ' + f(F) + (usaAcr ? ' · G IPI = ' + f(G) + ' · H frete = ' + f(H) + ' · I seguro = ' + f(I) + ' · J outras = ' + f(J) + ' → K = ' + f(K) : ' → K = F = ' + f(K) + ' (sem encerramento: IPI/frete/seguro não entram na base — manual da SEFAZ, itens 7 a 10)') });
       mem.push({ passo: '5. Alíquota de origem (L)', txt: L + '% — ' + origemCredito });
       mem.push({ passo: '6. Carga de destino (M)', txt: M + '% — ' + origemM });
-      if (R.difal) {
+      if (R.difal && R.difalBA) {
+        mem.push({ passo: '7. Base do DIFAL (Bahia)', txt: '(valor da operação K − ICMS da origem R) ÷ (1 − alíquota interna) = (' + f(K) + ' − ' + f(credito) + ') ÷ ' + (1 - M / 100).toFixed(4) + ' = ' + f(Pb) + ' — base única, como na planilha do escritório (Conv. ICMS 93/2015); fórmula a validar com a SEFAZ-BA' });
+        mem.push({ passo: '8. Débito e DIFAL a recolher', txt: 'base × ' + M + '% − ICMS da origem = ' + f(Pb) + ' × ' + M + '% − ' + f(credito) + ' = ' + f(S) + ' — DAE próprio (código a confirmar), fora do mapa' });
+      }
+      else if (R.difal) {
         mem.push({ passo: '7. Percentual do DIFAL (coluna H)', txt: 'alíquota interna − alíquota de origem = ' + M + '% − ' + L + '% = ' + pDifal + '%' });
         mem.push({ passo: '8. Base do DIFAL (coluna G)', txt: 'valor da operação ÷ (1 − ' + pDifal + '%) = ' + f(K) + ' ÷ ' + (1 - pDifal / 100).toFixed(4) + ' = ' + f(Pb) + ' — o imposto integra a própria base (LC 87/96, art. 13, § 6º; Portaria 367/2016, Anexo II). A coluna B soma mercadorias ' + f(F) + (G > 0 ? ' + IPI ' + f(G) : '') + (H > 0 ? ' + frete ' + f(H) : '') + (I > 0 ? ' + seguro ' + f(I) : '') + (J > 0 ? ' + outras ' + f(J) : '') + ': na entrada para uso, consumo ou ativo não há operação seguinte, então o IPI entra na base do ICMS (CF, art. 155, § 2º, XI, a contrario sensu)' });
         mem.push({ passo: '9. Valor do DIFAL (coluna I)', txt: 'base × ' + pDifal + '% = ' + f(Pb) + ' × ' + pDifal + '% = ' + f(Q) });
@@ -511,7 +546,7 @@ const MOTOR = (() => {
         mem.push({ passo: '10. Crédito (R)', txt: f(credito) + ' — ' + origemCredito });
         mem.push({ passo: '11. ICMS a recolher (S)', txt: 'Q − R = ' + f(Q) + ' − ' + f(credito) + ' = ' + f(S) });
       }
-      mem.push({ passo: '12. FECOEP', txt: fecoepPts > 0 ? fecoepPts + ' ponto(s) × ' + (P.fecoepBase === 'P' ? 'base P ' : 'valor K ') + f(fecoepBase) + ' = ' + f(fecoep) + ' (' + origemFecoep + ') — DAE à parte' : 'não aplicado (' + origemFecoep + ')' });
+      mem.push({ passo: isBA ? '12. FECEP' : '12. FECOEP', txt: fecoepPts > 0 ? fecoepPts + ' ponto(s) × ' + (P.fecoepBase === 'P' ? 'base P ' : 'valor K ') + f(fecoepBase) + ' = ' + f(fecoep) + ' (' + origemFecoep + ') — DAE à parte' : 'não aplicado (' + origemFecoep + ')' });
     }
 
     return {

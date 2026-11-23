@@ -130,12 +130,15 @@ function Parse-RetDist([string]$soapResp) {
   return $r
 }
 
+# Código IBGE da UF do autor da consulta (cUFAutor): a empresa baiana consulta como 29; Sergipe, 28 (padrão)
+function Get-CUFAutor { param([string]$uf) if ($uf -eq 'BA') { return 29 } else { return 28 } }
+
 function Invoke-DistDFe {
-  param([string]$cnpj, [System.Security.Cryptography.X509Certificates.X509Certificate2]$cert, [string]$chave, [string]$ultNSU)
+  param([string]$cnpj, [System.Security.Cryptography.X509Certificates.X509Certificate2]$cert, [string]$chave, [string]$ultNSU, [string]$uf)
   $cnpj = $cnpj -replace '\D', ''
   if ($chave) { $cons = "<consChNFe><chNFe>$chave</chNFe></consChNFe>" }
   else { $n = if ($ultNSU) { $ultNSU } else { '0' }; $cons = "<distNSU><ultNSU>$($n.PadLeft(15,'0'))</ultNSU></distNSU>" }
-  $dist = "<distDFeInt xmlns=`"$($script:NS_NFE)`" versao=`"1.01`"><tpAmb>1</tpAmb><cUFAutor>28</cUFAutor><CNPJ>$cnpj</CNPJ>$cons</distDFeInt>"
+  $dist = "<distDFeInt xmlns=`"$($script:NS_NFE)`" versao=`"1.01`"><tpAmb>1</tpAmb><cUFAutor>$(Get-CUFAutor $uf)</cUFAutor><CNPJ>$cnpj</CNPJ>$cons</distDFeInt>"
   $body = "<nfeDistDFeInteresse xmlns=`"http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe`"><nfeDadosMsg>$dist</nfeDadosMsg></nfeDistDFeInteresse>"
   $resp = Invoke-Soap -url $script:URL_DIST -bodyXml $body -cert $cert
   return Parse-RetDist $resp
@@ -186,11 +189,11 @@ function Send-CienciaOperacao {
 
 # ---------------------------------------------------------------- fluxo por chave
 function Get-NFeCompleta {
-  param([string]$cnpj, [string]$chave)
+  param([string]$cnpj, [string]$chave, [string]$uf)
   $cnpj = $cnpj -replace '\D', ''; $chave = $chave -replace '\D', ''
   if ($chave.Length -ne 44) { throw 'Chave de acesso inválida.' }
   $cert = Get-Certificado $cnpj
-  $r = Invoke-DistDFe -cnpj $cnpj -cert $cert -chave $chave
+  $r = Invoke-DistDFe -cnpj $cnpj -cert $cert -chave $chave -uf $uf
   $log = @("distDFe consChNFe: $($r.cStat) $($r.xMotivo)")
   $proc = $r.docs | Where-Object { $_.schema -like 'procNFe*' } | Select-Object -First 1
   if ($proc) { return @{ ok = $true; xml = $proc.xml; chave = $chave; log = $log } }
@@ -201,7 +204,7 @@ function Get-NFeCompleta {
     $log += "ciência 210210: $($ev.cStat) $($ev.xMotivo)"
     if ($ev.cStat -in @('135', '136', '573')) {  # 573 = evento já registrado
       Start-Sleep -Seconds 2
-      $r2 = Invoke-DistDFe -cnpj $cnpj -cert $cert -chave $chave
+      $r2 = Invoke-DistDFe -cnpj $cnpj -cert $cert -chave $chave -uf $uf
       $log += "distDFe após ciência: $($r2.cStat) $($r2.xMotivo)"
       $proc2 = $r2.docs | Where-Object { $_.schema -like 'procNFe*' } | Select-Object -First 1
       if ($proc2) { return @{ ok = $true; xml = $proc2.xml; chave = $chave; log = $log } }
@@ -214,14 +217,14 @@ function Get-NFeCompleta {
 
 # ---------------------------------------------------------------- fluxo por NSU (todas as notas do CNPJ)
 function Get-NFeDistribuicao {
-  param([string]$cnpj, [int]$maxLotes = 10)
+  param([string]$cnpj, [int]$maxLotes = 10, [string]$uf)
   $cnpj = $cnpj -replace '\D', ''
   $cert = Get-Certificado $cnpj
   $nsuFile = Join-Path $script:CERT_DIR "$cnpj.nsu"
   $ult = '0'; if (Test-Path $nsuFile) { $ult = (Get-Content $nsuFile -Raw).Trim() }
   $docs = @(); $log = @(); $lotes = 0
   while ($lotes -lt $maxLotes) {
-    $r = Invoke-DistDFe -cnpj $cnpj -cert $cert -ultNSU $ult
+    $r = Invoke-DistDFe -cnpj $cnpj -cert $cert -ultNSU $ult -uf $uf
     $lotes++
     $log += "distNSU ultNSU=$ult -> $($r.cStat) $($r.xMotivo) (docs $($r.docs.Count), ultNSU $($r.ultNSU), maxNSU $($r.maxNSU))"
     foreach ($d in $r.docs) { $docs += @{ nsu = $d.nsu; schema = $d.schema; chave = $d.chave; xml = $d.xml } }

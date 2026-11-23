@@ -62,17 +62,17 @@ function recalcular() {
     }
     const ic = ESPELHO.infoChave(ch) || {};
     const vCalc = res ? (res.ignorada ? 0 : res.totais.devido) : null;
-    const vSefaz = esp ? esp.vlIcmsCalc : null;
+    const vSefaz = esp && esp.vlIcmsCalc != null ? esp.vlIcmsCalc : null;
     const receitaId = res ? (res.naoAntecipada ? 'nao_antecipa' : Object.keys(res.totais.porReceita).join('+')) : '';
     const receitaNome = res ? (res.naoAntecipada ? 'não antecipada' : Object.values(res.totais.porReceita).map(x => x.nome).join(' + ')) : '';
     let status = res ? 'ok' : erro ? 'erro' : 'pendente';
     if (res && res.ignorada) status = ["difal_recolhido","gnre_recolhido","adiada","cancelada"].includes(res.situacao) ? res.situacao : "ignorada";
     const dif = (vCalc != null && vSefaz != null) ? MOTOR.r2(vCalc - vSefaz) : null;
     const linha = {
-      chave: ch, nNF: res ? res.nota.nNF : (esp?.nNF || ic.nNF || ''), emitente: res ? res.nota.emit.nome : (esp ? fmtCnpj(esp.emitente) : fmtCnpj(ic.cnpj)),
-      uf: res ? res.nota.emit.uf : (ic.uf || ''), dtEmi: res ? res.nota.dataEmissao : (esp?.dtEmissao || ''), vNF: res ? res.nota.tot.vNF : (esp?.vlTotal || 0),
+      chave: ch, nNF: res ? res.nota.nNF : (esp?.nNF || ic.nNF || ''), emitente: res ? res.nota.emit.nome : (esp ? (esp.emitenteNome || fmtCnpj(esp.emitente)) : fmtCnpj(ic.cnpj)),
+      uf: res ? res.nota.emit.uf : ((esp && esp.ufEmit) || ic.uf || ''), dtEmi: res ? res.nota.dataEmissao : (esp?.dtEmissao || ''), vNF: res ? res.nota.tot.vNF : (esp?.vlTotal || 0),
       forma: esp?.forma || '', vSefaz, receita: receitaNome, receitaId, vCalc, fecoep: res && !res.ignorada ? res.totais.fecoep : 0, dif,
-      status, erro, res, esp, noEspelho: !!esp, semXml: !A.xmls[ch],
+      status, erro, res, esp, noEspelho: !!esp, semXml: !A.xmls[ch] && !(A.overrides[ch] && A.overrides[ch].situacao === 'cancelada'),
     };
     CONF.push(linha); porChave[ch] = linha;
   }
@@ -168,18 +168,27 @@ const DIFAL = () => (CONS && CONS.difal) || { valor: 0, base: 0, fecoep: 0, nota
 // também tem diferencial (LC 123/2006, art. 13, § 1º, XIII, "h"), mas o recolhimento segue
 // outro caminho e o escritório apura à parte. Nunca é aplicado sozinho pelo sistema.
 const E_NORMAL = () => { const E = empresaAtual(); return !!E && E.regime !== 'simples'; };
+// BAHIA (módulo em validação — a Totali é especialista em Sergipe): a empresa tem UF; as receitas, o DIFAL e o mapa seguem a UF dela.
+const ehBA = () => { const E = empresaAtual(); return !!E && E.uf === 'BA'; };
+const E_DIFAL = () => ehBA() || E_NORMAL();   // na Bahia o DIFAL vale também para o Simples; em Sergipe só no regime normal
+const receitasUF = () => { const ba = ehBA(); return TABELAS_SE.receitas.filter(r => r.soUf ? (ba && r.soUf === 'BA') : (!ba || r.id === 'nao_antecipa')); };
+function renderAvisoBA() {
+  const el = $('avisoBA'); if (!el) return;
+  const ba = ehBA(); el.style.display = ba ? '' : 'none';
+  if (ba) el.innerHTML = '<b>Empresa da Bahia — módulo em validação.</b> A Totali é <b>especialista em ICMS de Sergipe</b>. Na Bahia o sistema aplica a antecipação parcial (Lei 7.014/96, art. 12-A) sobre o valor da operação, sem MVA, com alíquota interna de ' + fmtP((DB.params && DB.params.aliqModalBA) || TABELAS_BA.aliquotaInternaModal) + ' e o ICMS destacado como crédito, como o escritório faz hoje na planilha. Não há mapa oficial da SEFAZ-BA: a exportação sai no padrão do mapa de Sergipe. Os textos oficiais da SEFAZ-BA não puderam ser conferidos na fonte, então <b>valide antes de recolher</b>.';
+}
 function renderKpis() {
-  renderAvisoModificada(); renderObs(); renderReguaMeses();
+  renderAvisoModificada(); renderObs(); renderReguaMeses(); renderAvisoBA();
   const E = empresaAtual();
   const difTot = CONF.filter(l => l.dif != null).reduce((s, l) => s + l.dif, 0);
   const sefazTot = CONF.filter(l => l.vSefaz != null).reduce((s, l) => s + l.vSefaz, 0);
   $('kpis').innerHTML = `
     <div class="kpi"><div class="k">ICMS antecipado</div><div class="v">${fmtR(CONS.devido)}</div><div class="s">${RES.filter(r => !r.ignorada && !r.naoAntecipada).length} nota(s) com imposto</div></div>
-    <div class="kpi light"><div class="k">FECOEP</div><div class="v">${fmtR(CONS.fecoep)}</div><div class="s">DAE à parte</div></div>
-    <div class="kpi gold"><div class="k">Total DAE</div><div class="v">${fmtR(CONS.totalDae)}</div><div class="s">${E ? (E.regime === "simples" ? "Simples Nacional" : "Regime normal · " + E.perfil) + (E.regimeConfirmado ? "" : " (a confirmar)") + (E.regime !== "simples" ? (E.cestaOptante ? " · cesta básica: OPTANTE 3,6%/2,1%" : " · cesta básica: não optante (MVA 30%)") : "") : "selecione a empresa"}</div></div>
+    <div class="kpi light"><div class="k">${E && E.uf === 'BA' ? 'FECEP' : 'FECOEP'}</div><div class="v">${fmtR(CONS.fecoep)}</div><div class="s">DAE à parte</div></div>
+    <div class="kpi gold"><div class="k">Total DAE</div><div class="v">${fmtR(CONS.totalDae)}</div><div class="s">${E && E.uf === 'BA' ? 'Bahia · ' + (E.regime === 'simples' ? 'Simples Nacional' : 'Regime normal') + ' · módulo em validação' : E ? (E.regime === "simples" ? "Simples Nacional" : "Regime normal · " + E.perfil) + (E.regimeConfirmado ? "" : " (a confirmar)") + (E.regime !== "simples" ? (E.cestaOptante ? " · cesta básica: OPTANTE 3,6%/2,1%" : " · cesta básica: não optante (MVA 30%)") : "") : "selecione a empresa"}</div></div>
     <div class="kpi light"><div class="k">vs. SEFAZ (espelho)</div><div class="v ${Math.abs(difTot) > 0.05 ? (difTot > 0 ? 'neg' : 'pos') : ''}">${sefazTot ? (difTot >= 0 ? '+' : '') + fmtR(difTot) : '—'}</div><div class="s">${sefazTot ? 'SEFAZ calculou ' + fmtR(sefazTot) : 'sem espelho'}</div></div>
-    ${DIFAL().valor > 0 ? `<div class="kpi light"><div class="k">DIFAL (Port. 367/2016)</div><div class="v">${fmtR(DIFAL().valor)}</div><div class="s">${DIFAL().notas} nota(s) · DAE próprio, fora do DIA${DIFAL().ativo > 0 && DIFAL().usoConsumo > 0 ? ' · uso/consumo ' + fmtR(DIFAL().usoConsumo) + ' (DAE 0111) · ativo ' + fmtR(DIFAL().ativo) + ' (DAE 0110)' : DIFAL().ativo > 0 ? ' · ativo imobilizado (DAE 0110)' : ' · uso e consumo (DAE 0111)'}</div></div>
-    <div class="kpi light"><div class="k">Fundo do DIFAL (FECOEP)</div><div class="v">${fmtR(DIFAL().fecoep)}</div><div class="s">${DIFAL().fecoep > 0 ? 'sobre a base do DIFAL de uso e consumo · DAE 0150' : 'só ativo imobilizado: sem adicional do Fundo (art. 616-C-B, II)'}</div></div>` : ''}`;
+    ${DIFAL().valor > 0 ? `<div class="kpi light"><div class="k">${E && E.uf === 'BA' ? 'DIFAL (Bahia)' : 'DIFAL (Port. 367/2016)'}</div><div class="v">${fmtR(DIFAL().valor)}</div><div class="s">${DIFAL().notas} nota(s) · DAE próprio, fora do DIA${E && E.uf === 'BA' ? ' · código do DAE a confirmar' : DIFAL().ativo > 0 && DIFAL().usoConsumo > 0 ? ' · uso/consumo ' + fmtR(DIFAL().usoConsumo) + ' (DAE 0111) · ativo ' + fmtR(DIFAL().ativo) + ' (DAE 0110)' : DIFAL().ativo > 0 ? ' · ativo imobilizado (DAE 0110)' : ' · uso e consumo (DAE 0111)'}</div></div>
+    <div class="kpi light"><div class="k">${E && E.uf === 'BA' ? 'FECEP do DIFAL' : 'Fundo do DIFAL (FECOEP)'}</div><div class="v">${fmtR(DIFAL().fecoep)}</div><div class="s">${DIFAL().fecoep > 0 ? (E && E.uf === 'BA' ? 'FECEP informado no item ou na regra' : 'sobre a base do DIFAL de uso e consumo · DAE 0150') : (E && E.uf === 'BA' ? 'Bahia: sem FECEP presumido (informe os pontos no item, se for o caso)' : 'só ativo imobilizado: sem adicional do Fundo (art. 616-C-B, II)')}</div></div>` : ''}`;
 }
 
 function badgeStatus(l) {
@@ -224,7 +233,7 @@ function renderNotas() {
     const parte = recF && recF !== '__semxml' && l.res && !l.res.ignorada ? (l.res.totais.porReceita[recF] || {}).devido : l.vCalc;
     somaCalc += (parte || 0);
     const ovN = apur().overrides[l.chave] || {};
-    const recSel = l.res ? `<select class="fi" style="padding:2px 4px;font-size:11px;max-width:150px" data-ov-nota="${l.chave}"><option value="">${esc(l.receita || "—")} (auto)</option><option value="__difal" ${ovN.situacao === "difal_recolhido" ? "selected" : ""}>Já recolhida no DIFAL (tirar da apuração)</option><option value="__gnre" ${ovN.situacao === "gnre_recolhido" ? "selected" : ""}>Já recolhida anteriormente por GNRE (tirar da apuração)</option><option value="__adiada" ${ovN.situacao === "adiada" ? "selected" : ""}>Adiada para o mês seguinte (tirar da apuração)</option><option value="__cancelada" ${ovN.situacao === "cancelada" ? "selected" : ""}>NF-e CANCELADA (tirar da apuração)</option>${E_NORMAL() ? `<option value="difal_uso" ${ovN.receita === "difal" && ovN.finalidade === "usoConsumo" ? "selected" : ""}>Calcular como DIFAL — uso e consumo (com Fundo)</option><option value="difal_ativo" ${ovN.receita === "difal" && ovN.finalidade === "ativo" ? "selected" : ""}>Calcular como DIFAL — ativo imobilizado (sem Fundo)</option>${ovN.receita === "difal" && !ovN.finalidade ? '<option value="difal" selected>Calcular como DIFAL (finalidade pelo CFOP/item)</option>' : ""}` : ""}${TABELAS_SE.receitas.filter(r => !r.manual).map(r => `<option value="${r.id}" ${apur().overrides[l.chave]?.receita === r.id ? 'selected' : ''}>${esc(r.nome)}</option>`).join('')}</select>` : '<span class="muted small">' + esc(l.forma || '') + '</span>';
+    const recSel = l.res ? `<select class="fi" style="padding:2px 4px;font-size:11px;max-width:150px" data-ov-nota="${l.chave}"><option value="">${esc(l.receita || "—")} (auto)</option><option value="__difal" ${ovN.situacao === "difal_recolhido" ? "selected" : ""}>Já recolhida no DIFAL (tirar da apuração)</option><option value="__gnre" ${ovN.situacao === "gnre_recolhido" ? "selected" : ""}>Já recolhida anteriormente por GNRE (tirar da apuração)</option><option value="__adiada" ${ovN.situacao === "adiada" ? "selected" : ""}>Adiada para o mês seguinte (tirar da apuração)</option><option value="__cancelada" ${ovN.situacao === "cancelada" ? "selected" : ""}>NF-e CANCELADA (tirar da apuração)</option>${E_DIFAL() ? `<option value="difal_uso" ${MOTOR.receita(ovN.receita || '').difal && ovN.finalidade === "usoConsumo" ? "selected" : ""}>Calcular como DIFAL — uso e consumo${ehBA() ? '' : ' (com Fundo)'}</option><option value="difal_ativo" ${MOTOR.receita(ovN.receita || '').difal && ovN.finalidade === "ativo" ? "selected" : ""}>Calcular como DIFAL — ativo imobilizado${ehBA() ? '' : ' (sem Fundo)'}</option>${MOTOR.receita(ovN.receita || '').difal && !ovN.finalidade ? '<option value="difal" selected>Calcular como DIFAL (finalidade pelo CFOP/item)</option>' : ""}` : ""}${receitasUF().filter(r => !r.manual).map(r => `<option value="${r.id}" ${apur().overrides[l.chave]?.receita === r.id ? 'selected' : ''}>${esc(r.nome)}</option>`).join('')}</select>` : '<span class="muted small">' + esc(l.forma || '') + '</span>';
     tb.insertAdjacentHTML('beforeend', `<tr>
       <td title="chave ${l.chave}"><b class="clickable" data-open="${l.chave}">${esc(l.nNF)}</b><div class="small muted">${fmtDate(l.dtEmi)}</div></td>
       <td><span title="${esc(l.emitente)}">${esc(l.emitente.length > 34 ? l.emitente.slice(0, 32) + "…" : l.emitente)}</span> <span class="badge b-muted">${esc(l.uf)}</span>${l.forma ? "<div class=\"small muted\" title=\"forma de recolhimento no espelho da SEFAZ\">SEFAZ: " + esc(l.forma.replace("COMPLEMENTACAO DE ALIQUOTA INTERESTADUAL", "complementação de alíquota").replace("ANTECIPAÇÃO TRIBUTÁRIA COM ENCERRAMENTO DE FASE", "antecip. com encerramento").replace("OPERAÇÃO NÃO ANTECIPADA", "não antecipada")) + "</div>" : ""}</td><td class="num">${fmt(l.vNF)}</td>
@@ -242,7 +251,7 @@ function renderNotas() {
   $('cntNotas').title = filtrando ? `${n} nota(s) nesta seleção somando ${fmtR(somaCalc)} de ICMS calculado` : '';
   $('somaNotas').innerHTML = filtrando && n ? `soma da seleção: <b>${fmtR(somaCalc)}</b>` : '';
   tb.querySelectorAll('[data-open]').forEach(el => el.onclick = () => abrirNota(el.dataset.open));
-  tb.querySelectorAll('[data-ov-nota]').forEach(el => el.onchange = () => { const o = apur().overrides; const k = el.dataset.ovNota; o[k] = { ...(o[k] || {}) }; delete o[k].receita; delete o[k].situacao; delete o[k].finalidade; if (el.value === "__difal") o[k].situacao = "difal_recolhido"; else if (el.value === "__gnre") o[k].situacao = "gnre_recolhido"; else if (el.value === "__adiada") o[k].situacao = "adiada"; else if (el.value === "__cancelada") o[k].situacao = "cancelada"; else if (el.value === "difal_uso") { o[k].receita = "difal"; o[k].finalidade = "usoConsumo"; } else if (el.value === "difal_ativo") { o[k].receita = "difal"; o[k].finalidade = "ativo"; } else if (el.value) o[k].receita = el.value; if (!Object.keys(o[k]).length) delete o[k]; salvar(); recalcular(); });
+  tb.querySelectorAll('[data-ov-nota]').forEach(el => el.onchange = () => { const o = apur().overrides; const k = el.dataset.ovNota; o[k] = { ...(o[k] || {}) }; delete o[k].receita; delete o[k].situacao; delete o[k].finalidade; if (el.value === "__difal") o[k].situacao = "difal_recolhido"; else if (el.value === "__gnre") o[k].situacao = "gnre_recolhido"; else if (el.value === "__adiada") o[k].situacao = "adiada"; else if (el.value === "__cancelada") o[k].situacao = "cancelada"; else if (el.value === "difal_uso") { o[k].receita = ehBA() ? "ba_difal" : "difal"; o[k].finalidade = "usoConsumo"; } else if (el.value === "difal_ativo") { o[k].receita = ehBA() ? "ba_difal" : "difal"; o[k].finalidade = "ativo"; } else if (el.value) o[k].receita = el.value; if (!Object.keys(o[k]).length) delete o[k]; salvar(); recalcular(); });
   tb.querySelectorAll('[data-ign]').forEach(el => el.onclick = () => { const o = apur().overrides; const k = el.dataset.ign; o[k] = { ...(o[k] || {}), ignorar: !(o[k] && o[k].ignorar) }; salvar(); recalcular(); });
   tb.querySelectorAll('[data-del]').forEach(el => el.onclick = () => { const A = apur(); if (A.espelho) A.espelho.linhas = A.espelho.linhas.filter(x => x.chave !== el.dataset.del); delete A.xmls[el.dataset.del]; salvar(); recalcular(); });
 }
@@ -389,7 +398,7 @@ function renderItens() {
   // opções de receita do filtro (mantendo a escolha)
   const recs = [...new Set(todos.map(x => x.it.receita))];
   $('filtroItensRec').innerHTML = '<option value="">todas as receitas</option>' + recs.map(id => `<option value="${id}" ${id === recF ? 'selected' : ''}>${esc(MOTOR.receita(id).nome)}</option>`).join('');
-  const recOpts = id => TABELAS_SE.receitas.filter(x => !x.difal || E_NORMAL()).map(x => `<option value="${x.id}" ${x.id === id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
+  const recOpts = id => receitasUF().filter(x => !x.difal || E_DIFAL()).map(x => `<option value="${x.id}" ${x.id === id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
   const linhas = todos.filter(x => {
     const i = x.it.item, ov = A.overrides[x.k] || {};
     if (recF && x.it.receita !== recF) return false;
@@ -476,9 +485,9 @@ function abrirNota(chave) {
   $('mnTitulo').textContent = `NF-e ${n.nNF} · ${n.emit.nome}`;
   $('mnSub').textContent = `${n.emit.uf} → ${n.dest.uf} · ${fmtCnpj(n.emit.cnpj)} · emitida ${fmtDate(n.dataEmissao)} · chave ${n.chave}` + (n.emit.crt === '1' ? ' · emitente do SIMPLES' : '');
   const alertasNota = r.alertas.filter(a => a.nivel !== 'baixo');
-  const recOpts = id => TABELAS_SE.receitas.filter(x => !x.difal || E_NORMAL()).map(x => `<option value="${x.id}" ${x.id === id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
+  const recOpts = id => receitasUF().filter(x => !x.difal || E_DIFAL()).map(x => `<option value="${x.id}" ${x.id === id ? 'selected' : ''}>${esc(x.nome)}</option>`).join('');
   let html = `<div class="row" style="justify-content:space-between;margin-bottom:12px">
-    <div class="stat"><span>Valor NF <b>${fmtR(n.tot.vNF)}</b></span><span>Produtos <b>${fmtR(n.tot.vProd)}</b></span><span>Desconto <b>${fmtR(n.tot.vDesc)}</b></span><span>IPI <b>${fmtR(n.tot.vIPI)}</b></span><span>Frete <b>${fmtR(n.tot.vFrete)}</b></span><span>ICMS destacado <b>${fmtR(n.tot.vICMS)}</b></span><span>ST <b>${fmtR(n.tot.vST)}</b></span>${l.esp ? `<span>SEFAZ: <b>${esc(l.esp.forma)}</b> = <b>${fmtR(l.esp.vlIcmsCalc)}</b></span>` : ''}</div>
+    <div class="stat"><span>Valor NF <b>${fmtR(n.tot.vNF)}</b></span><span>Produtos <b>${fmtR(n.tot.vProd)}</b></span><span>Desconto <b>${fmtR(n.tot.vDesc)}</b></span><span>IPI <b>${fmtR(n.tot.vIPI)}</b></span><span>Frete <b>${fmtR(n.tot.vFrete)}</b></span><span>ICMS destacado <b>${fmtR(n.tot.vICMS)}</b></span><span>ST <b>${fmtR(n.tot.vST)}</b></span>${l.esp && l.esp.forma ? `<span>SEFAZ: <b>${esc(l.esp.forma)}</b> = <b>${fmtR(l.esp.vlIcmsCalc)}</b></span>` : ''}</div>
     <div class="kpi" style="padding:10px 16px"><div class="k">Antecipado + FECOEP</div><div class="v" style="font-size:20px">${fmtR(r.totais.devido)} <span style="font-size:13px;opacity:.7">+ ${fmtR(r.totais.fecoep)}</span></div></div></div>`;
   // ---- Devolução ("Tem devolução?"): NF de devolução abatida da nota original, item a item ----
   const dv = (A.overrides[n.chave] || {}).devolucao || null;
@@ -586,11 +595,13 @@ function aplicarXmlDevolucao(n, d) {
 // ------------------------------------------------------------------ mapa SEFAZ na tela
 function renderMapa() {
   const E = empresaAtual() || { nome: '—', ie: '—', cnpj: '—' };
-  const ordem = ['cesta_opt36', 'cesta_opt21', 'difal', 'antecip_encer', 'importacoes', 'antecip_interest', 'simfaz', 'cesta_nao_opt', 'st_interna', 'antecip_interna', 'simples'];
+  const BA = ehBA();
+  const ordem = BA ? ['ba_parcial', 'ba_total'] : ['cesta_opt36', 'cesta_opt21', 'difal', 'antecip_encer', 'importacoes', 'antecip_interest', 'simfaz', 'cesta_nao_opt', 'st_interna', 'antecip_interna', 'simples'];
   const comp = ST.comp ? ST.comp.split('-').reverse().join('/') : '';
   let h = `<div class="cab"><div>
       <div class="titulo">GOVERNO DE SERGIPE<br>SECRETARIA DE ESTADO DA FAZENDA</div>
       <div style="margin:6px 0">PORTARIA N.º 103/2006-SEFAZ · DE 26 DE JANEIRO DE 2006 · VERSÃO 5</div>
+      ${BA ? '<div style="margin:6px 0;color:#900"><b>EMPRESA DA BAHIA.</b> A Bahia não tem mapa oficial: esta é a grade do mapa de Sergipe, usada pelo escritório para calcular a antecipação parcial (Lei 7.014/96, art. 12-A). A Totali é especialista em Sergipe: valide antes de recolher.</div>' : ''}
       <div class="titulo" style="margin:10px 0">ANEXO I — MAPA DE APURAÇÃO DO ICMS</div>
       <table class="resumo"><tr><td>MÊS DE REFERÊNCIA</td><td class="n"><b>${comp}</b></td></tr><tr><td>CONTRIBUINTE:</td><td class="n"><b>${esc(E.nome)}</b></td></tr><tr><td>INSCRIÇÃO ESTADUAL N.º:</td><td class="n">${esc(E.ie)}</td></tr><tr><td>CNPJ:</td><td class="n">${esc(fmtCnpj(E.cnpj))}</td></tr></table>
       <table class="resumo" style="margin-top:12px">
@@ -600,7 +611,7 @@ function renderMapa() {
         <tr><td>Imposto devido</td><td class="n">${fmt(MOTOR.r2(CONS.debito - CONS.credito))}</td></tr>
         <tr><td>Devolução de mercadoria / desfazimento</td><td class="n">0,00</td></tr>
         <tr><td><b>valor a recolher</b></td><td class="n"><b>${fmt(CONS.devido)}</b></td></tr>
-        <tr><td>FECOEP (DAE à parte)</td><td class="n">${fmt(CONS.fecoep)}</td></tr></table>
+        <tr><td>${BA ? 'FECEP' : 'FECOEP'} (DAE à parte)</td><td class="n">${fmt(CONS.fecoep)}</td></tr></table>
     </div><div>
       <table class="resumo"><tr><td></td><td><b>Valor devido por Receita</b></td><td class="n"><b>Valor devido</b></td><td class="n"><b>Devolução</b></td><td class="n"><b>A recolher</b></td></tr>
       ${ordem.map(id => { const R = MOTOR.receita(id), v = CONS.porReceita[id]; return `<tr><td>${R.cod}</td><td>${esc(R.nome)}</td><td class="n">${fmt(v ? v.devido : 0)}</td><td class="n">0,00</td><td class="n" style="${v && v.recolher > 0 ? 'background:#FFF2CC;font-weight:700' : ''}">${fmt(v ? v.recolher : 0)}</td></tr>`; }).join('')}
@@ -620,22 +631,29 @@ function renderMapa() {
 // ------------------------------------------------------------------ empresas
 function renderEmpresasSelect() {
   const s = $('selEmpresa');
-  s.innerHTML = '<option value="">— selecione a empresa —</option>' + DB.empresas.map(e => `<option value="${e.id}" ${e.id === ST.empresaId ? 'selected' : ''}>${esc(e.nome)} (${e.regime === 'simples' ? 'SN' : e.perfil})</option>`).join('');
+  s.innerHTML = '<option value="">— selecione a empresa —</option>' + DB.empresas.map(e => `<option value="${e.id}" ${e.id === ST.empresaId ? 'selected' : ''}>${esc(e.nome)} (${e.uf === 'BA' ? 'BA · ' : ''}${e.regime === 'simples' ? 'SN' : e.perfil})</option>`).join('');
 }
 function renderEmpresas() {
   const tb = $('tblEmpresas').querySelector('tbody');
-  tb.innerHTML = DB.empresas.map(e => `<tr><td><b>${esc(e.nome)}</b>${e.obs ? '<div class="small muted">' + esc(e.obs) + '</div>' : ''}</td><td class="mono">${fmtCnpj(e.cnpj)}</td><td class="mono">${esc(e.ie)}</td><td>${e.regime === "simples" ? "<span class=\"badge b-gold\">Simples Nacional</span>" : "<span class=\"badge b-navy\">Regime normal</span>"}<div class="small muted">${e.regimeConfirmado ? "confirmado" : "sugerido"}${esc(regimeFonteTxt(e))}</div></td><td>${esc(e.perfil)}</td><td>${e.cestaOptante ? "optante 3,6%/2,1%" : "—"}${e.varejoMva40 ? ' <span class="badge b-gold" title="RICMS/SE art. 784, § 3º — antecipação com encerramento e MVA 40% em qualquer mercadoria">MVA 40% (art. 784, § 3º)</span>' : ''}<div class="small muted">${(e.cnaes || []).length ? esc(String(e.cnaes[0].codigo || e.cnaes[0])) + " (+" + (e.cnaes.length - 1) + " CNAE)" : "sem CNAE"}</div></td><td style="white-space:nowrap"><button class="btn sm soft" data-ed="${e.id}">Editar</button> <button class="btn sm danger" data-rm="${e.id}">Excluir</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">Nenhuma empresa. Cadastre ou carregue um espelho do DIA (a IE e o nome vêm de lá).</td></tr>';
+  tb.innerHTML = DB.empresas.map(e => `<tr><td><b>${esc(e.nome)}</b>${e.uf === 'BA' ? ' <span class="badge b-info" title="empresa da Bahia — módulo em validação">BA</span>' : ''}${e.obs ? '<div class="small muted">' + esc(e.obs) + '</div>' : ''}</td><td class="mono">${fmtCnpj(e.cnpj)}</td><td class="mono">${esc(e.ie)}</td><td>${e.regime === "simples" ? "<span class=\"badge b-gold\">Simples Nacional</span>" : "<span class=\"badge b-navy\">Regime normal</span>"}<div class="small muted">${e.regimeConfirmado ? "confirmado" : "sugerido"}${esc(regimeFonteTxt(e))}</div></td><td>${esc(e.perfil)}</td><td>${e.cestaOptante ? "optante 3,6%/2,1%" : "—"}${e.varejoMva40 ? ' <span class="badge b-gold" title="RICMS/SE art. 784, § 3º — antecipação com encerramento e MVA 40% em qualquer mercadoria">MVA 40% (art. 784, § 3º)</span>' : ''}<div class="small muted">${(e.cnaes || []).length ? esc(String(e.cnaes[0].codigo || e.cnaes[0])) + " (+" + (e.cnaes.length - 1) + " CNAE)" : "sem CNAE"}</div></td><td style="white-space:nowrap"><button class="btn sm soft" data-ed="${e.id}">Editar</button> <button class="btn sm danger" data-rm="${e.id}">Excluir</button></td></tr>`).join('') || '<tr><td colspan="7" class="empty">Nenhuma empresa. Cadastre ou carregue um espelho do DIA (a IE e o nome vêm de lá).</td></tr>';
   tb.querySelectorAll('[data-ed]').forEach(b => b.onclick = () => editarEmpresa(b.dataset.ed));
   tb.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => { if (confirm('Excluir a empresa? As apurações dela ficam guardadas até você limpar.')) { DB.empresas = DB.empresas.filter(x => x.id !== b.dataset.rm); if (ST.empresaId === b.dataset.rm) ST.empresaId = ''; salvar(); renderEmpresasSelect(); renderEmpresas(); recalcular(); } });
 }
 var editarEmpresa = function (id) {
   const e = DB.empresas.find(x => x.id === id) || { id: '', nome: '', cnpj: '', ie: '', regime: 'normal', perfil: 'apto', cestaOptante: false, varejoMva40: false, obs: '' };
-  $("eRegimeInfo").style.display = "none"; delete $("eObs").dataset.regimeFonte; $("eId").value = e.id; $("eNome").value = e.nome; $('eCnpj').value = fmtCnpj(e.cnpj); $('eIe').value = e.ie; $('eRegime').value = e.regime; $('ePerfil').value = e.perfil; $('eCesta').checked = !!e.cestaOptante; $('eVarejo40').checked = !!e.varejoMva40; $('eObs').value = e.obs || '';
+  $("eRegimeInfo").style.display = "none"; delete $("eObs").dataset.regimeFonte; $("eId").value = e.id; $("eNome").value = e.nome; $('eCnpj').value = fmtCnpj(e.cnpj); $('eIe').value = e.ie; $('eRegime').value = e.regime; $('ePerfil').value = e.perfil; $('eCesta').checked = !!e.cestaOptante; $('eVarejo40').checked = !!e.varejoMva40; $('eObs').value = e.obs || ''; $('eUf').value = e.uf || 'SE'; ajustaCamposUF();
   openModal('modal-empresa');
 }
+// Perfil na SEFAZ, cesta básica optante e MVA de 40% são regras de Sergipe: somem quando a UF é BA
+function ajustaCamposUF() {
+  const ba = $('eUf').value === 'BA';
+  ['fPerfil', 'fCesta', 'fVarejo40'].forEach(id => { const el = $(id); if (el) el.style.display = ba ? 'none' : ''; });
+  const av = $('eUfAviso'); if (av) av.style.display = ba ? '' : 'none';
+}
+$('eUf').onchange = ajustaCamposUF;
 $('btnNovaEmpresa').onclick = () => editarEmpresa('');
 $('btnSalvarEmpresa').onclick = () => {
-  const e = { id: $('eId').value || uid(), nome: $('eNome').value.trim(), cnpj: $('eCnpj').value.replace(/\D/g, ''), ie: $('eIe').value.replace(/\D/g, ''), regime: $('eRegime').value, perfil: $('ePerfil').value, cestaOptante: $('eCesta').checked, varejoMva40: $('eVarejo40').checked, obs: $('eObs').value.trim(), regimeConfirmado: true, regimeFonte: $("eObs").dataset.regimeFonte || "informado manualmente", cestaConfirmada: true, cnaes: (DB.empresas.find(x => x.id === $("eId").value) || {}).cnaes || window._cnaesConsulta || [] };
+  const e = { id: $('eId').value || uid(), nome: $('eNome').value.trim(), cnpj: $('eCnpj').value.replace(/\D/g, ''), ie: $('eIe').value.replace(/\D/g, ''), regime: $('eRegime').value, perfil: $('ePerfil').value, cestaOptante: $('eCesta').checked, varejoMva40: $('eVarejo40').checked, uf: $('eUf').value || 'SE', obs: $('eObs').value.trim(), regimeConfirmado: true, regimeFonte: $("eObs").dataset.regimeFonte || "informado manualmente", cestaConfirmada: true, cnaes: (DB.empresas.find(x => x.id === $("eId").value) || {}).cnaes || window._cnaesConsulta || [] };
   if (!e.nome) return showToast('Informe a razão social.', 'error');
   const i = DB.empresas.findIndex(x => x.id === e.id); if (i >= 0) DB.empresas[i] = e; else DB.empresas.push(e);
   ST.empresaId = e.id; salvar(); closeModal("modal-empresa"); renderEmpresasSelect(); renderEmpresas(); recalcular(); if (typeof checarSefaz === "function") checarSefaz(); showToast('Empresa salva.', 'success');
@@ -674,7 +692,7 @@ function perguntarIsentoOrigem() {
 }
 // Empresa do regime normal: notas com indício forte de uso/consumo ou imobilizado (pelo CNAE) — pergunta se não é DIFAL
 function perguntarDifal() {
-  const E = empresaAtual(); if (!E || E.regime === 'simples') return;
+  const E = empresaAtual(); if (!E || (E.regime === 'simples' && E.uf !== 'BA')) return;
   const A = apur(); A.difalPerguntado = A.difalPerguntado || [];
   const cand = [];
   for (const r of RES) {
@@ -709,7 +727,7 @@ function renderRegras() {
   const tb = $('tblRegras').querySelector('tbody');
   tb.innerHTML = lista.filter(r => !f || [r.ncm, r.descricao, r.regime, r.fundamento, r.descPadrao].join(' ').toLowerCase().includes(f)).map(r => `<tr>
     <td>${r.prioridade ?? 100}</td><td class="mono"><b>${esc(r.ncm)}</b>${r.cest ? '<div class="small muted">CEST ' + esc(r.cest) + '</div>' : ''}</td><td class="small">${r.match === 'igual' ? 'igual' : 'inicia'}</td>
-    <td>${esc(r.descricao)}${r.descPadrao ? `<div class="small muted">produto ${r.descMatch === 'inicia' ? 'inicia com' : 'contém'} "${esc(r.descPadrao)}"</div>` : ''}${r.fundamento ? `<div class="small muted">${esc(r.fundamento)}</div>` : ''}</td>
+    <td>${r._user && r.uf === 'BA' ? '<span class="badge b-info">BA</span> ' : r._user && r.uf === '*' ? '<span class="badge b-info">SE + BA</span> ' : ''}${esc(r.descricao)}${r.descPadrao ? `<div class="small muted">produto ${r.descMatch === 'inicia' ? 'inicia com' : 'contém'} "${esc(r.descPadrao)}"</div>` : ''}${r.fundamento ? `<div class="small muted">${esc(r.fundamento)}</div>` : ''}</td>
     <td>${r.regime ? `<span class="badge ${r.regime === 'nao_antecipa' ? 'b-muted' : r.regime === 'cesta' ? 'b-gold' : 'b-info'}">${esc(r.regime)}</span>` : '<span class="small muted">geral</span>'}</td>
     <td class="small mono">${mvaTxt(r.mva)}</td><td>${r.aliq != null ? fmtP(r.aliq) : '<span class="muted">modal</span>'}</td><td>${r.fecoep != null ? r.fecoep + ' pt' : '<span class="muted">padrão</span>'}</td>
     <td>${r._user ? '<span class="badge b-ok">sua</span>' : '<span class="badge b-muted">RICMS/SE</span>'}${r.confirmar ? ' <span class="badge b-warn" title="confirmar no RICMS/SE">⚠</span>' : ''}</td>
@@ -720,7 +738,7 @@ function renderRegras() {
 }
 function editarRegra(r) {
   r = r || {};
-  $('rId').value = r.id || ''; $('rPrior').value = r.prioridade ?? 50; $('rNcm').value = r.ncm || ''; $('rMatch').value = r.match || 'inicia'; $('rDesc').value = r.descricao || '';
+  $('rId').value = r.id || ''; $('rUf').value = r.uf || 'SE'; $('rPrior').value = r.prioridade ?? 50; $('rNcm').value = r.ncm || ''; $('rMatch').value = r.match || 'inicia'; $('rDesc').value = r.descricao || '';
   $('rDescPadrao').value = r.descPadrao || ''; $('rDescMatch').value = r.descMatch || 'contem'; $('rRegime').value = r.regime || ''; $('rAliq').value = r.aliq ?? ''; $('rFecoep').value = r.fecoep ?? ''; $('rCest').value = r.cest || ''; $('rFund').value = r.fundamento || '';
   const m = r.mva; $('rMva4').value = m && typeof m === 'object' ? (m[4] ?? '') : ''; $('rMva7').value = m && typeof m === 'object' ? (m[7] ?? '') : (typeof m === 'number' ? m : ''); $('rMva12').value = m && typeof m === 'object' ? (m[12] ?? '') : ''; $('rMvaInt').value = m && typeof m === 'object' ? (m.interna ?? '') : '';
   openModal('modal-regra');
@@ -731,14 +749,14 @@ $('btnSalvarRegra').onclick = () => {
   const m4 = n($('rMva4').value), m7 = n($('rMva7').value), m12 = n($('rMva12').value), mi = n($('rMvaInt').value);
   let mva = null; const vals = [m4, m7, m12, mi].filter(x => x != null);
   if (vals.length === 1) mva = vals[0]; else if (vals.length > 1) { mva = {}; if (m4 != null) mva[4] = m4; if (m7 != null) mva[7] = m7; if (m12 != null) mva[12] = m12; if (mi != null) mva.interna = mi; }
-  const r = { id: $('rId').value || uid(), prioridade: parseInt($('rPrior').value || '50', 10), ncm: $('rNcm').value.replace(/\D/g, ''), match: $('rMatch').value, descricao: $('rDesc').value.trim(), descPadrao: $('rDescPadrao').value.trim() || null, descMatch: $('rDescMatch').value, regime: $('rRegime').value || null, aliq: n($('rAliq').value), mva, fecoep: n($('rFecoep').value), cest: $('rCest').value.replace(/\D/g, '') || null, fundamento: $('rFund').value.trim(), encerra: $('rRegime').value === 'antecip_encer' || $('rRegime').value === 'st_interna' };
+  const r = { id: $('rId').value || uid(), uf: $('rUf').value || 'SE', prioridade: parseInt($('rPrior').value || '50', 10), ncm: $('rNcm').value.replace(/\D/g, ''), match: $('rMatch').value, descricao: $('rDesc').value.trim(), descPadrao: $('rDescPadrao').value.trim() || null, descMatch: $('rDescMatch').value, regime: $('rRegime').value || null, aliq: n($('rAliq').value), mva, fecoep: n($('rFecoep').value), cest: $('rCest').value.replace(/\D/g, '') || null, fundamento: $('rFund').value.trim(), encerra: $('rRegime').value === 'antecip_encer' || $('rRegime').value === 'st_interna' };
   if (!r.ncm) return showToast('Informe o NCM.', 'error');
   if (!r.descricao) r.descricao = 'NCM ' + r.ncm;
   const i = DB.regras.findIndex(x => x.id === r.id); if (i >= 0) DB.regras[i] = r; else DB.regras.push(r);
   salvar(); closeModal('modal-regra'); renderRegras(); recalcular(); showToast('Regra salva.', 'success');
 };
 $('filtroRegras').oninput = renderRegras; $('chkEmbutidas').onchange = renderRegras;
-$('testeNcm').oninput = () => { const v = $('testeNcm').value.replace(/\D/g, ''); const r = v.length >= 4 ? MOTOR.buscarRegra(v, '', DB.regras) : null; $('testeNcmRes').innerHTML = v.length < 4 ? '' : r ? `→ <b>${esc(r.descricao)}</b> (MVA ${mvaTxt(r.mva)}, alíq. ${r.aliq ?? 'modal'}%)` : '→ sem regra específica (regra geral)'; };
+$('testeNcm').oninput = () => { const v = $('testeNcm').value.replace(/\D/g, ''); const r = v.length >= 4 ? MOTOR.buscarRegra(v, '', DB.regras, (empresaAtual() || {}).uf) : null; $('testeNcmRes').innerHTML = v.length < 4 ? '' : r ? `→ <b>${esc(r.descricao)}</b> (MVA ${mvaTxt(r.mva)}, alíq. ${r.aliq ?? 'modal'}%)` : '→ sem regra específica (regra geral)'; };
 $('btnExportRegras').onclick = () => {
   const rows = DB.regras.map(r => ({ PRIORIDADE: r.prioridade, NCM: r.ncm, MATCH: r.match, DESCRICAO: r.descricao, PADRAO_DESCRICAO: r.descPadrao || '', TIPO_MATCH_DESCRICAO: r.descMatch || '', REGIME: r.regime || '', MVA_4: typeof r.mva === 'object' && r.mva ? r.mva[4] ?? '' : '', MVA_7: typeof r.mva === 'object' && r.mva ? r.mva[7] ?? '' : (typeof r.mva === 'number' ? r.mva : ''), MVA_12: typeof r.mva === 'object' && r.mva ? r.mva[12] ?? '' : '', MVA_INTERNA: typeof r.mva === 'object' && r.mva ? r.mva.interna ?? '' : '', ALIQUOTA: r.aliq ?? '', FECOEP: r.fecoep ?? '', CEST: r.cest || '', FUNDAMENTO: r.fundamento || '' }));
   if (!rows.length) rows.push({ PRIORIDADE: 50, NCM: '02071400', MATCH: 'inicia', DESCRICAO: 'exemplo — frango', PADRAO_DESCRICAO: '', TIPO_MATCH_DESCRICAO: '', REGIME: 'antecip_encer', MVA_4: 43.57, MVA_7: 39.09, MVA_12: 31.61, MVA_INTERNA: 21.14, ALIQUOTA: 12, FECOEP: 0, CEST: '', FUNDAMENTO: 'RICMS/SE Anexo X item 10' });
@@ -749,11 +767,11 @@ $('btnImportRegras').onclick = () => { const i = document.createElement('input')
 // ------------------------------------------------------------------ parâmetros
 function renderParams() {
   const p = { ...MOTOR.PARAMS_PADRAO, ...DB.params };
-  $('pAliq').value = p.aliqModal; $('pMvaApto').value = p.mvaApto; $('pMvaInapto').value = p.mvaInapto; $('pCredSimples').checked = !!p.creditoEmitenteSimples; $('pCredIsento').checked = !!p.creditoIsentoOrigem; $("pCredModo").value = p.creditoModo || "mapa"; $("pAjustarMva").checked = p.ajustarMva !== false; $("pTabelaSt").value = p.tabelaSt || "alertar"; $("pFinalidadeCnae").value = p.finalidadeCnae || "sugerir";
+  $('pAliq').value = p.aliqModal; $('pAliqBA').value = p.aliqModalBA ?? TABELAS_BA.aliquotaInternaModal; $('pMvaApto').value = p.mvaApto; $('pMvaInapto').value = p.mvaInapto; $('pCredSimples').checked = !!p.creditoEmitenteSimples; $('pCredIsento').checked = !!p.creditoIsentoOrigem; $("pCredModo").value = p.creditoModo || "mapa"; $("pAjustarMva").checked = p.ajustarMva !== false; $("pTabelaSt").value = p.tabelaSt || "alertar"; $("pFinalidadeCnae").value = p.finalidadeCnae || "sugerir";
   $('pFecoepAtivo').checked = !!p.fecoepAtivo; $('pFecoepPts').value = p.fecoepPadrao; $('pFecoepBase').value = p.fecoepBase || 'K'; $('pBackend').value = p.backendUrl || '';
 }
 $('btnSalvarParams').onclick = () => {
-  DB.params = { ...DB.params, aliqModal: parseFloat($('pAliq').value) || 19, mvaApto: parseFloat($('pMvaApto').value) || 10, mvaInapto: parseFloat($('pMvaInapto').value) || 20, creditoEmitenteSimples: $('pCredSimples').checked, creditoIsentoOrigem: $('pCredIsento').checked, creditoModo: $("pCredModo").value, ajustarMva: $("pAjustarMva").checked, tabelaSt: $("pTabelaSt").value, finalidadeCnae: $("pFinalidadeCnae").value, fecoepAtivo: $('pFecoepAtivo').checked, fecoepPadrao: parseFloat($('pFecoepPts').value) || 0, fecoepBase: $('pFecoepBase').value, backendUrl: $('pBackend').value.trim().replace(/\/$/, '') };
+  DB.params = { ...DB.params, aliqModal: parseFloat($('pAliq').value) || 19, aliqModalBA: parseFloat($('pAliqBA').value) || 20.5, mvaApto: parseFloat($('pMvaApto').value) || 10, mvaInapto: parseFloat($('pMvaInapto').value) || 20, creditoEmitenteSimples: $('pCredSimples').checked, creditoIsentoOrigem: $('pCredIsento').checked, creditoModo: $("pCredModo").value, ajustarMva: $("pAjustarMva").checked, tabelaSt: $("pTabelaSt").value, finalidadeCnae: $("pFinalidadeCnae").value, fecoepAtivo: $('pFecoepAtivo').checked, fecoepPadrao: parseFloat($('pFecoepPts').value) || 0, fecoepBase: $('pFecoepBase').value, backendUrl: $('pBackend').value.trim().replace(/\/$/, '') };
   salvar(); recalcular(); showToast('Parâmetros salvos.', 'success');
 };
 $('btnBackup').onclick = () => { const b = new Blob([JSON.stringify(DB, null, 1)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'totali-antecipa-backup.json'; a.click(); };
@@ -771,6 +789,8 @@ function bindDrop(dropId, inputId, handler) {
 bindDrop('dropEspelho', 'fileEspelho', async files => {
   const f = files[0]; if (!f) return;
   try {
+    // BAHIA: não há espelho do DIA. O relatório de NF-e destinadas (rpt_cons_dest.csv) faz o papel dele e traz as chaves para baixar os XMLs.
+    if (/\.(csv|txt)$/i.test(f.name)) { const txt = await f.text(); if (ESPELHO.ehCsvDestinatario(txt)) return importarRelatorioDestinatario(ESPELHO.lerCsvDestinatario(txt)); }
     const esp = ESPELHO.lerPlanilha(await f.arrayBuffer());
     if (!esp.linhas.length) return showToast(esp.avisos.join(' '), 'error');
     // Empresa: casa pela IE do espelho ou cria
@@ -795,6 +815,24 @@ bindDrop('dropEspelho', 'fileEspelho', async files => {
     if (faltam) setTimeout(() => showToast(`${faltam} nota(s) do espelho sem XML — arraste os XMLs no Passo 2 ou clique em "Buscar pendentes no Portal Nacional".`, ''), 1800);
   } catch (e) { console.error(e); showToast('Não consegui ler o espelho: ' + e.message, 'error'); }
 });
+function importarRelatorioDestinatario(esp) {
+  if (!esp.linhas.length) return showToast(esp.avisos.join(' ') || 'Nenhuma NF-e no relatório.', 'error');
+  const E = empresaAtual();
+  if (!E) return showToast('Cadastre e selecione a empresa da Bahia antes de importar o relatório (Cadastros › Empresas, UF = BA).', 'error');
+  if (E.uf !== 'BA') {
+    if (!confirm('Este arquivo é o relatório de NF-e destinadas (formato usado na Bahia).\n\nMarcar "' + E.nome + '" como empresa da BAHIA (UF = BA)?\n\nA Totali é especialista em Sergipe: o módulo da Bahia está em validação.')) return;
+    E.uf = 'BA';
+  }
+  const m = (esp.ref || '').match(/^(\d{1,2})\/(\d{4})$/); if (m) ST.comp = m[2] + '-' + m[1].padStart(2, '0');
+  renderEmpresasSelect(); $('inpComp').value = ST.comp;
+  const A = apur(); A.espelho = esp;
+  let canc = 0;
+  for (const l of esp.linhas) if (l.cancelada) { const o = A.overrides[l.chave] = { ...(A.overrides[l.chave] || {}) }; if (!o.situacao) { o.situacao = 'cancelada'; canc++; } }
+  salvar(); recalcular();
+  showToast('Relatório carregado: ' + esp.linhas.length + ' NF-e' + (canc ? ', ' + canc + ' cancelada(s) fora da apuração' : '') + ' · competência ' + (esp.ref || ST.comp) + '.', 'success');
+  const faltam = CONF.filter(l => l.semXml).length;
+  if (faltam) setTimeout(() => showToast(faltam + ' nota(s) sem XML — arraste os XMLs no Passo 2 ou use "Buscar pendentes no Portal Nacional" (a consulta sai como empresa da Bahia).', ''), 1800);
+}
 $('btnAddChaves').onclick = () => {
   const esp = ESPELHO.lerTexto($('txtChaves').value); if (!esp.linhas.length) return showToast('Nenhuma chave de 44 dígitos encontrada.', 'error');
   const A = apur(); if (!A.espelho) A.espelho = { contribuinte: '', ie: '', nDia: '', linhas: [], avisos: [] };
@@ -946,7 +984,7 @@ async function buscarPendentes() {
   for (let i = 0; i < pend.length; i++) {
     const ch = pend[i]; btn.textContent = `☁ buscando ${i + 1}/${pend.length}…`;
     try {
-      const j = await api(`/api/nfe/${ch}?cnpj=${E.cnpj}`);
+      const j = await api(`/api/nfe/${ch}?cnpj=${E.cnpj}&uf=${E.uf || 'SE'}`);
       if (j.ok && j.xml) { apur().xmls[ch] = j.xml; ok++; salvar(); recalcular(); }
       else if (j.codigo === 'SENHA_NECESSARIA' || j.codigo === 'SEM_CERTIFICADO') { btn.disabled = false; btn.textContent = '☁ Buscar pendentes no Portal Nacional'; await checarSefaz(); return garantirCertificado(); }
       else { if (j.pendente) pendentes++; else fail++; falhas.push(ch); detalhes.push({ ...infoDe(ch), motivo: (j.pendente ? "Aguardando liberação após a ciência — tente de novo em alguns minutos. " : "") + (j.motivo || j.erro || "sem resposta") }); console.warn(ch, j); }
@@ -967,7 +1005,7 @@ $('btnDistribuicao').onclick = async () => {
   if (!(await garantirCertificado())) return;
   const E = empresaAtual(); const btn = $('btnDistribuicao'); btn.disabled = true; btn.textContent = '⬇ baixando…';
   try {
-    const j = await api(`/api/distribuicao?cnpj=${E.cnpj}`);
+    const j = await api(`/api/distribuicao?cnpj=${E.cnpj}&uf=${E.uf || 'SE'}`);
     if (!j.ok) throw new Error(j.erro || j.motivo || 'falha');
     let novas = 0, resumos = 0, outros = 0; const A = apur();
     for (const d of j.docs || []) {

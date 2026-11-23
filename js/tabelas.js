@@ -84,6 +84,26 @@ const TABELAS_SE = {
       mva: 'nenhum', acrescimos: true, base: 'Regime Simfaz' },
     { id: 'nao_antecipa',     cod: '',     nome: 'OPERAÇÃO NÃO ANTECIPADA',
       titulo: 'Operação não antecipada', formula: 'sem imposto', mva: 'nenhum', acrescimos: false, base: '' },
+
+    // ---- BAHIA (módulo em validação — a Totali é especialista em Sergipe) ---------------------------------------
+    // A Bahia não tem mapa de apuração oficial: o escritório usa a grade do mapa de Sergipe para calcular. Receitas só aparecem
+    // para empresa cadastrada com UF = BA (soUf). Códigos do DAE: 2175 vem da Econet (antecipação parcial); 1145 vem da planilha do escritório
+    // e não foi confirmado em fonte oficial.
+    { id: 'ba_parcial', soUf: 'BA', cod: '2175', nome: 'Antecipação parcial (BA)',
+      titulo: 'Antecipação parcial do ICMS — Bahia (aquisição interestadual para comercialização)',
+      formula: 'K × alíquota interna − ICMS destacado (sem MVA)',
+      mva: 'nenhum', acrescimos: true, confirmar: true,
+      base: 'Lei 7.014/96 (BA), art. 12-A e art. 23, III; RICMS/BA (Dec. 13.780/2012) — módulo em validação, a Totali é especialista em Sergipe' },
+    { id: 'ba_total', soUf: 'BA', cod: '1145', nome: 'Antecipação total / ST (BA)',
+      titulo: 'Antecipação total (substituição tributária por antecipação) — Bahia',
+      formula: 'K × (1 + MVA ajustada) × alíquota interna − crédito',
+      mva: 'produto', acrescimos: true, confirmar: true,
+      base: 'Lei 7.014/96 (BA), arts. 8º, 9º e 23; Anexo 1 do RICMS/BA (MVA por regra cadastrada pelo usuário) — módulo em validação' },
+    { id: 'ba_difal', soUf: 'BA', cod: '', nome: 'Diferencial de alíquota (BA)',
+      titulo: 'Diferencial de alíquota — Bahia (uso, consumo ou ativo imobilizado)',
+      formula: 'base = (K − ICMS origem) ÷ (1 − alíq. interna) · DIFAL = base × alíq. interna − ICMS origem',
+      mva: 'nenhum', acrescimos: true, difal: true, difalBA: true, manual: true, confirmar: true,
+      base: 'Lei 7.014/96 (BA), art. 4º, XV e art. 15, § 7º; Conv. ICMS 93/2015 (base única); fórmula da planilha do escritório — módulo em validação' },
   ],
 
   // ---------------------------------------------------------------
@@ -469,5 +489,30 @@ const TABELAS_SE = {
     remessaRetorno: 'Remessa/retorno (69xx) — não antecipa',
     stRetida: 'Venda com ST retida na origem (64xx) — não antecipa',
     outro: 'CFOP não mapeado — conferir',
+  },
+};
+
+/* =====================================================================
+   BAHIA — módulo em validação
+   A Totali é especialista em ICMS de SERGIPE. Este bloco reúne o que se sabe da Bahia, com o grau de confiança de cada item,
+   para o sistema calcular a antecipação das empresas baianas na grade do mapa de Sergipe. Nada aqui substitui a conferência no
+   RICMS/BA (Decreto 13.780/2012) e na Lei 7.014/96. Estudo completo e fontes: docs/icms-ba/ESTUDO_ICMS_BA.md
+   ===================================================================== */
+const TABELAS_BA = {
+  uf: 'BA',
+  versao: '2026-11',
+  aviso: 'A Totali é especialista em ICMS de Sergipe. O módulo da Bahia segue a Lei 7.014/96 e a prática do escritório; os textos oficiais da SEFAZ-BA não puderam ser conferidos na fonte. Valide antes de recolher.',
+  // 20,5%: usada na planilha de cálculo do escritório para empresa baiana (set/2026) e citada por sites comerciais (Lei 14.629/2023, desde 07/02/2024).
+  // A cópia consolidada da Lei 7.014/96 consultada ainda mostra 18% no art. 15, I: confirmar o texto vigente.
+  aliquotaInternaModal: 20.5,
+  codigoParcial: '2175',      // Econet (blog); não confirmado na SEFAZ-BA
+  codigoTotal: '1145',        // planilha do escritório; não confirmado em fonte oficial
+  prazo: 'Antecipação parcial: antes da entrada no Estado ou, se o contribuinte for credenciado, até o dia 25 do mês seguinte à data do MDF-e vinculado à nota (Econet, 2026; confirmar no RICMS/BA, art. 332).',
+  reducaoMeEpp: 'ME e EPP que pagam no prazo regulamentar têm redução de 20% do valor devido (RICMS/BA, art. 274, segundo fontes secundárias). O sistema NÃO aplica a redução: o escritório fechou setembro sem ela.',
+  fundamentos: {
+    parcial: 'Lei 7.014/96, art. 12-A: nas aquisições interestaduais para comercialização, antecipação parcial pela alíquota interna sobre a base do art. 23, III, deduzido o imposto destacado; não encerra a fase de tributação; não alcança mercadoria isenta, não tributada ou já sujeita à antecipação/substituição que encerre a fase.',
+    simples: 'Optante do Simples (ME/EPP): fontes secundárias citam o RICMS/BA, art. 321, VII, "b": diferença entre a alíquota interna e a interestadual, vedada a agregação de valores. Com o crédito pelo imposto destacado, o resultado coincide com a conta do sistema.',
+    fecep: 'Lei 7.014/96, art. 16-A: dois pontos do FECEP sobre os produtos que a lei lista (por exemplo bebidas, cosméticos, cigarros, armas). Vestuário e calçados não constam das tabelas consultadas.',
+    difal: 'Lei 7.014/96, art. 4º, XV (fato gerador na entrada para uso, consumo ou ativo), art. 15, § 7º e art. 17. Fórmula de base única adotada na planilha do escritório (Conv. ICMS 93/2015).',
   },
 };
