@@ -90,7 +90,7 @@ const ESPELHO = (() => {
     return cab.includes('chave de acesso') && cab.includes('uf emit');
   }
   function lerCsvDestinatario(txt) {
-    const out = { contribuinte: '', ie: '', nDia: '', ref: '', origem: 'relatorio-destinatario', linhas: [], avisos: [] };
+    const out = { contribuinte: '', ie: '', nDia: '', ref: '', origem: 'relatorio-destinatario', linhas: [], ignoradas: [], invalidas: [], avisos: [] };
     const rows = String(txt || '').replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
     if (!rows.length) { out.avisos.push('Arquivo vazio.'); return out; }
     const sep = (rows[0].match(/;/g) || []).length >= (rows[0].match(/,/g) || []).length ? ';' : ',';
@@ -102,8 +102,21 @@ const ESPELHO = (() => {
     for (const l of rows.slice(1)) {
       const c = l.split(sep);
       const chave = String(c[i.chave] || '').replace(/\D/g, '');
+      // Chave estragada (o Excel troca a chave de 44 dígitos por notação científica ao salvar o CSV, ex. "4,22609E+43"): a nota existe
+      // mas não dá para baixar o XML. Fica registrada em "invalidas" para o usuário arrastar o XML ou colar a chave certa.
+      if (chave.length !== 44 && String(c[i.num] || '').replace(/\D/g, '')) {
+        out.invalidas.push({ nNF: String(parseInt(String(c[i.num] || '').replace(/\D/g, ''), 10) || ''), emitenteNome: String(c[i.razao] || '').trim(), vlTotal: num(c[i.val]), chaveLida: String(c[i.chave] || '').trim() });
+        continue;
+      }
       if (chave.length !== 44 || vistas.has(chave)) continue;
       vistas.add(chave);
+      // "Tipo Operacao" é do ponto de vista do EMITENTE: Saida = o emitente vendeu (é compra para a empresa); Entrada = o emitente
+      // registrou uma entrada, em geral DEVOLUÇÃO de venda. Só as de Saida entram na apuração; as de Entrada ficam listadas em "ignoradas".
+      const tipoOp = String(c[i.tipo] || '').trim();
+      if (i.tipo >= 0 && tipoOp && !norm(tipoOp).startsWith('saida')) {
+        out.ignoradas.push({ chave, nNF: String(parseInt(String(c[i.num] || '').replace(/\D/g, ''), 10) || ''), emitenteNome: String(c[i.razao] || '').trim(), vlTotal: num(c[i.val]), tipoOperacao: tipoOp, situacaoNfe: String(c[i.sit] || '').trim() });
+        continue;
+      }
       const d = String(c[i.emi] || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
       const sit = String(c[i.sit] || '').trim();
       out.linhas.push({
@@ -114,7 +127,9 @@ const ESPELHO = (() => {
         cancelada: /cancelad|denegad/i.test(sit),
       });
     }
-    if (!out.linhas.length) out.avisos.push('Nenhuma linha com chave de acesso (44 dígitos) foi encontrada no arquivo.');
+    if (out.ignoradas.length) out.avisos.push(out.ignoradas.length + ' NF-e de "Entrada" ignorada(s): em geral é devolução e não entra na antecipação.');
+    if (out.invalidas.length) out.avisos.push(out.invalidas.length + ' linha(s) sem chave de acesso válida (NF ' + out.invalidas.map(x => x.nNF).join(', ') + '): o Excel pode ter estragado a chave. Arraste o XML dessa nota ou cole a chave certa.');
+    if (!out.linhas.length) out.avisos.push(out.ignoradas.length ? 'O relatório só traz NF-e de "Entrada" (em geral devolução): nada a antecipar.' : 'Nenhuma linha com chave de acesso (44 dígitos) foi encontrada no arquivo.');
     // competência = mês com mais notas emitidas
     const cont = {}; for (const l of out.linhas) if (l.mesRef) cont[l.mesRef] = (cont[l.mesRef] || 0) + 1;
     out.ref = Object.keys(cont).sort((a, b) => cont[b] - cont[a])[0] || '';

@@ -79,7 +79,7 @@ function recalcular() {
   CONF.sort((a, b) => (a.dtEmi || '').localeCompare(b.dtEmi || '') || String(a.nNF).localeCompare(String(b.nNF), undefined, { numeric: true }));
   CONS = MOTOR.consolidar(RES);
   renderKpis(); renderNotas(); renderResumo(); if (ST.view === 'mapa') renderMapa(); if (ST.view === 'itens') renderItens();
-  $('infoEspelho').textContent = A.espelho ? `${A.espelho.linhas.length} nota(s) no espelho` + (A.espelho.nDia ? ` · DIA ${A.espelho.nDia}` : '') : 'nenhum espelho carregado';
+  $('infoEspelho').textContent = A.espelho ? `${A.espelho.linhas.length} nota(s) no espelho` + (A.espelho.nDia ? ` · DIA ${A.espelho.nDia}` : '') + ((A.espelho.ignoradas || []).length ? ` · ${A.espelho.ignoradas.length} de Entrada ignorada(s)` : '') : 'nenhum espelho carregado';
   const pend = CONF.filter(l => l.semXml).length;
   $('infoXml').innerHTML = `${Object.keys(A.xmls).length} XML(s) carregado(s)` +
     (pend ? ` · <b class="clickable" id="lnkPendentes" title="ver só as notas que ainda estão sem XML">${pend} pendente(s)</b>` : '');
@@ -818,6 +818,7 @@ bindDrop('dropEspelho', 'fileEspelho', async files => {
 });
 function importarRelatorioDestinatario(esp) {
   if (!esp.linhas.length) return showToast(esp.avisos.join(' ') || 'Nenhuma NF-e no relatório.', 'error');
+  const nIgn = (esp.ignoradas || []).length, nInv = (esp.invalidas || []).length;
   const E = empresaAtual();
   if (!E) return showToast('Cadastre e selecione a empresa da Bahia antes de importar o relatório (Cadastros › Empresas, UF = BA).', 'error');
   if (E.uf !== 'BA') {
@@ -830,7 +831,8 @@ function importarRelatorioDestinatario(esp) {
   let canc = 0;
   for (const l of esp.linhas) if (l.cancelada) { const o = A.overrides[l.chave] = { ...(A.overrides[l.chave] || {}) }; if (!o.situacao) { o.situacao = 'cancelada'; canc++; } }
   salvar(); recalcular();
-  showToast('Relatório carregado: ' + esp.linhas.length + ' NF-e' + (canc ? ', ' + canc + ' cancelada(s) fora da apuração' : '') + ' · competência ' + (esp.ref || ST.comp) + '.', 'success');
+  showToast('Relatório carregado: ' + esp.linhas.length + ' NF-e' + (canc ? ', ' + canc + ' cancelada(s) fora da apuração' : '') + ' · competência ' + (esp.ref || ST.comp) + (nIgn ? ' · ' + nIgn + ' de "Entrada" ignorada(s) (em geral devolução)' : '') + '.', 'success');
+  if (nInv) setTimeout(() => showToast(nInv + ' linha(s) do relatório sem chave válida (NF ' + esp.invalidas.map(x => x.nNF).join(', ') + '): o Excel estraga a chave ao salvar o CSV. Arraste o XML dessa nota ou cole a chave certa no Passo 1.', 'error'), 1200);
   const faltam = CONF.filter(l => l.semXml).length;
   if (faltam) setTimeout(() => showToast(faltam + ' nota(s) sem XML — arraste os XMLs no Passo 2 ou use "Buscar pendentes no Portal Nacional" (a consulta sai como empresa da Bahia).', ''), 1800);
 }

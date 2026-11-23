@@ -12,7 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="js/firebase-config.js?v=1.29.2"></script>
+<script src="js/firebase-config.js?v=1.29.3"></script>
 <style>
   :root {
     --navy: #182C43; --navy-2: #112C48; --navy-3: #0D1F3C; --gold: #C89D57; --gold-2: #E8B963; --amarelo: #FFAE00;
@@ -411,7 +411,7 @@
         <p class="muted" style="margin:0 0 8px"><b>A Totali é especialista em ICMS de Sergipe.</b> O módulo da Bahia foi montado a partir da planilha de cálculo e do mapa que o escritório já usa para empresa baiana, da Lei 7.014/96 e de fontes secundárias, e conferido no <b>texto oficial do RICMS/BA</b> (Decreto 13.780/2012, atualizado até o Decreto 24.829/2026). A Lei 7.014/96 foi conferida no texto consolidado do Econet (art. 12-A, art. 15, I com 20,5%, art. 16-A e art. 23, III). Os códigos do DAE, o FECEP por produto e o Anexo 1 (lista de ST) <b>ainda não foram conferidos</b> em fonte oficial: valide antes de recolher. Calçados e vestuário <b>não constam do Anexo 1</b> (19 segmentos), então vão para a antecipação parcial.</p>
         <ol style="padding-left:18px; margin:0">
           <li><b>Cadastro:</b> em Cadastros › Empresas, escolha <i>UF = Bahia</i>. As regras embutidas (Anexo X, cesta básica, supérfluos, informática) são de Sergipe e deixam de valer.</li>
-          <li><b>Relatório no lugar do espelho:</b> a Bahia não tem espelho do DIA. Arraste no Passo 1 o relatório de NF-e destinadas (<span class="mono">rpt_cons_dest.csv</span>): ele traz as chaves, a competência e as notas canceladas, que saem da apuração.</li>
+          <li><b>Relatório no lugar do espelho:</b> a Bahia não tem espelho do DIA. Arraste no Passo 1 o relatório de NF-e destinadas (<span class="mono">rpt_cons_dest.csv</span>): ele traz as chaves, a competência e as notas canceladas, que saem da apuração. Só entram as notas com <i>Tipo Operação = Saída</i> (a venda do emitente, que é a compra da empresa); as de <i>Entrada</i>, em geral devolução, são ignoradas e contadas no aviso.</li>
           <li><b>XML:</b> "Buscar pendentes no Portal Nacional" consulta como empresa da Bahia (UF do autor 29). Na versão publicada no site a busca depende da função na nuvem, que precisa ser reimplantada; pelo INICIAR.bat funciona na hora.</li>
           <li><b>Cálculo:</b> entrada interestadual para revenda = antecipação parcial (código 2175): base = valor + IPI + frete + seguro + outras − desconto, sem MVA, × alíquota interna de 20,5%, menos o ICMS destacado. Produto com ST: cadastre uma regra com UF = BA, regime "com encerramento", MVA e alíquota (antecipação total, código 1145).</li>
           <li><b>DIFAL:</b> uso, consumo e ativo saem da antecipação; marque "Calcular como DIFAL" na nota. Fórmula da planilha do escritório: (valor − ICMS origem) ÷ (1 − 20,5%) × 20,5% − ICMS origem.</li>
@@ -612,20 +612,20 @@
 
 <div id="toast"></div>
 
-<script src="js/versao.js?v=1.29.2"></script>
-<script src="js/tabelas.js?v=1.29.2"></script>
-<script src="js/tabelas-fundamentos.js?v=1.29.2"></script>
-<script src="js/tabelas-cnae.js?v=1.29.2"></script>
-<script src="js/nfe.js?v=1.29.2"></script>
-<script src="js/materiais.js?v=1.29.2"></script>
-<script src="js/motor.js?v=1.29.2"></script>
-<script src="js/espelho.js?v=1.29.2"></script>
-<script src="js/exportar.js?v=1.29.2"></script>
-<script src="js/auditoria.js?v=1.29.2"></script>
-<script src="js/app.js?v=1.29.2"></script>
-<script src="js/app-regime.js?v=1.29.2"></script>
-<script src="js/app-materiais.js?v=1.29.2"></script>
-<script src="js/firebase-sync.js?v=1.29.2"></script>
-<script src="js/firebase-certs.js?v=1.29.2"></script>
+<script src="js/versao.js?v=1.29.3"></script>
+<script src="js/tabelas.js?v=1.29.3"></script>
+<script src="js/tabelas-fundamentos.js?v=1.29.3"></script>
+<script src="js/tabelas-cnae.js?v=1.29.3"></script>
+<script src="js/nfe.js?v=1.29.3"></script>
+<script src="js/materiais.js?v=1.29.3"></script>
+<script src="js/motor.js?v=1.29.3"></script>
+<script src="js/espelho.js?v=1.29.3"></script>
+<script src="js/exportar.js?v=1.29.3"></script>
+<script src="js/auditoria.js?v=1.29.3"></script>
+<script src="js/app.js?v=1.29.3"></script>
+<script src="js/app-regime.js?v=1.29.3"></script>
+<script src="js/app-materiais.js?v=1.29.3"></script>
+<script src="js/firebase-sync.js?v=1.29.3"></script>
+<script src="js/firebase-certs.js?v=1.29.3"></script>
 </body>
 </html>
